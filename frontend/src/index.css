@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans antialiased text-slate-800;
+    margin: 0;
+    min-height: 100vh;
+    background-color: #0f172a;
+    background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                      radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+                      radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+    background-attachment: fixed;
+    color: #e2e8f0;
+  }
+}
+
+/* Glassmorphism Classes */
+@layer utilities {
+  .glass-panel {
+    @apply bg-slate-900/40 backdrop-blur-xl border border-slate-700/50 shadow-xl;
+  }
+  
+  .glass-card {
+    @apply bg-slate-800/60 backdrop-blur-md border border-slate-700/50 hover:border-slate-500/50 transition-all duration-300;
+  }
+  
+  .glass-input {
+    @apply bg-slate-900/50 border border-slate-700/50 text-slate-200 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none transition-all;
+  }
+
+  /* Custom Scrollbar for sleek UI */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.4); 
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(71, 85, 105, 0.8); 
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 1); 
+  }
+}

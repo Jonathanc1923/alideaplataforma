@@ -3,7 +3,7 @@ import axios from 'axios'
 import { Link } from 'react-router-dom'
 import { Plus, MessageSquare, Activity, ChevronRight, Shield, Zap } from 'lucide-react'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
 
 export default function Home() {
     const [sessions, setSessions] = useState([]);

@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import axios from 'axios'
 import { ArrowLeft, Trash2, Clock, Smartphone, MessageSquare, Zap, Target, Shield, Paperclip, Image as ImageIcon, FileAudio, Edit2, X } from 'lucide-react'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
 
 export default function SessionDetail() {
     const { id } = useParams();

@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: wsp1-backend
+    name: wsp1-platform
     env: node
-    buildCommand: npm install
-    startCommand: node index.js
+    buildCommand: npm run build
+    startCommand: npm start
     envVars:
       - key: DB_PATH
         value: /data/database.sqlite
@@ -15,14 +15,3 @@ services:
       name: wsp1-data
       mountPath: /data
       sizeGB: 1
-    rootDir: backend
-
-  - type: web
-    name: wsp1-frontend
-    env: static
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    rootDir: frontend
-    envVars:
-      - key: VITE_API_URL
-        value: # URL DEL BACKEND AQUI (ej: https://wsp1-backend.onrender.com)

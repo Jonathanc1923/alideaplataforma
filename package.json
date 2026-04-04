@@ -2,7 +2,7 @@
   "name": "wsp1-platform",
   "version": "1.0.0",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build && cd ../backend && npm install",
+    "build": "cd frontend && npm install && npm run build && cd ../backend && npm install sqlite3 --build-from-source && npm install",
     "start": "cd backend && node index.js"
   }
 }

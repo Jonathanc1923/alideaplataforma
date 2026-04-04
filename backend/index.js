@@ -203,7 +203,7 @@ app.delete('/api/sessions/:id/keywords/:kwId', async (req, res) => {
 
 // Static serve frontend files locally
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
-app.get('*', (req, res) => {
+app.use((req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
 

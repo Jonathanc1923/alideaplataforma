@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import axios from 'axios'
-import { ArrowLeft, Trash2, Clock, Smartphone, MessageSquare, Zap, Target, Shield, Paperclip, Image as ImageIcon, FileAudio, Edit2, X } from 'lucide-react'
+import { ArrowLeft, Trash2, Clock, Smartphone, MessageSquare, Zap, Target, Shield, Paperclip, Image as ImageIcon, FileAudio, Edit2, X, Film } from 'lucide-react'
 
 const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
 
@@ -15,7 +15,10 @@ export default function SessionDetail() {
     const [responseText, setResponseText] = useState('');
     const [delayMin, setDelayMin] = useState(2);
     const [delayMax, setDelayMax] = useState(6);
-    const [mediaFile, setMediaFile] = useState(null);
+    const [mediaDelayMin, setMediaDelayMin] = useState(2);
+    const [mediaDelayMax, setMediaDelayMax] = useState(6);
+    const [mediaFiles, setMediaFiles] = useState([]);
+    const [existingMedia, setExistingMedia] = useState([]);
     const [editingId, setEditingId] = useState(null);
 
     const startEditing = (kw) => {
@@ -24,7 +27,25 @@ export default function SessionDetail() {
         setResponseText(kw.response_text || '');
         setDelayMin(kw.delay_min || 2);
         setDelayMax(kw.delay_max || 6);
-        setMediaFile(null); 
+        setMediaDelayMin(kw.media_delay_min || 2);
+        setMediaDelayMax(kw.media_delay_max || 6);
+        setMediaFiles([]);
+        
+        let files = [];
+        if (kw.media_files) {
+            try {
+                files = JSON.parse(kw.media_files);
+            } catch (e) {
+                console.error("Error parsing media_files in edit:", e);
+            }
+        } else if (kw.media_path) {
+            files = [{
+                path: kw.media_path,
+                type: kw.media_type,
+                name: kw.media_path.split('/').pop().split('\\').pop()
+            }];
+        }
+        setExistingMedia(files);
         window.scrollTo({ top: 300, behavior: 'smooth' });
     };
 
@@ -34,7 +55,10 @@ export default function SessionDetail() {
         setResponseText('');
         setDelayMin(2);
         setDelayMax(6);
-        setMediaFile(null);
+        setMediaDelayMin(2);
+        setMediaDelayMax(6);
+        setMediaFiles([]);
+        setExistingMedia([]);
         const fileInput = document.getElementById('mediaInput');
         if (fileInput) fileInput.value = '';
     };
@@ -72,9 +96,16 @@ export default function SessionDetail() {
             formData.append('response_text', responseText);
             formData.append('delay_min', delayMin);
             formData.append('delay_max', delayMax);
-            if (mediaFile) {
-                formData.append('media', mediaFile);
+            formData.append('media_delay_min', mediaDelayMin);
+            formData.append('media_delay_max', mediaDelayMax);
+
+            if (editingId) {
+                formData.append('existing_media', JSON.stringify(existingMedia));
             }
+
+            mediaFiles.forEach(file => {
+                formData.append('media', file);
+            });
 
             if (editingId) {
                 await axios.put(`${API_BASE}/sessions/${id}/keywords/${editingId}`, formData, {
@@ -91,7 +122,10 @@ export default function SessionDetail() {
             setResponseText('');
             setDelayMin(2);
             setDelayMax(6);
-            setMediaFile(null);
+            setMediaDelayMin(2);
+            setMediaDelayMax(6);
+            setMediaFiles([]);
+            setExistingMedia([]);
             
             // Reset input file value
             const fileInput = document.getElementById('mediaInput');
@@ -258,19 +292,50 @@ export default function SessionDetail() {
                             <div className="md:col-span-2 relative z-10">
                                 <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
                                     <Paperclip size={16} className="text-cyan-400" />
-                                    Adjuntar Imagen, Audio o Video (Opcional)
+                                    Adjuntar Imagen, Audio o Video (Múltiple, Opcional)
                                 </label>
                                 <div className="relative">
-                                    <input id="mediaInput" type="file" onChange={e=>setMediaFile(e.target.files[0])}
+                                    <input id="mediaInput" type="file" multiple onChange={e => setMediaFiles(prev => [...prev, ...Array.from(e.target.files)])}
                                         accept="image/*,audio/*,video/*,.pdf"
                                         className="w-full text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-500/20 file:text-cyan-400 hover:file:bg-cyan-500/30 transition-all border border-slate-700/50 rounded-xl p-2 bg-slate-900/50" />
                                 </div>
-                                {mediaFile && <p className="text-xs text-cyan-300 mt-2 font-medium">✨ Archivo listo: {mediaFile.name}</p>}
+                                
+                                {editingId && existingMedia.length > 0 && (
+                                    <div className="mt-3 space-y-2">
+                                        <p className="text-xs font-semibold text-amber-400">Archivos multimedia existentes (se mantendrán):</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {existingMedia.map((file, idx) => (
+                                                <span key={idx} className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-300 border border-amber-500/20 px-3 py-1 rounded-full text-xs">
+                                                    {file.name || file.path.split('/').pop().split('\\').pop()}
+                                                    <button type="button" onClick={() => setExistingMedia(prev => prev.filter((_, i) => i !== idx))} className="text-amber-400 hover:text-red-400 ml-1">
+                                                        <X size={14} />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {mediaFiles.length > 0 && (
+                                    <div className="mt-3 space-y-2">
+                                        <p className="text-xs font-semibold text-cyan-400">Nuevos archivos seleccionados para subir:</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {mediaFiles.map((file, idx) => (
+                                                <span key={idx} className="inline-flex items-center gap-1 bg-slate-800 text-slate-200 border border-slate-700 px-3 py-1 rounded-full text-xs">
+                                                    {file.name}
+                                                    <button type="button" onClick={() => setMediaFiles(prev => prev.filter((_, i) => i !== idx))} className="text-slate-400 hover:text-red-400 ml-1">
+                                                        <X size={14} />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="relative z-10">
                                 <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-1.5">
-                                    <Clock size={16} className="text-indigo-400"/> Delay Mínimo (seg)
+                                    <Clock size={16} className="text-indigo-400"/> Delay Mínimo Texto (seg)
                                 </label>
                                 <div className="relative">
                                     <input required type="number" min="0" value={delayMin} onChange={e=>setDelayMin(e.target.value)}
@@ -281,10 +346,32 @@ export default function SessionDetail() {
 
                             <div className="relative z-10">
                                 <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-1.5">
-                                    <Clock size={16} className="text-purple-400" /> Delay Máximo (seg)
+                                    <Clock size={16} className="text-purple-400" /> Delay Máximo Texto (seg)
                                 </label>
                                 <div className="relative">
                                     <input required type="number" min="0" value={delayMax} onChange={e=>setDelayMax(e.target.value)}
+                                        className="w-full glass-input rounded-xl px-4 py-3 pl-10" />
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">s</span>
+                                </div>
+                            </div>
+
+                            <div className="relative z-10">
+                                <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-1.5">
+                                    <Clock size={16} className="text-cyan-400"/> Delay Mínimo Multimedia (seg)
+                                </label>
+                                <div className="relative">
+                                    <input required type="number" min="0" value={mediaDelayMin} onChange={e=>setMediaDelayMin(e.target.value)}
+                                        className="w-full glass-input rounded-xl px-4 py-3 pl-10" />
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">s</span>
+                                </div>
+                            </div>
+
+                            <div className="relative z-10">
+                                <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-1.5">
+                                    <Clock size={16} className="text-emerald-400" /> Delay Máximo Multimedia (seg)
+                                </label>
+                                <div className="relative">
+                                    <input required type="number" min="0" value={mediaDelayMax} onChange={e=>setMediaDelayMax(e.target.value)}
                                         className="w-full glass-input rounded-xl px-4 py-3 pl-10" />
                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">s</span>
                                 </div>
@@ -326,18 +413,64 @@ export default function SessionDetail() {
                                                         "{kw.keyword}"
                                                     </span>
                                                     <span className="text-xs font-semibold text-slate-400 flex items-center gap-1 bg-slate-800 px-2 py-1 rounded-md">
-                                                        <Clock size={12} /> Espera {kw.delay_min} a {kw.delay_max}s + tipeo
+                                                        <Clock size={12} /> Texto: {kw.delay_min} a {kw.delay_max}s
                                                     </span>
-                                                    {kw.media_type && kw.media_type.startsWith('image/') && (
-                                                        <span className="text-xs font-semibold text-cyan-400 flex items-center gap-1 bg-slate-800 px-2 py-1 rounded-md border border-cyan-500/30">
-                                                            <ImageIcon size={12} /> Imagen Adjunta
-                                                        </span>
-                                                    )}
-                                                    {kw.media_type && kw.media_type.startsWith('audio/') && (
-                                                        <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1 bg-slate-800 px-2 py-1 rounded-md border border-emerald-500/30">
-                                                            <FileAudio size={12} /> Audio (Nota de Voz)
-                                                        </span>
-                                                    )}
+                                                    {(() => {
+                                                        const mediaList = (() => {
+                                                            if (kw.media_files) {
+                                                                try {
+                                                                    return JSON.parse(kw.media_files);
+                                                                } catch(e) {
+                                                                    console.error(e);
+                                                                }
+                                                            }
+                                                            if (kw.media_path) {
+                                                                return [{
+                                                                    path: kw.media_path,
+                                                                    type: kw.media_type,
+                                                                    name: kw.media_path.split('/').pop().split('\\').pop()
+                                                                }];
+                                                            }
+                                                            return [];
+                                                        })();
+
+                                                        if (mediaList.length === 0) return null;
+
+                                                        return (
+                                                            <>
+                                                                <span className="text-xs font-semibold text-slate-400 flex items-center gap-1 bg-slate-800 px-2 py-1 rounded-md">
+                                                                    <Clock size={12} /> Media delay: {kw.media_delay_min || 2} a {kw.media_delay_max || 6}s
+                                                                </span>
+                                                                {mediaList.map((m, mIdx) => {
+                                                                    const isImage = m.type && m.type.startsWith('image/');
+                                                                    const isAudio = m.type && m.type.startsWith('audio/');
+                                                                    const isVideo = m.type && m.type.startsWith('video/');
+                                                                    let IconComponent = Paperclip;
+                                                                    let colorClass = 'text-cyan-400 border-cyan-500/30';
+                                                                    let label = 'Archivo';
+                                                                    if (isImage) {
+                                                                        IconComponent = ImageIcon;
+                                                                        colorClass = 'text-sky-400 border-sky-500/30';
+                                                                        label = 'Foto';
+                                                                    } else if (isAudio) {
+                                                                        IconComponent = FileAudio;
+                                                                        colorClass = 'text-emerald-400 border-emerald-500/30';
+                                                                        label = 'Audio';
+                                                                    } else if (isVideo) {
+                                                                        IconComponent = Film;
+                                                                        colorClass = 'text-rose-400 border-rose-500/30';
+                                                                        label = 'Video';
+                                                                    }
+
+                                                                    return (
+                                                                        <span key={mIdx} className={`text-xs font-semibold flex items-center gap-1 bg-slate-800 px-2 py-1 rounded-md border ${colorClass}`} title={m.name}>
+                                                                            <IconComponent size={12} /> {label} ({mIdx + 1})
+                                                                        </span>
+                                                                    );
+                                                                })}
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </div>
                                                 <div className="bg-slate-800/80 rounded-lg p-4 border border-slate-700/70 relative">
                                                     <div className="absolute -left-2 top-4 w-4 h-4 bg-slate-800/80 border-l border-t border-slate-700/70 rotate-[-45deg]"></div>

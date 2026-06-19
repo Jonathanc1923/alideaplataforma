@@ -135,34 +135,64 @@ app.get('/api/sessions/:id/keywords', async (req, res) => {
     }
 });
 
-app.post('/api/sessions/:id/keywords', upload.single('media'), async (req, res) => {
+app.post('/api/sessions/:id/keywords', upload.array('media', 10), async (req, res) => {
     try {
         const { id } = req.params;
-        const { keyword, response_text, delay_min, delay_max } = req.body;
-        const mediaFile = req.file;
+        const { keyword, response_text, delay_min, delay_max, media_delay_min, media_delay_max } = req.body;
+        const files = req.files || [];
         
         if (!keyword) return res.status(400).json({ error: 'Keyword required' });
 
         const kwId = uuidv4();
-        const mediaPath = mediaFile ? mediaFile.path : null;
-        const mediaType = mediaFile ? mediaFile.mimetype : null;
+        const mediaFilesArray = files.map(file => ({
+            path: file.path,
+            type: file.mimetype,
+            name: file.originalname
+        }));
+        const mediaFilesJSON = JSON.stringify(mediaFilesArray);
+        const mediaPath = mediaFilesArray.length > 0 ? mediaFilesArray[0].path : null;
+        const mediaType = mediaFilesArray.length > 0 ? mediaFilesArray[0].type : null;
 
         const db = await getDbConnection();
         await db.run(
-            'INSERT INTO keywords (id, session_id, keyword, response_text, delay_min, delay_max, media_path, media_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [kwId, id, keyword, response_text || '', delay_min || 2, delay_max || 6, mediaPath, mediaType]
+            'INSERT INTO keywords (id, session_id, keyword, response_text, delay_min, delay_max, media_path, media_type, media_files, media_delay_min, media_delay_max) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                kwId,
+                id,
+                keyword,
+                response_text || '',
+                parseInt(delay_min, 10) || 2,
+                parseInt(delay_max, 10) || 6,
+                mediaPath,
+                mediaType,
+                mediaFilesJSON,
+                parseInt(media_delay_min, 10) || 2,
+                parseInt(media_delay_max, 10) || 6
+            ]
         );
-        res.json({ id: kwId, session_id: id, keyword, response_text, delay_min, delay_max, media_path: mediaPath, media_type: mediaType });
+        res.json({
+            id: kwId,
+            session_id: id,
+            keyword,
+            response_text,
+            delay_min: parseInt(delay_min, 10) || 2,
+            delay_max: parseInt(delay_max, 10) || 6,
+            media_path: mediaPath,
+            media_type: mediaType,
+            media_files: mediaFilesArray,
+            media_delay_min: parseInt(media_delay_min, 10) || 2,
+            media_delay_max: parseInt(media_delay_max, 10) || 6
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-app.put('/api/sessions/:id/keywords/:kwId', upload.single('media'), async (req, res) => {
+app.put('/api/sessions/:id/keywords/:kwId', upload.array('media', 10), async (req, res) => {
     try {
         const { id, kwId } = req.params;
-        const { keyword, response_text, delay_min, delay_max } = req.body;
-        const mediaFile = req.file;
+        const { keyword, response_text, delay_min, delay_max, media_delay_min, media_delay_max, existing_media } = req.body;
+        const newFiles = req.files || [];
 
         if (!keyword) return res.status(400).json({ error: 'Keyword required' });
 
@@ -170,21 +200,54 @@ app.put('/api/sessions/:id/keywords/:kwId', upload.single('media'), async (req, 
         const existing = await db.get('SELECT * FROM keywords WHERE id = ?', [kwId]);
         if (!existing) return res.status(404).json({ error: 'Keyword not found' });
 
-        let mediaPath = existing.media_path;
-        let mediaType = existing.media_type;
-
-        // Update media if a new file is uploaded
-        if (mediaFile) {
-            mediaPath = mediaFile.path;
-            mediaType = mediaFile.mimetype;
-            // Note: old file cleanup could be implemented here
+        let existingMedia = [];
+        if (existing_media) {
+            try {
+                existingMedia = JSON.parse(existing_media);
+            } catch (e) {
+                console.error("Error parsing existing_media:", e);
+            }
         }
 
+        const newMediaFilesArray = newFiles.map(file => ({
+            path: file.path,
+            type: file.mimetype,
+            name: file.originalname
+        }));
+
+        const mergedMediaFiles = [...existingMedia, ...newMediaFilesArray];
+        const mediaFilesJSON = JSON.stringify(mergedMediaFiles);
+        const mediaPath = mergedMediaFiles.length > 0 ? mergedMediaFiles[0].path : null;
+        const mediaType = mergedMediaFiles.length > 0 ? mergedMediaFiles[0].type : null;
+
         await db.run(
-            'UPDATE keywords SET keyword = ?, response_text = ?, delay_min = ?, delay_max = ?, media_path = ?, media_type = ? WHERE id = ?',
-            [keyword, response_text || '', delay_min || 2, delay_max || 6, mediaPath, mediaType, kwId]
+            'UPDATE keywords SET keyword = ?, response_text = ?, delay_min = ?, delay_max = ?, media_path = ?, media_type = ?, media_files = ?, media_delay_min = ?, media_delay_max = ? WHERE id = ?',
+            [
+                keyword,
+                response_text || '',
+                parseInt(delay_min, 10) || 2,
+                parseInt(delay_max, 10) || 6,
+                mediaPath,
+                mediaType,
+                mediaFilesJSON,
+                parseInt(media_delay_min, 10) || 2,
+                parseInt(media_delay_max, 10) || 6,
+                kwId
+            ]
         );
-        res.json({ id: kwId, session_id: id, keyword, response_text, delay_min, delay_max, media_path: mediaPath, media_type: mediaType });
+        res.json({
+            id: kwId,
+            session_id: id,
+            keyword,
+            response_text,
+            delay_min: parseInt(delay_min, 10) || 2,
+            delay_max: parseInt(delay_max, 10) || 6,
+            media_path: mediaPath,
+            media_type: mediaType,
+            media_files: mergedMediaFiles,
+            media_delay_min: parseInt(media_delay_min, 10) || 2,
+            media_delay_max: parseInt(media_delay_max, 10) || 6
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

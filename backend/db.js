@@ -39,6 +39,18 @@ async function getDbConnection() {
     await db.exec('ALTER TABLE keywords ADD COLUMN media_type TEXT');
   } catch (e) {}
 
+  try {
+    await db.exec('ALTER TABLE keywords ADD COLUMN media_files TEXT');
+  } catch (e) {}
+
+  try {
+    await db.exec('ALTER TABLE keywords ADD COLUMN media_delay_min INTEGER DEFAULT 2');
+  } catch (e) {}
+
+  try {
+    await db.exec('ALTER TABLE keywords ADD COLUMN media_delay_max INTEGER DEFAULT 6');
+  } catch (e) {}
+
   return db;
 }
 

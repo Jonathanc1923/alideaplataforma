@@ -224,23 +224,65 @@ async function processQueue(queueKey, getDbConnection) {
 
                     try { await sock.sendPresenceUpdate('paused', jid); } catch(e) {}
 
-                    if (kw.media_path && fs.existsSync(kw.media_path)) {
-                        const mediaUrl = kw.media_path;
-                        if (kw.media_type.startsWith('image/')) {
-                            await sock.sendMessage(jid, { image: { url: mediaUrl }, caption: kw.response_text || undefined }, { quoted: msg });
-                        } else if (kw.media_type.startsWith('audio/')) {
-                            await sock.sendMessage(jid, { audio: { url: mediaUrl }, ptt: true }, { quoted: msg });
-                            if (kw.response_text) {
-                                await delay(1000);
-                                await sock.sendMessage(jid, { text: kw.response_text }, { quoted: msg });
-                            }
-                        } else if (kw.media_type.startsWith('video/')) {
-                            await sock.sendMessage(jid, { video: { url: mediaUrl }, caption: kw.response_text || undefined }, { quoted: msg });
-                        } else {
-                            await sock.sendMessage(jid, { document: { url: mediaUrl }, fileName: path.basename(mediaUrl), caption: kw.response_text || undefined }, { quoted: msg });
-                        }
-                    } else if (kw.response_text) {
+                    // Send text first if present
+                    if (kw.response_text) {
                         await sock.sendMessage(jid, { text: kw.response_text }, { quoted: msg });
+                        console.log(`[Session ${sessionId}] Mensaje de texto enviado correctamente a ${jid}`);
+                    }
+
+                    // Parse media files list
+                    let mediaFiles = [];
+                    if (kw.media_files) {
+                        try {
+                            mediaFiles = JSON.parse(kw.media_files);
+                        } catch (e) {
+                            console.error(`Error parsing media_files JSON for keyword ${kw.id}:`, e);
+                        }
+                    }
+
+                    // Fallback to media_path if media_files is empty (backwards compatibility)
+                    if (mediaFiles.length === 0 && kw.media_path && fs.existsSync(kw.media_path)) {
+                        mediaFiles.push({
+                            path: kw.media_path,
+                            type: kw.media_type,
+                            name: path.basename(kw.media_path)
+                        });
+                    }
+
+                    // Send media files sequentially with delay
+                    if (mediaFiles.length > 0) {
+                        const mediaMinSec = kw.media_delay_min !== null && kw.media_delay_min !== undefined ? kw.media_delay_min : 2;
+                        const mediaMaxSec = kw.media_delay_max !== null && kw.media_delay_max !== undefined ? kw.media_delay_max : 6;
+
+                        let isFirstMedia = true;
+                        for (const file of mediaFiles) {
+                            if (fs.existsSync(file.path)) {
+                                // Wait delay before sending media if text was sent OR it's not the first media file
+                                if (kw.response_text || !isFirstMedia) {
+                                    const randomMediaDelaySec = mediaMinSec + Math.random() * (mediaMaxSec - mediaMinSec);
+                                    const mediaDelayMs = randomMediaDelaySec * 1000;
+                                    console.log(`Session ${sessionId}: Responding with media delay ${mediaDelayMs}ms`);
+                                    await delay(mediaDelayMs);
+                                }
+                                isFirstMedia = false;
+
+                                const mediaUrl = file.path;
+                                const fileType = file.type || '';
+
+                                if (fileType.startsWith('image/')) {
+                                    await sock.sendMessage(jid, { image: { url: mediaUrl } }, { quoted: msg });
+                                } else if (fileType.startsWith('audio/')) {
+                                    await sock.sendMessage(jid, { audio: { url: mediaUrl }, ptt: true }, { quoted: msg });
+                                } else if (fileType.startsWith('video/')) {
+                                    await sock.sendMessage(jid, { video: { url: mediaUrl } }, { quoted: msg });
+                                } else {
+                                    await sock.sendMessage(jid, { document: { url: mediaUrl }, fileName: file.name || path.basename(mediaUrl) }, { quoted: msg });
+                                }
+                                console.log(`[Session ${sessionId}] Archivo multimedia ${file.name} enviado correctamente a ${jid}`);
+                            } else {
+                                console.warn(`[Session ${sessionId}] Archivo multimedia no encontrado: ${file.path}`);
+                            }
+                        }
                     }
                     console.log(`[Session ${sessionId}] Mensaje encolado enviado correctamente a ${jid}`);
                     

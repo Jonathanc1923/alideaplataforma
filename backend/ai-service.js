@@ -1,7 +1,6 @@
-const FIXED_ENGINE_MODEL = 'qwen2.5:7b';
 const sessionQueues = new Map();
 
-// Helper to limit concurrent requests per session to guarantee complete isolation
+// Helper to limit concurrent requests per session to guarantee complete isolation and zero crosstalk
 async function runWithSessionLock(sessionId, fn) {
   const key = sessionId ? String(sessionId) : 'global';
   const prevPromise = sessionQueues.get(key) || Promise.resolve();
@@ -20,16 +19,24 @@ async function runWithSessionLock(sessionId, fn) {
 }
 
 /**
- * Genera respuesta con Alidea Genesis AI™ (Motor Qwen 2.5 7B)
- * Implementa auto-evaluación previa contra alucinaciones y división natural en 1 o 2 mensajes humanos.
+ * Genera respuesta con Alidea Genesis AI™ (Motor Qwen 2.5 7B vía SiliconFlow API / OpenAI Compatible)
+ * Implementa auto-evaluación previa contra alucinaciones, memoria conversacional y división en mensajes humanos.
  */
-async function generateLocalAIResponse({ sessionId, prompt, systemPrompt, conversationHistory = [], endpoint = 'http://127.0.0.1:11434', temperature = 0.35, allowGreeting = true }) {
+async function generateLocalAIResponse({ 
+  sessionId, 
+  prompt, 
+  systemPrompt, 
+  conversationHistory = [], 
+  endpoint = null, 
+  temperature = 0.35, 
+  allowGreeting = true 
+}) {
   return runWithSessionLock(sessionId, async () => {
-    let cleanEndpoint = endpoint ? endpoint.replace(/\/$/, '') : 'http://127.0.0.1:11434';
-    if (cleanEndpoint.includes('localhost')) {
-      cleanEndpoint = cleanEndpoint.replace('localhost', '127.0.0.1');
-    }
-    
+    // API Configuration from environment variables
+    const siliconFlowApiKey = (process.env.SILICONFLOW_API_KEY || process.env.AI_API_KEY || '').trim();
+    const siliconFlowApiUrl = (process.env.SILICONFLOW_API_URL || process.env.AI_API_URL || 'https://api.siliconflow.cn/v1/chat/completions').trim();
+    const modelName = (process.env.SILICONFLOW_MODEL || process.env.AI_MODEL || 'Qwen/Qwen2.5-7B-Instruct').trim();
+
     // Default business context if none provided
     const businessContext = (systemPrompt && systemPrompt.trim()) 
       ? systemPrompt.trim()
@@ -72,7 +79,7 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
       // Assemble chat messages with system prompt, recent history context, and current user prompt
       const messagesPayload = [
@@ -98,33 +105,70 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
       // Add current message
       messagesPayload.push({ role: 'user', content: prompt });
 
-      const response = await fetch(`${cleanEndpoint}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: FIXED_ENGINE_MODEL,
-          keep_alive: '24h',
-          messages: messagesPayload,
-          stream: false,
-          options: {
+      let rawOutput = '';
+
+      // Mode 1: SiliconFlow Cloud API (Primary in production)
+      if (siliconFlowApiKey) {
+        const response = await fetch(siliconFlowApiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${siliconFlowApiKey}`
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: modelName,
+            messages: messagesPayload,
             temperature: typeof temperature === 'number' ? temperature : 0.35,
-            repeat_penalty: 1.15,
-            num_ctx: 1536,
-            num_predict: 500
-          }
-        })
-      });
+            max_tokens: 500,
+            stream: false
+          })
+        });
 
-      clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Alidea AI Service respondió: ${response.status} ${errText}`);
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`SiliconFlow API respondió: ${response.status} ${errText}`);
+        }
+
+        const data = await response.json();
+        rawOutput = (data.choices?.[0]?.message?.content || '').trim();
+      } else {
+        // Mode 2: Local Ollama Fallback (Development)
+        let cleanEndpoint = endpoint ? endpoint.replace(/\/$/, '') : (process.env.AI_ENDPOINT || 'http://127.0.0.1:11434');
+        if (cleanEndpoint.includes('localhost')) {
+          cleanEndpoint = cleanEndpoint.replace('localhost', '127.0.0.1');
+        }
+
+        const response = await fetch(`${cleanEndpoint}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: 'qwen2.5:7b',
+            keep_alive: '24h',
+            messages: messagesPayload,
+            stream: false,
+            options: {
+              temperature: typeof temperature === 'number' ? temperature : 0.35,
+              repeat_penalty: 1.15,
+              num_ctx: 1536,
+              num_predict: 500
+            }
+          })
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Local Ollama respondió: ${response.status} ${errText}`);
+        }
+
+        const data = await response.json();
+        rawOutput = (data.message?.content || data.response || '').trim();
       }
-
-      const data = await response.json();
-      const rawOutput = (data.message?.content || data.response || '').trim();
 
       // Guardrail Check: Safe transfer if model indicates lack of certainty or refusal
       const lowerOut = rawOutput.toLowerCase();
@@ -172,7 +216,7 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
         shouldAnswer: true,
         messages: finalMessages,
         rawText: rawOutput,
-        engine: 'Alidea Genesis AI™'
+        engine: 'Alidea Genesis AI™ (Qwen 2.5 7B)'
       };
     } catch (err) {
       console.error('[Alidea AI Engine Error]:', err.message);
@@ -185,8 +229,18 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
   });
 }
 
-async function checkLocalAIStatus(endpoint = 'http://localhost:11434') {
-  const cleanEndpoint = endpoint ? endpoint.replace(/\/$/, '') : 'http://localhost:11434';
+async function checkLocalAIStatus(endpoint = null) {
+  const siliconFlowApiKey = (process.env.SILICONFLOW_API_KEY || process.env.AI_API_KEY || '').trim();
+  if (siliconFlowApiKey) {
+    return {
+      connected: true,
+      provider: 'SiliconFlow Cloud GPU',
+      model: process.env.SILICONFLOW_MODEL || 'Qwen/Qwen2.5-7B-Instruct',
+      message: 'Alidea Genesis AI™ (SiliconFlow Qwen 2.5 7B) activo y listo'
+    };
+  }
+
+  const cleanEndpoint = endpoint ? endpoint.replace(/\/$/, '') : (process.env.AI_ENDPOINT || 'http://127.0.0.1:11434');
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3500);
@@ -197,10 +251,11 @@ async function checkLocalAIStatus(endpoint = 'http://localhost:11434') {
     if (!res.ok) return { connected: false, message: 'Alidea AI Service fuera de línea' };
     return {
       connected: true,
+      provider: 'Ollama Local',
       message: 'Alidea Genesis AI™ activo y listo'
     };
   } catch (e) {
-    return { connected: false, message: 'Alidea AI Service no disponible en el puerto local' };
+    return { connected: false, message: 'Alidea AI Service no disponible' };
   }
 }
 
@@ -208,4 +263,3 @@ module.exports = {
   generateLocalAIResponse,
   checkLocalAIStatus
 };
-

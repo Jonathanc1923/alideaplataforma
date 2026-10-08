@@ -43,8 +43,8 @@ app.use(express.json());
 
 app.use('/uploads', express.static(uploadDir));
 
-// Master Admin PIN
-const ADMIN_PIN = '2732';
+// Master Admin PIN (Configurable via environment variable on Render)
+const ADMIN_PIN = process.env.ADMIN_PIN || '2732';
 
 // Middleware for Admin validation
 function requireAdmin(req, res, next) {

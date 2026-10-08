@@ -12,8 +12,12 @@ services:
         value: /var/data
       - key: PORT
         value: 3000
-      - key: AI_ENDPOINT
-        value: http://127.0.0.1:11434
+      - key: SILICONFLOW_API_KEY
+        sync: false
+      - key: SILICONFLOW_MODEL
+        value: Qwen/Qwen2.5-7B-Instruct
+      - key: ADMIN_PIN
+        sync: false
     disk:
       name: alidea-disk
       mountPath: /var/data

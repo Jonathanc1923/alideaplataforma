@@ -32,16 +32,35 @@ async function generateLocalAIResponse({
   allowGreeting = true 
 }) {
   return runWithSessionLock(sessionId, async () => {
-    // API Configuration from environment variables
-    let siliconFlowApiKey = (process.env.SILICONFLOW_API_KEY || process.env.AI_API_KEY || '').trim();
+    // API Configuration from environment variables (Groq, OpenRouter, SiliconFlow, or generic AI)
+    let apiKey = (
+      process.env.GROQ_API_KEY ||
+      process.env.SILICONFLOW_API_KEY || 
+      process.env.OPENROUTER_API_KEY ||
+      process.env.AI_API_KEY || 
+      ''
+    ).trim();
+
     // Clean accidental quotes, extra spaces, or duplicate "Bearer " prefix
-    siliconFlowApiKey = siliconFlowApiKey.replace(/^["']|["']$/g, '').trim();
-    if (siliconFlowApiKey.toLowerCase().startsWith('bearer ')) {
-      siliconFlowApiKey = siliconFlowApiKey.slice(7).trim();
+    apiKey = apiKey.replace(/^["']|["']$/g, '').trim();
+    if (apiKey.toLowerCase().startsWith('bearer ')) {
+      apiKey = apiKey.slice(7).trim();
     }
 
-    const siliconFlowApiUrl = (process.env.SILICONFLOW_API_URL || process.env.AI_API_URL || 'https://api.siliconflow.com/v1/chat/completions').trim();
-    const modelName = (process.env.SILICONFLOW_MODEL || process.env.AI_MODEL || 'Qwen/Qwen2.5-7B-Instruct').trim();
+    // Smart default URL and model detection based on API Key format or explicit environment variables
+    let defaultUrl = 'https://api.siliconflow.com/v1/chat/completions';
+    let defaultModel = 'Qwen/Qwen2.5-7B-Instruct';
+
+    if (apiKey.startsWith('gsk_') || process.env.GROQ_API_KEY) {
+      defaultUrl = 'https://api.groq.com/openai/v1/chat/completions';
+      defaultModel = 'qwen/qwen3.8-27b';
+    } else if (apiKey.startsWith('sk-or-') || process.env.OPENROUTER_API_KEY) {
+      defaultUrl = 'https://openrouter.ai/api/v1/chat/completions';
+      defaultModel = 'openrouter/free';
+    }
+
+    const apiUrl = (process.env.SILICONFLOW_API_URL || process.env.GROQ_API_URL || process.env.OPENROUTER_API_URL || process.env.AI_API_URL || defaultUrl).trim();
+    const modelName = (process.env.SILICONFLOW_MODEL || process.env.GROQ_MODEL || process.env.OPENROUTER_MODEL || process.env.AI_MODEL || defaultModel).trim();
 
     // Default business context if none provided
     const businessContext = (systemPrompt && systemPrompt.trim()) 
@@ -120,13 +139,15 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
       let tokensUsed = 0;
       let usageDetails = null;
 
-      // Mode 1: SiliconFlow Cloud API (Primary in production)
-      if (siliconFlowApiKey) {
-        const response = await fetch(siliconFlowApiUrl, {
+      // Mode 1: Cloud GPU API (Groq, OpenRouter, SiliconFlow)
+      if (apiKey) {
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${siliconFlowApiKey}`
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': 'https://alidea.com',
+            'X-Title': 'Alidea Platform'
           },
           signal: controller.signal,
           body: JSON.stringify({
@@ -142,7 +163,7 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
 
         if (!response.ok) {
           const errText = await response.text();
-          throw new Error(`SiliconFlow API respondió: ${response.status} ${errText}`);
+          throw new Error(`AI API (${modelName}) respondió: ${response.status} ${errText}`);
         }
 
         const data = await response.json();
@@ -250,13 +271,33 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
 }
 
 async function checkLocalAIStatus(endpoint = null) {
-  const siliconFlowApiKey = (process.env.SILICONFLOW_API_KEY || process.env.AI_API_KEY || '').trim();
-  if (siliconFlowApiKey) {
+  const apiKey = (
+    process.env.GROQ_API_KEY ||
+    process.env.SILICONFLOW_API_KEY || 
+    process.env.OPENROUTER_API_KEY ||
+    process.env.AI_API_KEY || 
+    ''
+  ).trim();
+
+  if (apiKey) {
+    let provider = 'Cloud GPU API';
+    let model = process.env.SILICONFLOW_MODEL || process.env.GROQ_MODEL || process.env.OPENROUTER_MODEL || process.env.AI_MODEL || 'Qwen 2.5';
+    if (apiKey.startsWith('gsk_') || process.env.GROQ_API_KEY) {
+      provider = 'Groq Cloud LPU™';
+      model = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b';
+    } else if (apiKey.startsWith('sk-or-') || process.env.OPENROUTER_API_KEY) {
+      provider = 'OpenRouter';
+      model = process.env.OPENROUTER_MODEL || 'openrouter/free';
+    } else if (process.env.SILICONFLOW_API_KEY) {
+      provider = 'SiliconFlow GPU';
+      model = process.env.SILICONFLOW_MODEL || 'Qwen/Qwen2.5-7B-Instruct';
+    }
+
     return {
       connected: true,
-      provider: 'SiliconFlow Cloud GPU',
-      model: process.env.SILICONFLOW_MODEL || 'Qwen/Qwen2.5-7B-Instruct',
-      message: 'Alidea Genesis AI™ (SiliconFlow Qwen 2.5 7B) activo y listo'
+      provider: provider,
+      model: model,
+      message: `Alidea Genesis AI™ (${provider} - ${model}) activo y listo`
     };
   }
 

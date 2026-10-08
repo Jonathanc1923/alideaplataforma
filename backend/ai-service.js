@@ -33,7 +33,13 @@ async function generateLocalAIResponse({
 }) {
   return runWithSessionLock(sessionId, async () => {
     // API Configuration from environment variables
-    const siliconFlowApiKey = (process.env.SILICONFLOW_API_KEY || process.env.AI_API_KEY || '').trim();
+    let siliconFlowApiKey = (process.env.SILICONFLOW_API_KEY || process.env.AI_API_KEY || '').trim();
+    // Clean accidental quotes, extra spaces, or duplicate "Bearer " prefix
+    siliconFlowApiKey = siliconFlowApiKey.replace(/^["']|["']$/g, '').trim();
+    if (siliconFlowApiKey.toLowerCase().startsWith('bearer ')) {
+      siliconFlowApiKey = siliconFlowApiKey.slice(7).trim();
+    }
+
     const siliconFlowApiUrl = (process.env.SILICONFLOW_API_URL || process.env.AI_API_URL || 'https://api.siliconflow.cn/v1/chat/completions').trim();
     const modelName = (process.env.SILICONFLOW_MODEL || process.env.AI_MODEL || 'Qwen/Qwen2.5-7B-Instruct').trim();
 

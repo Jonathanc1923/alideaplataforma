@@ -16,6 +16,8 @@ const { generateLocalAIResponse } = require('./ai-service');
 const sessions = new Map(); // Store active socket connections and status
 const chatQueues = new Map();
 const isProcessing = new Map();
+const debounceTimers = new Map();
+const pendingUnreadKeys = new Map();
 
 const lidToPhoneMap = new Map();
 const phoneToNameMap = new Map();
@@ -317,15 +319,39 @@ async function initSession(sessionId, getDbConnection, forceRecreate = false) {
                     console.error('Error auto-syncing lead / chat into CRM:', crmErr);
                 }
 
+                const queueKey = `${sessionId}_${jid}`;
+
+                // Track unread message key for double blue check on all incoming messages
+                const keyObj = {
+                    remoteJid: msg.key.remoteJid,
+                    id: msg.key.id,
+                    participant: msg.key.participant || undefined,
+                    fromMe: false
+                };
+                if (!pendingUnreadKeys.has(queueKey)) pendingUnreadKeys.set(queueKey, []);
+                pendingUnreadKeys.get(queueKey).push(keyObj);
+
                 if (!messageText) return;
 
-                const queueKey = `${sessionId}_${jid}`;
                 if (!chatQueues.has(queueKey)) chatQueues.set(queueKey, []);
                 chatQueues.get(queueKey).push({ msg, messageText, sessionId });
 
-                if (!isProcessing.get(queueKey)) {
-                    processQueue(queueKey, getDbConnection);
+                // If currently actively processing, the running loop will automatically drain newly arrived messages
+                if (isProcessing.get(queueKey)) {
+                    return;
                 }
+
+                // Debounce trigger (1800ms) to allow customers to finish sending rapid multi-line messages
+                if (debounceTimers.has(queueKey)) {
+                    clearTimeout(debounceTimers.get(queueKey));
+                }
+
+                debounceTimers.set(queueKey, setTimeout(() => {
+                    debounceTimers.delete(queueKey);
+                    if (!isProcessing.get(queueKey)) {
+                        processQueue(queueKey, getDbConnection);
+                    }
+                }, 1800));
 
             } catch(error) {
                 console.error(`Error processing message loop for session ${sessionId}:`, error);
@@ -420,283 +446,187 @@ async function sendManualMessage(sessionId, jid, text, getDbConnection) {
 }
 
 async function processQueue(queueKey, getDbConnection) {
+    if (isProcessing.get(queueKey)) return;
     isProcessing.set(queueKey, true);
 
-    while (chatQueues.has(queueKey) && chatQueues.get(queueKey).length > 0) {
-        const queue = chatQueues.get(queueKey);
-        const { msg, messageText, sessionId } = queue.shift();
+    try {
+        while (chatQueues.has(queueKey) && chatQueues.get(queueKey).length > 0) {
+            const queue = chatQueues.get(queueKey);
+            // Drain all pending messages currently in the queue for this contact to handle burst messages together
+            const batchItems = queue.splice(0, queue.length);
+            if (batchItems.length === 0) break;
 
-        const session = sessions.get(sessionId);
-        if (!session || !session.sock || session.status !== 'CONNECTED') {
-            continue;
-        }
-        const sock = session.sock;
-        const jid = msg.key.remoteJid;
-
-        try {
-            const db = await getDbConnection();
-            const keywords = await db.all('SELECT * FROM keywords WHERE session_id = ?', [sessionId]);
-
-            const textLower = messageText.toLowerCase();
-            let matched = false;
-
-            for (const kw of keywords) {
-                const matchKeywords = kw.keyword.toLowerCase().split(',').map(k => k.trim());
-                const hasMatch = matchKeywords.some(mk => mk !== '' && textLower.includes(mk));
-
-                if (hasMatch) {
-                    matched = true;
-                    // Extract all text messages (multi-message support)
-                    let textMessages = [];
-                    if (kw.response_messages) {
-                        try {
-                            const parsed = JSON.parse(kw.response_messages);
-                            if (Array.isArray(parsed)) {
-                                textMessages = parsed.map(m => typeof m === 'string' ? m.trim() : (m.text ? m.text.trim() : '')).filter(Boolean);
-                            }
-                        } catch(e) {
-                            console.error(`Error parsing response_messages for keyword ${kw.id}:`, e);
-                        }
-                    }
-                    if (textMessages.length === 0 && kw.response_text && kw.response_text.trim()) {
-                        textMessages = [kw.response_text.trim()];
-                    }
-
-                    const minSec = kw.delay_min || 2;
-                    const maxSec = kw.delay_max || 6;
-
-                    // Send each text message sequentially with typing simulation
-                    for (let msgIdx = 0; msgIdx < textMessages.length; msgIdx++) {
-                        const currentText = textMessages[msgIdx];
-
-                        if (msgIdx === 0) {
-                            const waitToReadDelay = (1.2 + Math.random() * 1.5) * 1000;
-                            await delay(waitToReadDelay);
-                            try { await sock.readMessages([msg.key]); } catch(e) {}
-                            await delay(500 + Math.random() * 600);
-                        } else {
-                            const betweenDelayMs = (minSec + Math.random() * (maxSec - minSec)) * 1000;
-                            await delay(betweenDelayMs);
-                        }
-
-                        try { await sock.sendPresenceUpdate('composing', jid); } catch(e) {}
-
-                        const typingDelay = Math.min(3000, Math.max(600, currentText.length * 22));
-                        const randomDelaySec = msgIdx === 0 ? (minSec + Math.random() * (maxSec - minSec)) : 0.5;
-                        const totalDelayMs = (randomDelaySec * 1000) + typingDelay;
-
-                        console.log(`[Alidea Session ${sessionId}] Enviando mensaje ${msgIdx + 1}/${textMessages.length} a ${jid} en ${Math.round(totalDelayMs)}ms`);
-                        await delay(totalDelayMs);
-
-                        try { await sock.sendPresenceUpdate('paused', jid); } catch(e) {}
-
-                        await sock.sendMessage(jid, { text: currentText }, msgIdx === 0 ? { quoted: msg } : {});
-                        console.log(`[Alidea Session ${sessionId}] Mensaje ${msgIdx + 1}/${textMessages.length} enviado a ${jid}`);
-
-                        // Log to chat_messages
-                        try {
-                            const sessionRecord = await db.get('SELECT user_id FROM sessions WHERE id = ?', [sessionId]);
-                            if (sessionRecord) {
-                                await db.run(
-                                    `INSERT INTO chat_messages (id, user_id, session_id, jid, sender_phone, sender_name, from_me, text)
-                                     VALUES (?, ?, ?, ?, ?, 'Alidea Bot', 1, ?)`,
-                                    [uuidv4(), sessionRecord.user_id, sessionId, jid, '+' + jid.split('@')[0], currentText]
-                                );
-                            }
-                        } catch(e) {}
-                    }
-
-                    // Parse media files list
-                    let mediaFiles = [];
-                    if (kw.media_files) {
-                        try {
-                            mediaFiles = JSON.parse(kw.media_files);
-                        } catch (e) {
-                            console.error(`Error parsing media_files JSON for keyword ${kw.id}:`, e);
-                        }
-                    }
-
-                    if (mediaFiles.length === 0 && kw.media_path && fs.existsSync(kw.media_path)) {
-                        mediaFiles.push({
-                            path: kw.media_path,
-                            type: kw.media_type,
-                            name: path.basename(kw.media_path)
-                        });
-                    }
-
-                    // Send media files sequentially
-                    if (mediaFiles.length > 0) {
-                        const mediaMinSec = kw.media_delay_min !== null && kw.media_delay_min !== undefined ? kw.media_delay_min : 2;
-                        const mediaMaxSec = kw.media_delay_max !== null && kw.media_delay_max !== undefined ? kw.media_delay_max : 5;
-
-                        let isFirstMedia = true;
-                        for (const file of mediaFiles) {
-                            if (fs.existsSync(file.path)) {
-                                if (kw.response_text || !isFirstMedia) {
-                                    const randomMediaDelaySec = mediaMinSec + Math.random() * (mediaMaxSec - mediaMinSec);
-                                    await delay(randomMediaDelaySec * 1000);
-                                }
-                                isFirstMedia = false;
-
-                                const mediaUrl = file.path;
-                                const fileType = file.type || '';
-
-                                if (fileType.startsWith('image/')) {
-                                    await sock.sendMessage(jid, { image: { url: mediaUrl } }, { quoted: msg });
-                                } else if (fileType.startsWith('audio/')) {
-                                    await sock.sendMessage(jid, { audio: { url: mediaUrl }, ptt: true }, { quoted: msg });
-                                } else if (fileType.startsWith('video/')) {
-                                    await sock.sendMessage(jid, { video: { url: mediaUrl } }, { quoted: msg });
-                                } else {
-                                    await sock.sendMessage(jid, { document: { url: mediaUrl }, fileName: file.name || path.basename(mediaUrl) }, { quoted: msg });
-                                }
-                                console.log(`[Alidea Session ${sessionId}] Archivo ${file.name} enviado a ${jid}`);
-                            }
-                        }
-                    }
-
-                    // Log CRM activity for bot response
-                    try {
-                        const sessionRecord = await db.get('SELECT user_id FROM sessions WHERE id = ?', [sessionId]);
-                        if (sessionRecord && sessionRecord.user_id) {
-                            const phoneDigits = jid.split('@')[0];
-                            const lead = await db.get(
-                                'SELECT id FROM crm_leads WHERE user_id = ? AND (phone = ? OR phone = ?)',
-                                [sessionRecord.user_id, '+' + phoneDigits, phoneDigits]
-                            );
-                            if (lead) {
-                                await db.run(
-                                    `INSERT INTO crm_activities (id, lead_id, user_id, type, content)
-                                     VALUES (?, ?, ?, 'whatsapp_out', ?)`,
-                                    [uuidv4(), lead.id, sessionRecord.user_id, `Respuesta automática enviada para palabra clave "${kw.keyword}"`]
-                                );
-                            }
-                        }
-                    } catch(e) {}
-
-                    await delay(1000 + Math.random() * 1500);
-                    break;
-                }
+            const sessionId = batchItems[0].sessionId;
+            const session = sessions.get(sessionId);
+            if (!session || !session.sock || session.status !== 'CONNECTED') {
+                continue;
             }
+            const sock = session.sock;
+            const lastItem = batchItems[batchItems.length - 1];
+            const msg = lastItem.msg;
+            const jid = msg.key.remoteJid;
 
-            if (!matched) {
-                try {
-                    const sessionRecord = await db.get('SELECT * FROM sessions WHERE id = ?', [sessionId]);
-                    const isAiActive = sessionRecord && (sessionRecord.ai_enabled === 1 || sessionRecord.ai_enabled === true || sessionRecord.ai_enabled === '1');
-                    
-                    if (isAiActive && sessionRecord.ai_system_prompt && sessionRecord.ai_system_prompt.trim()) {
-                        console.log(`[Alidea Session ${sessionId}] Evaluando consulta en tiempo real con Alidea Genesis AI™: "${messageText}" para ${jid}`);
+            // Combine messages if multiple arrived in rapid succession
+            const combinedMessageText = batchItems.map(item => item.messageText.trim()).filter(Boolean).join('\n');
+            if (!combinedMessageText) continue;
 
-                        // 1. Control Inteligente de Saludo: Saludar solo 1 vez al día o si el cliente saludó
-                        const customerTextLower = messageText.toLowerCase();
-                        const hasCustomerGreeting = /^(hola|buenas|buenos d[ií]as|buenas tardes|buenas noches|hey|que tal|q tal|saludos|hi|hello)\b/i.test(messageText.trim()) || customerTextLower.includes('hola') || customerTextLower.includes('buenos dias') || customerTextLower.includes('buenas tardes');
+            const messageText = combinedMessageText;
 
-                        const todayStart = new Date();
-                        todayStart.setHours(0, 0, 0, 0);
-                        let prevAiMsgToday = null;
-                        try {
-                            prevAiMsgToday = await db.get(
-                                'SELECT id FROM chat_messages WHERE session_id = ? AND jid = ? AND from_me = 1 AND created_at >= ? LIMIT 1',
-                                [sessionId, jid, todayStart.toISOString()]
-                            );
-                        } catch(e) {}
-                        const allowGreeting = hasCustomerGreeting || !prevAiMsgToday;
+            // Helper to mark all accumulated unread messages from this contact with double blue check
+            const markAllAsRead = async () => {
+                const unreadKeys = pendingUnreadKeys.get(queueKey) || [];
+                for (const item of batchItems) {
+                    if (item.msg?.key) {
+                        const k = {
+                            remoteJid: item.msg.key.remoteJid,
+                            id: item.msg.key.id,
+                            participant: item.msg.key.participant || undefined,
+                            fromMe: false
+                        };
+                        if (!unreadKeys.some(existing => existing.id === k.id)) {
+                            unreadKeys.push(k);
+                        }
+                    }
+                }
+                if (unreadKeys.length > 0) {
+                    try {
+                        await sock.readMessages(unreadKeys);
+                        console.log(`[Alidea Session ${sessionId}] ✓ ${unreadKeys.length} mensaje(s) marcado(s) como LEÍDO(s) (doble check azul) para ${jid}`);
+                    } catch(e) {
+                        console.warn(`[Alidea Session ${sessionId}] Error al marcar como leído:`, e.message);
+                    }
+                }
+                pendingUnreadKeys.set(queueKey, []);
+            };
 
-                        // 2. Cargar contexto de conversación (últimos mensajes del cliente y respuestas previas)
-                        let conversationHistory = [];
-                        try {
-                            const historyRows = await db.all(
-                                `SELECT from_me, text FROM chat_messages 
-                                 WHERE session_id = ? AND jid = ? 
-                                 ORDER BY created_at DESC 
-                                 LIMIT 11`,
-                                [sessionId, jid]
-                            );
-                            const chronological = (historyRows || []).reverse();
-                            const previousOnly = chronological.slice(0, -1);
-                            conversationHistory = previousOnly.map(row => ({
-                                role: row.from_me ? 'assistant' : 'user',
-                                content: row.text
-                            }));
-                            console.log(`[Alidea Session ${sessionId}] Contexto conversacional recuperado: ${conversationHistory.length} turnos previos para ${jid}`);
-                        } catch(histErr) {
-                            console.warn(`[Alidea Session ${sessionId}] Error al recuperar historial de chat:`, histErr.message);
+            try {
+                const db = await getDbConnection();
+                const keywords = await db.all('SELECT * FROM keywords WHERE session_id = ?', [sessionId]);
+
+                const textLower = messageText.toLowerCase();
+                let matched = false;
+
+                for (const kw of keywords) {
+                    const matchKeywords = kw.keyword.toLowerCase().split(',').map(k => k.trim());
+                    const hasMatch = matchKeywords.some(mk => mk !== '' && textLower.includes(mk));
+
+                    if (hasMatch) {
+                        matched = true;
+                        // Extract all text messages (multi-message support)
+                        let textMessages = [];
+                        if (kw.response_messages) {
+                            try {
+                                const parsed = JSON.parse(kw.response_messages);
+                                if (Array.isArray(parsed)) {
+                                    textMessages = parsed.map(m => typeof m === 'string' ? m.trim() : (m.text ? m.text.trim() : '')).filter(Boolean);
+                                }
+                            } catch(e) {
+                                console.error(`Error parsing response_messages for keyword ${kw.id}:`, e);
+                            }
+                        }
+                        if (textMessages.length === 0 && kw.response_text && kw.response_text.trim()) {
+                            textMessages = [kw.response_text.trim()];
                         }
 
-                        // IMPORTANTE: NO mostrar 'escribiendo...' antes de evaluar ni marcar como leído.
-                        // La IA evalúa en segundo plano con su historial completo.
-                        const aiRes = await generateLocalAIResponse({
-                            sessionId: sessionId,
-                            prompt: messageText,
-                            systemPrompt: sessionRecord.ai_system_prompt,
-                            conversationHistory: conversationHistory,
-                            endpoint: sessionRecord.ai_endpoint || 'http://127.0.0.1:11434',
-                            temperature: sessionRecord.ai_temperature || 0.35,
-                            allowGreeting: allowGreeting
-                        });
+                        const minSec = kw.delay_min || 2;
+                        const maxSec = kw.delay_max || 6;
 
-                        if (aiRes && aiRes.success && aiRes.shouldAnswer && aiRes.messages && aiRes.messages.length > 0) {
-                            // SÍ respondió con certeza: Marcamos el mensaje entrante como LEÍDO en WhatsApp (Doble check azul)
-                            try {
-                                await sock.readMessages([
-                                    {
-                                        remoteJid: msg.key.remoteJid,
-                                        id: msg.key.id,
-                                        participant: msg.key.participant || undefined,
-                                        fromMe: false
-                                    }
-                                ]);
-                                console.log(`[Alidea Session ${sessionId}] ✓ Mensaje marcado como LEÍDO (doble check azul) para ${jid}`);
-                            } catch(e) {
-                                console.warn(`[Alidea Session ${sessionId}] Error al marcar como leído:`, e.message);
+                        // Mark all unread incoming messages as read (blue checks)
+                        const waitToReadDelay = (1.2 + Math.random() * 1.2) * 1000;
+                        await delay(waitToReadDelay);
+                        await markAllAsRead();
+                        await delay(400 + Math.random() * 500);
+
+                        // Send each text message sequentially with typing simulation
+                        for (let msgIdx = 0; msgIdx < textMessages.length; msgIdx++) {
+                            const currentText = textMessages[msgIdx];
+
+                            if (msgIdx > 0) {
+                                const betweenDelayMs = (minSec + Math.random() * (maxSec - minSec)) * 1000;
+                                await delay(betweenDelayMs);
                             }
 
-                            const minDelaySec = sessionRecord.ai_delay_min !== null && sessionRecord.ai_delay_min !== undefined ? sessionRecord.ai_delay_min : 2;
-                            const maxDelaySec = sessionRecord.ai_delay_max !== null && sessionRecord.ai_delay_max !== undefined ? Math.max(minDelaySec, sessionRecord.ai_delay_max) : 5;
+                            try { await sock.sendPresenceUpdate('composing', jid); } catch(e) {}
 
-                            for (let mIdx = 0; mIdx < aiRes.messages.length; mIdx++) {
-                                const msgItem = aiRes.messages[mIdx];
-                                
-                                // Simular presencia "escribiendo..." únicamente tras tener la respuesta lista y durante el delay aleatorio configurado
-                                try { await sock.sendPresenceUpdate('composing', jid); } catch(e) {}
-                                
-                                const randomDelayMs = (minDelaySec + Math.random() * (maxDelaySec - minDelaySec)) * 1000;
-                                console.log(`[Alidea Session ${sessionId}] Escribiendo respuesta IA (${mIdx + 1}/${aiRes.messages.length}) durante ${Math.round(randomDelayMs)}ms para ${jid}`);
-                                await delay(randomDelayMs);
-                                
-                                try { await sock.sendPresenceUpdate('paused', jid); } catch(e) {}
+                            const typingDelay = Math.min(3000, Math.max(600, currentText.length * 22));
+                            const randomDelaySec = msgIdx === 0 ? (minSec + Math.random() * (maxSec - minSec)) : 0.5;
+                            const totalDelayMs = (randomDelaySec * 1000) + typingDelay;
 
-                                try {
-                                    await sock.sendMessage(jid, { text: msgItem }, mIdx === 0 ? { quoted: msg } : {});
-                                } catch (sendErr) {
-                                    console.warn(`[Alidea Session ${sessionId}] Error al enviar con quoted, reintentando directo:`, sendErr.message);
-                                    await sock.sendMessage(jid, { text: msgItem });
-                                }
+                            console.log(`[Alidea Session ${sessionId}] Enviando mensaje ${msgIdx + 1}/${textMessages.length} a ${jid} en ${Math.round(totalDelayMs)}ms`);
+                            await delay(totalDelayMs);
 
-                                // Registrar en chat_messages
-                                if (sessionRecord.user_id) {
+                            try { await sock.sendPresenceUpdate('paused', jid); } catch(e) {}
+
+                            await sock.sendMessage(jid, { text: currentText }, msgIdx === 0 ? { quoted: msg } : {});
+                            console.log(`[Alidea Session ${sessionId}] Mensaje ${msgIdx + 1}/${textMessages.length} enviado a ${jid}`);
+
+                            // Log to chat_messages
+                            try {
+                                const sessionRecord = await db.get('SELECT user_id FROM sessions WHERE id = ?', [sessionId]);
+                                if (sessionRecord) {
                                     await db.run(
                                         `INSERT INTO chat_messages (id, user_id, session_id, jid, sender_phone, sender_name, from_me, text)
-                                         VALUES (?, ?, ?, ?, ?, 'Alidea AI', 1, ?)`,
-                                        [uuidv4(), sessionRecord.user_id, sessionId, jid, '+' + jid.split('@')[0], msgItem]
+                                         VALUES (?, ?, ?, ?, ?, 'Alidea Bot', 1, ?)`,
+                                        [uuidv4(), sessionRecord.user_id, sessionId, jid, '+' + jid.split('@')[0], currentText]
                                     );
                                 }
-                            }
+                            } catch(e) {}
+                        }
 
-                            // Actualizar contador acumulado de tokens consumidos por el usuario (solo visible para admin)
-                            if (sessionRecord.user_id && aiRes.totalTokens > 0) {
-                                try {
-                                    await db.run(
-                                        'UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ? WHERE id = ?',
-                                        [aiRes.totalTokens, sessionRecord.user_id]
-                                    );
-                                } catch(tokErr) {}
+                        // Parse media files list
+                        let mediaFiles = [];
+                        if (kw.media_files) {
+                            try {
+                                mediaFiles = JSON.parse(kw.media_files);
+                            } catch (e) {
+                                console.error(`Error parsing media_files JSON for keyword ${kw.id}:`, e);
                             }
+                        }
 
-                            // Registrar en CRM
-                            if (sessionRecord.user_id) {
+                        if (mediaFiles.length === 0 && kw.media_path && fs.existsSync(kw.media_path)) {
+                            mediaFiles.push({
+                                path: kw.media_path,
+                                type: kw.media_type,
+                                name: path.basename(kw.media_path)
+                            });
+                        }
+
+                        // Send media files sequentially
+                        if (mediaFiles.length > 0) {
+                            const mediaMinSec = kw.media_delay_min !== null && kw.media_delay_min !== undefined ? kw.media_delay_min : 2;
+                            const mediaMaxSec = kw.media_delay_max !== null && kw.media_delay_max !== undefined ? kw.media_delay_max : 5;
+
+                            let isFirstMedia = true;
+                            for (const file of mediaFiles) {
+                                if (fs.existsSync(file.path)) {
+                                    if (kw.response_text || !isFirstMedia) {
+                                        const randomMediaDelaySec = mediaMinSec + Math.random() * (mediaMaxSec - mediaMinSec);
+                                        await delay(randomMediaDelaySec * 1000);
+                                    }
+                                    isFirstMedia = false;
+
+                                    const mediaUrl = file.path;
+                                    const fileType = file.type || '';
+
+                                    if (fileType.startsWith('image/')) {
+                                        await sock.sendMessage(jid, { image: { url: mediaUrl } }, { quoted: msg });
+                                    } else if (fileType.startsWith('audio/')) {
+                                        await sock.sendMessage(jid, { audio: { url: mediaUrl }, ptt: true }, { quoted: msg });
+                                    } else if (fileType.startsWith('video/')) {
+                                        await sock.sendMessage(jid, { video: { url: mediaUrl } }, { quoted: msg });
+                                    } else {
+                                        await sock.sendMessage(jid, { document: { url: mediaUrl }, fileName: file.name || path.basename(mediaUrl) }, { quoted: msg });
+                                    }
+                                    console.log(`[Alidea Session ${sessionId}] Archivo ${file.name} enviado a ${jid}`);
+                                }
+                            }
+                        }
+
+                        // Log CRM activity for bot response
+                        try {
+                            const sessionRecord = await db.get('SELECT user_id FROM sessions WHERE id = ?', [sessionId]);
+                            if (sessionRecord && sessionRecord.user_id) {
                                 const phoneDigits = jid.split('@')[0];
-                                const fullAiText = aiRes.messages.join(' \n\n ');
                                 const lead = await db.get(
                                     'SELECT id FROM crm_leads WHERE user_id = ? AND (phone = ? OR phone = ?)',
                                     [sessionRecord.user_id, '+' + phoneDigits, phoneDigits]
@@ -705,45 +635,173 @@ async function processQueue(queueKey, getDbConnection) {
                                     await db.run(
                                         `INSERT INTO crm_activities (id, lead_id, user_id, type, content)
                                          VALUES (?, ?, ?, 'whatsapp_out', ?)`,
-                                        [uuidv4(), lead.id, sessionRecord.user_id, `Respuesta Alidea AI: "${fullAiText.slice(0, 90)}..."`]
-                                    );
-                                    await db.run(
-                                        'UPDATE crm_leads SET last_message = ?, last_interaction = CURRENT_TIMESTAMP WHERE id = ?',
-                                        [fullAiText, lead.id]
+                                        [uuidv4(), lead.id, sessionRecord.user_id, `Respuesta automática enviada para palabra clave "${kw.keyword}"`]
                                     );
                                 }
                             }
-                            console.log(`[Alidea Session ${sessionId}] Respuesta enviada a WhatsApp con éxito (${aiRes.messages.length} msgs)`);
-                        } else {
-                            // NO respondió (fuera de contexto o sin certeza):
-                            // NUNCA marcamos como leído. Se queda intacto como NO LEÍDO en WhatsApp para que un humano lo atienda.
-                            console.log(`[Alidea Session ${sessionId}] Consulta sin certeza o fuera de contexto. Dejando mensaje NO LEÍDO para atención humana.`);
-                            if (sessionRecord.user_id) {
-                                const phoneDigits = jid.split('@')[0];
-                                const lead = await db.get(
-                                    'SELECT id FROM crm_leads WHERE user_id = ? AND (phone = ? OR phone = ?)',
-                                    [sessionRecord.user_id, '+' + phoneDigits, phoneDigits]
+                        } catch(e) {}
+
+                        await delay(1000 + Math.random() * 1500);
+                        break;
+                    }
+                }
+
+                if (!matched) {
+                    try {
+                        const sessionRecord = await db.get('SELECT * FROM sessions WHERE id = ?', [sessionId]);
+                        const isAiActive = sessionRecord && (sessionRecord.ai_enabled === 1 || sessionRecord.ai_enabled === true || sessionRecord.ai_enabled === '1');
+                        
+                        if (isAiActive && sessionRecord.ai_system_prompt && sessionRecord.ai_system_prompt.trim()) {
+                            console.log(`[Alidea Session ${sessionId}] Evaluando consulta en tiempo real con Alidea Genesis AI™: "${messageText}" para ${jid}`);
+
+                            // 1. Control Inteligente de Saludo: Saludar solo 1 vez al día o si el cliente saludó
+                            const customerTextLower = messageText.toLowerCase();
+                            const hasCustomerGreeting = /^(hola|buenas|buenos d[ií]as|buenas tardes|buenas noches|hey|que tal|q tal|saludos|hi|hello)\b/i.test(messageText.trim()) || customerTextLower.includes('hola') || customerTextLower.includes('buenos dias') || customerTextLower.includes('buenas tardes');
+
+                            const todayStart = new Date();
+                            todayStart.setHours(0, 0, 0, 0);
+                            let prevAiMsgToday = null;
+                            try {
+                                prevAiMsgToday = await db.get(
+                                    'SELECT id FROM chat_messages WHERE session_id = ? AND jid = ? AND from_me = 1 AND created_at >= ? LIMIT 1',
+                                    [sessionId, jid, todayStart.toISOString()]
                                 );
-                                if (lead) {
-                                    await db.run(
-                                        `INSERT INTO crm_activities (id, lead_id, user_id, type, content)
-                                         VALUES (?, ?, ?, 'note', ?)`,
-                                        [uuidv4(), lead.id, sessionRecord.user_id, `Consulta para asesor humano (chat no leído): "${messageText}"`]
+                            } catch(e) {}
+                            const allowGreeting = hasCustomerGreeting || !prevAiMsgToday;
+
+                            // 2. Cargar contexto de conversación (turnos previos del chat)
+                            let conversationHistory = [];
+                            try {
+                                const historyRows = await db.all(
+                                    `SELECT from_me, text FROM chat_messages 
+                                     WHERE session_id = ? AND jid = ? 
+                                     ORDER BY created_at DESC 
+                                     LIMIT 15`,
+                                    [sessionId, jid]
+                                );
+                                const chronological = (historyRows || []).reverse();
+                                const batchCount = batchItems.length;
+                                const previousOnly = chronological.slice(0, Math.max(0, chronological.length - batchCount));
+                                conversationHistory = previousOnly.map(row => ({
+                                    role: row.from_me ? 'assistant' : 'user',
+                                    content: row.text
+                                }));
+                                console.log(`[Alidea Session ${sessionId}] Contexto conversacional recuperado: ${conversationHistory.length} turnos previos para ${jid}`);
+                            } catch(histErr) {
+                                console.warn(`[Alidea Session ${sessionId}] Error al recuperar historial de chat:`, histErr.message);
+                            }
+
+                            // IMPORTANTE: NO mostrar 'escribiendo...' antes de evaluar ni marcar como leído.
+                            // La IA evalúa en segundo plano con su historial completo.
+                            const aiRes = await generateLocalAIResponse({
+                                sessionId: sessionId,
+                                prompt: messageText,
+                                systemPrompt: sessionRecord.ai_system_prompt,
+                                conversationHistory: conversationHistory,
+                                endpoint: sessionRecord.ai_endpoint || 'http://127.0.0.1:11434',
+                                temperature: sessionRecord.ai_temperature || 0.35,
+                                allowGreeting: allowGreeting
+                            });
+
+                            if (aiRes && aiRes.success && aiRes.shouldAnswer && aiRes.messages && aiRes.messages.length > 0) {
+                                // SÍ respondió con certeza: Marcamos TODOS los mensajes entrantes como LEÍDOS en WhatsApp (Doble check azul)
+                                await markAllAsRead();
+
+                                const minDelaySec = sessionRecord.ai_delay_min !== null && sessionRecord.ai_delay_min !== undefined ? sessionRecord.ai_delay_min : 2;
+                                const maxDelaySec = sessionRecord.ai_delay_max !== null && sessionRecord.ai_delay_max !== undefined ? Math.max(minDelaySec, sessionRecord.ai_delay_max) : 5;
+
+                                for (let mIdx = 0; mIdx < aiRes.messages.length; mIdx++) {
+                                    const msgItem = aiRes.messages[mIdx];
+                                    
+                                    // Simular presencia "escribiendo..." únicamente tras tener la respuesta lista y durante el delay aleatorio configurado
+                                    try { await sock.sendPresenceUpdate('composing', jid); } catch(e) {}
+                                    
+                                    const randomDelayMs = (minDelaySec + Math.random() * (maxDelaySec - minDelaySec)) * 1000;
+                                    console.log(`[Alidea Session ${sessionId}] Escribiendo respuesta IA (${mIdx + 1}/${aiRes.messages.length}) durante ${Math.round(randomDelayMs)}ms para ${jid}`);
+                                    await delay(randomDelayMs);
+                                    
+                                    try { await sock.sendPresenceUpdate('paused', jid); } catch(e) {}
+
+                                    try {
+                                        await sock.sendMessage(jid, { text: msgItem }, mIdx === 0 ? { quoted: msg } : {});
+                                    } catch (sendErr) {
+                                        console.warn(`[Alidea Session ${sessionId}] Error al enviar con quoted, reintentando directo:`, sendErr.message);
+                                        await sock.sendMessage(jid, { text: msgItem });
+                                    }
+
+                                    // Registrar en chat_messages
+                                    if (sessionRecord.user_id) {
+                                        await db.run(
+                                            `INSERT INTO chat_messages (id, user_id, session_id, jid, sender_phone, sender_name, from_me, text)
+                                             VALUES (?, ?, ?, ?, ?, 'Alidea AI', 1, ?)`,
+                                            [uuidv4(), sessionRecord.user_id, sessionId, jid, '+' + jid.split('@')[0], msgItem]
+                                        );
+                                    }
+                                }
+
+                                // Actualizar contador acumulado de tokens consumidos por el usuario (solo visible para admin)
+                                if (sessionRecord.user_id && aiRes.totalTokens > 0) {
+                                    try {
+                                        await db.run(
+                                            'UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ? WHERE id = ?',
+                                            [aiRes.totalTokens, sessionRecord.user_id]
+                                        );
+                                    } catch(tokErr) {}
+                                }
+
+                                // Registrar en CRM
+                                if (sessionRecord.user_id) {
+                                    const phoneDigits = jid.split('@')[0];
+                                    const fullAiText = aiRes.messages.join(' \n\n ');
+                                    const lead = await db.get(
+                                        'SELECT id FROM crm_leads WHERE user_id = ? AND (phone = ? OR phone = ?)',
+                                        [sessionRecord.user_id, '+' + phoneDigits, phoneDigits]
                                     );
+                                    if (lead) {
+                                        await db.run(
+                                            `INSERT INTO crm_activities (id, lead_id, user_id, type, content)
+                                             VALUES (?, ?, ?, 'whatsapp_out', ?)`,
+                                            [uuidv4(), lead.id, sessionRecord.user_id, `Respuesta Alidea AI: "${fullAiText.slice(0, 90)}..."`]
+                                        );
+                                        await db.run(
+                                            'UPDATE crm_leads SET last_message = ?, last_interaction = CURRENT_TIMESTAMP WHERE id = ?',
+                                            [fullAiText, lead.id]
+                                        );
+                                    }
+                                }
+                                console.log(`[Alidea Session ${sessionId}] Respuesta enviada a WhatsApp con éxito (${aiRes.messages.length} msgs)`);
+                            } else {
+                                // NO respondió (fuera de contexto o sin certeza):
+                                // NUNCA marcamos como leído. Se queda intacto como NO LEÍDO en WhatsApp para que un humano lo atienda.
+                                console.log(`[Alidea Session ${sessionId}] Consulta sin certeza o fuera de contexto. Dejando mensaje NO LEÍDO para atención humana.`);
+                                if (sessionRecord.user_id) {
+                                    const phoneDigits = jid.split('@')[0];
+                                    const lead = await db.get(
+                                        'SELECT id FROM crm_leads WHERE user_id = ? AND (phone = ? OR phone = ?)',
+                                        [sessionRecord.user_id, '+' + phoneDigits, phoneDigits]
+                                    );
+                                    if (lead) {
+                                        await db.run(
+                                            `INSERT INTO crm_activities (id, lead_id, user_id, type, content)
+                                             VALUES (?, ?, ?, 'note', ?)`,
+                                            [uuidv4(), lead.id, sessionRecord.user_id, `Consulta para asesor humano (chat no leído): "${messageText}"`]
+                                        );
+                                    }
                                 }
                             }
                         }
+                    } catch(aiErr) {
+                        console.error(`[Alidea Session ${sessionId}] Error al procesar Asesor IA:`, aiErr);
                     }
-                } catch(aiErr) {
-                    console.error(`[Alidea Session ${sessionId}] Error al procesar Asesor IA:`, aiErr);
+                    await delay(300);
                 }
-                await delay(300);
+            } catch (err) {
+                console.error(`Error in queue processor for ${queueKey}:`, err);
             }
-        } catch (err) {
-            console.error(`Error in queue processor for ${queueKey}:`, err);
         }
+    } finally {
+        isProcessing.set(queueKey, false);
     }
-    isProcessing.set(queueKey, false);
 }
 
 const activeCampaigns = new Map();

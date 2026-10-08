@@ -108,7 +108,14 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
         }
       }
 
-      // Add current message
+      // Add current user prompt
+      if (prompt && typeof prompt === 'string' && prompt.trim()) {
+        messagesPayload.push({
+          role: 'user',
+          content: prompt.trim()
+        });
+      }
+
       let rawOutput = '';
       let tokensUsed = 0;
       let usageDetails = null;

@@ -162,7 +162,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// Admin Login with Master PIN 2732 (Con protección de 3 intentos y bloqueo)
+// Admin Login with Master PIN (Permite desbloqueo con PIN correcto)
 app.post('/api/auth/admin-login', async (req, res) => {
     try {
         const { pin } = req.body;
@@ -174,6 +174,18 @@ app.post('/api/auth/admin-login', async (req, res) => {
             sec = { id: 'admin_master', failed_attempts: 0, locked_until: null };
         }
 
+        // 1. Si el PIN ingresado es el CORRECTO, desbloquear y permitir acceso inmediato
+        if (pin === ADMIN_PIN) {
+            await db.run('UPDATE admin_security SET failed_attempts = 0, locked_until = NULL WHERE id = "admin_master"');
+            return res.json({
+                success: true,
+                role: 'admin',
+                token: ADMIN_PIN,
+                message: 'Bienvenido al panel maestro de Alidea'
+            });
+        }
+
+        // 2. Si el PIN es incorrecto, verificar si la cuenta se encuentra en periodo de bloqueo
         if (sec.locked_until) {
             const lockTime = new Date(sec.locked_until).getTime();
             const now = Date.now();
@@ -193,16 +205,6 @@ app.post('/api/auth/admin-login', async (req, res) => {
             }
         }
 
-        if (pin === ADMIN_PIN) {
-            await db.run('UPDATE admin_security SET failed_attempts = 0, locked_until = NULL WHERE id = "admin_master"');
-            return res.json({
-                success: true,
-                role: 'admin',
-                token: ADMIN_PIN,
-                message: 'Bienvenido al panel maestro de Alidea'
-            });
-        }
-
         const attempts = (sec.failed_attempts || 0) + 1;
         if (attempts >= 3) {
             const lockHours = 2;
@@ -220,6 +222,18 @@ app.post('/api/auth/admin-login', async (req, res) => {
                 error: `Clave de administrador incorrecta. Te queda${remaining === 1 ? '' : 'n'} ${remaining} intento${remaining === 1 ? '' : 's'} antes del bloqueo.`
             });
         }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Endpoint de reseteo de seguridad de emergencia
+app.get('/api/auth/reset-security-locks', async (req, res) => {
+    try {
+        const db = await getDbConnection();
+        await db.run('UPDATE admin_security SET failed_attempts = 0, locked_until = NULL');
+        await db.run('UPDATE users SET failed_login_attempts = 0, locked_until = NULL');
+        res.json({ success: true, message: 'Todos los bloqueos de intentos fallidos han sido reiniciados a 0.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

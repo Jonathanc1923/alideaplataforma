@@ -1,19 +1,20 @@
 services:
   - type: web
-    name: wsp1-platform
+    name: alidea-plataforma
     env: node
+    plan: starter
     buildCommand: npm run build
     startCommand: npm start
     envVars:
-      - key: DB_PATH
-        value: /data/database.sqlite
-      - key: AUTH_DIR
-        value: /data/auth_info
-      - key: UPLOAD_DIR
-        value: /data/uploads
-      - key: NODE_VERSION
-        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /var/data
+      - key: PORT
+        value: 3000
+      - key: AI_ENDPOINT
+        value: http://127.0.0.1:11434
     disk:
-      name: wsp1-data
-      mountPath: /data
-      sizeGB: 1
+      name: alidea-disk
+      mountPath: /var/data
+      sizeGB: 10

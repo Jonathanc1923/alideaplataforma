@@ -41,9 +41,15 @@ frontend/dist/
 build/
 
 # SQLite Database
-*.sqlite
-*.db
-backend/database.sqlite
+*.sqlite*
+*.db*
+backend/database.sqlite*
+backend/*.sqlite*
+backend/data/
+
+# Temporary test scripts
+test_*.js
+test-*.js
 
 # Baileys WhatsApp Session Data
 backend/auth_info/

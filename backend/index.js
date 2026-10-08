@@ -281,7 +281,7 @@ app.get('/api/auth/unlock/:secretToken', async (req, res) => {
 app.get('/api/admin/users', requireAdmin, async (req, res) => {
     try {
         const db = await getDbConnection();
-        const users = await db.all('SELECT id, username, business_name, phone, role, plan, is_active, created_at FROM users ORDER BY created_at DESC');
+        const users = await db.all('SELECT id, username, business_name, phone, role, plan, is_active, total_tokens_used, created_at FROM users ORDER BY created_at DESC');
         
         const memorySessions = getAllSessions();
         const usersWithDetails = await Promise.all(users.map(async (u) => {

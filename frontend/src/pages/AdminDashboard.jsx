@@ -20,7 +20,9 @@ import {
   DollarSign, 
   RefreshCw, 
   X,
-  ExternalLink
+  ExternalLink,
+  Zap,
+  Cpu
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
@@ -264,51 +266,64 @@ export default function AdminDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         
         {/* 2. STATS OVERVIEW */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-          <div className="glass-panel p-6 rounded-2xl border border-slate-800">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
+          <div className="glass-panel p-5 rounded-2xl border border-slate-800">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Negocios Registrados</span>
               <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400">
-                <Users size={20} />
+                <Users size={18} />
               </div>
             </div>
-            <div className="text-3xl font-extrabold text-white font-heading">{stats.totalUsers}</div>
-            <div className="text-xs text-slate-500 mt-1">Cuentas activas en la plataforma</div>
+            <div className="text-2xl font-extrabold text-white font-heading">{stats.totalUsers}</div>
+            <div className="text-[11px] text-slate-500 mt-1">Cuentas activas</div>
           </div>
 
-          <div className="glass-panel p-6 rounded-2xl border border-slate-800">
+          <div className="glass-panel p-5 rounded-2xl border border-slate-800">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Bots WhatsApp Activos</span>
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Bots WhatsApp</span>
               <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400">
-                <Bot size={20} />
+                <Bot size={18} />
               </div>
             </div>
-            <div className="text-3xl font-extrabold text-emerald-400 font-heading">{stats.activeBots}</div>
-            <div className="text-xs text-slate-500 mt-1">Conexiones WhatsApp sincronizadas</div>
+            <div className="text-2xl font-extrabold text-emerald-400 font-heading">{stats.activeBots}</div>
+            <div className="text-[11px] text-slate-500 mt-1">Conexiones activas</div>
           </div>
 
-          <div className="glass-panel p-6 rounded-2xl border border-slate-800">
+          <div className="glass-panel p-5 rounded-2xl border border-slate-800">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Leads Capturados</span>
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Leads CRM</span>
               <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
-                <TrendingUp size={20} />
+                <TrendingUp size={18} />
               </div>
             </div>
-            <div className="text-3xl font-extrabold text-purple-400 font-heading">{stats.totalLeads}</div>
-            <div className="text-xs text-slate-500 mt-1">Prospectos en embudos CRM</div>
+            <div className="text-2xl font-extrabold text-purple-400 font-heading">{stats.totalLeads}</div>
+            <div className="text-[11px] text-slate-500 mt-1">Prospectos capturados</div>
           </div>
 
-          <div className="glass-panel p-6 rounded-2xl border border-slate-800">
+          <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Consumo Total IA</span>
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400">
+                <Zap size={18} />
+              </div>
+            </div>
+            <div className="text-2xl font-extrabold text-amber-400 font-heading">
+              {users.reduce((sum, u) => sum + (u.total_tokens_used || 0), 0).toLocaleString()}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1">Tokens Qwen 7B de por vida</div>
+          </div>
+
+          <div className="glass-panel p-5 rounded-2xl border border-slate-800">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pipeline Global ($)</span>
-              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400">
-                <DollarSign size={20} />
+              <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400">
+                <DollarSign size={18} />
               </div>
             </div>
-            <div className="text-3xl font-extrabold text-amber-400 font-heading">
+            <div className="text-2xl font-extrabold text-cyan-400 font-heading">
               ${(stats.totalPipelineValue || 0).toLocaleString()}
             </div>
-            <div className="text-xs text-slate-500 mt-1">Monto acumulado en negociación</div>
+            <div className="text-[11px] text-slate-500 mt-1">Monto en negociación</div>
           </div>
         </div>
 
@@ -344,6 +359,7 @@ export default function AdminDashboard() {
                   <th className="py-4 px-6">Credenciales</th>
                   <th className="py-4 px-6">Plan</th>
                   <th className="py-4 px-6">Estado WhatsApp</th>
+                  <th className="py-4 px-6">Consumo IA</th>
                   <th className="py-4 px-6">Leads CRM</th>
                   <th className="py-4 px-6">Palabras Clave</th>
                   <th className="py-4 px-6 text-right">Acciones</th>
@@ -352,14 +368,14 @@ export default function AdminDashboard() {
               <tbody className="divide-y divide-slate-800/60">
                 {loading ? (
                   <tr>
-                    <td colSpan="7" className="py-12 text-center text-slate-400">
+                    <td colSpan="8" className="py-12 text-center text-slate-400">
                       <div className="inline-block w-8 h-8 rounded-full border-r-2 border-indigo-500 animate-spin mb-2"></div>
                       <div>Cargando negocios de Alidea...</div>
                     </td>
                   </tr>
                 ) : filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="py-12 text-center text-slate-400">
+                    <td colSpan="8" className="py-12 text-center text-slate-400">
                       No se encontraron usuarios registrados.
                     </td>
                   </tr>
@@ -401,6 +417,14 @@ export default function AdminDashboard() {
                             Desconectado
                           </span>
                         )}
+                      </td>
+
+                      <td className="py-4 px-6">
+                        <div className="font-bold text-amber-400 font-mono flex items-center gap-1.5">
+                          <Zap size={14} className="text-amber-400 fill-amber-400/20" />
+                          <span>{(u.total_tokens_used || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500">Tokens Qwen 7B</div>
                       </td>
 
                       <td className="py-4 px-6">

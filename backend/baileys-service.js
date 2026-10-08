@@ -683,6 +683,16 @@ async function processQueue(queueKey, getDbConnection) {
                                 }
                             }
 
+                            // Actualizar contador acumulado de tokens consumidos por el usuario (solo visible para admin)
+                            if (sessionRecord.user_id && aiRes.totalTokens > 0) {
+                                try {
+                                    await db.run(
+                                        'UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ? WHERE id = ?',
+                                        [aiRes.totalTokens, sessionRecord.user_id]
+                                    );
+                                } catch(tokErr) {}
+                            }
+
                             // Registrar en CRM
                             if (sessionRecord.user_id) {
                                 const phoneDigits = jid.split('@')[0];

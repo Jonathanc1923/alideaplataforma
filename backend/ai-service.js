@@ -40,7 +40,7 @@ async function generateLocalAIResponse({
       siliconFlowApiKey = siliconFlowApiKey.slice(7).trim();
     }
 
-    const siliconFlowApiUrl = (process.env.SILICONFLOW_API_URL || process.env.AI_API_URL || 'https://api.siliconflow.cn/v1/chat/completions').trim();
+    const siliconFlowApiUrl = (process.env.SILICONFLOW_API_URL || process.env.AI_API_URL || 'https://api.siliconflow.com/v1/chat/completions').trim();
     const modelName = (process.env.SILICONFLOW_MODEL || process.env.AI_MODEL || 'Qwen/Qwen2.5-7B-Instruct').trim();
 
     // Default business context if none provided
@@ -109,9 +109,9 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
       }
 
       // Add current message
-      messagesPayload.push({ role: 'user', content: prompt });
-
       let rawOutput = '';
+      let tokensUsed = 0;
+      let usageDetails = null;
 
       // Mode 1: SiliconFlow Cloud API (Primary in production)
       if (siliconFlowApiKey) {
@@ -140,6 +140,8 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
 
         const data = await response.json();
         rawOutput = (data.choices?.[0]?.message?.content || '').trim();
+        tokensUsed = data.usage?.total_tokens || 0;
+        usageDetails = data.usage || null;
       } else {
         // Mode 2: Local Ollama Fallback (Development)
         let cleanEndpoint = endpoint ? endpoint.replace(/\/$/, '') : (process.env.AI_ENDPOINT || 'http://127.0.0.1:11434');
@@ -174,6 +176,7 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
 
         const data = await response.json();
         rawOutput = (data.message?.content || data.response || '').trim();
+        tokensUsed = (data.prompt_eval_count || 0) + (data.eval_count || 0);
       }
 
       // Guardrail Check: Safe transfer if model indicates lack of certainty or refusal
@@ -195,7 +198,9 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
           shouldAnswer: false,
           reason: 'safe_transfer_to_human',
           messages: [],
-          rawText: ''
+          rawText: '',
+          totalTokens: tokensUsed,
+          usage: usageDetails
         };
       }
 
@@ -222,6 +227,8 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
         shouldAnswer: true,
         messages: finalMessages,
         rawText: rawOutput,
+        totalTokens: tokensUsed,
+        usage: usageDetails,
         engine: 'Alidea Genesis AI™ (Qwen 2.5 7B)'
       };
     } catch (err) {

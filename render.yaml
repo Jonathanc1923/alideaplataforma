@@ -16,6 +16,8 @@ services:
         sync: false
       - key: SILICONFLOW_MODEL
         value: Qwen/Qwen2.5-7B-Instruct
+      - key: SILICONFLOW_API_URL
+        value: https://api.siliconflow.com/v1/chat/completions
       - key: ADMIN_PIN
         sync: false
     disk:

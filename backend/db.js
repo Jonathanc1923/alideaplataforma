@@ -207,6 +207,7 @@ async function getDbConnection() {
   const columnMigrations = [
     { table: 'users', column: 'failed_login_attempts INTEGER DEFAULT 0' },
     { table: 'users', column: 'locked_until DATETIME DEFAULT NULL' },
+    { table: 'users', column: 'total_tokens_used INTEGER DEFAULT 0' },
     { table: 'sessions', column: 'user_id TEXT' },
     { table: 'sessions', column: 'phone_number TEXT' },
     { table: 'keywords', column: 'media_path TEXT' },

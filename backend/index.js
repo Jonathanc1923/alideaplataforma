@@ -5,6 +5,7 @@ const QRCode = require('qrcode');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { getDbConnection, hashPassword, seedDefaultTagsForUser } = require('./db');
 const { 
     initSession, 
@@ -162,7 +163,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// Admin Login with Master PIN (Permite desbloqueo con PIN correcto)
+// Admin Login with Master PIN (Bloqueo estricto tras 3 intentos)
 app.post('/api/auth/admin-login', async (req, res) => {
     try {
         const { pin } = req.body;
@@ -174,18 +175,7 @@ app.post('/api/auth/admin-login', async (req, res) => {
             sec = { id: 'admin_master', failed_attempts: 0, locked_until: null };
         }
 
-        // 1. Si el PIN ingresado es el CORRECTO, desbloquear y permitir acceso inmediato
-        if (pin === ADMIN_PIN) {
-            await db.run('UPDATE admin_security SET failed_attempts = 0, locked_until = NULL WHERE id = "admin_master"');
-            return res.json({
-                success: true,
-                role: 'admin',
-                token: ADMIN_PIN,
-                message: 'Bienvenido al panel maestro de Alidea'
-            });
-        }
-
-        // 2. Si el PIN es incorrecto, verificar si la cuenta se encuentra en periodo de bloqueo
+        // Verificar si la cuenta se encuentra bloqueada
         if (sec.locked_until) {
             const lockTime = new Date(sec.locked_until).getTime();
             const now = Date.now();
@@ -203,6 +193,16 @@ app.post('/api/auth/admin-login', async (req, res) => {
                 await db.run('UPDATE admin_security SET failed_attempts = 0, locked_until = NULL WHERE id = "admin_master"');
                 sec.failed_attempts = 0;
             }
+        }
+
+        if (pin === ADMIN_PIN) {
+            await db.run('UPDATE admin_security SET failed_attempts = 0, locked_until = NULL WHERE id = "admin_master"');
+            return res.json({
+                success: true,
+                role: 'admin',
+                token: ADMIN_PIN,
+                message: 'Bienvenido al panel maestro de Alidea'
+            });
         }
 
         const attempts = (sec.failed_attempts || 0) + 1;
@@ -227,15 +227,50 @@ app.post('/api/auth/admin-login', async (req, res) => {
     }
 });
 
-// Endpoint de reseteo de seguridad de emergencia
-app.get('/api/auth/reset-security-locks', async (req, res) => {
+// Ruta Secreta Encriptada de Desbloqueo Maestro (Solo conocida por el dueño)
+app.get('/api/auth/unlock/:secretToken', async (req, res) => {
     try {
+        const { secretToken } = req.params;
+        const currentPin = process.env.ADMIN_PIN || '2732';
+        const expectedHash = crypto.createHash('sha256').update(currentPin + '::alidea::master::unlock::2026').digest('hex').slice(0, 24);
+        
+        // Verifica si coincide con el hash encriptado o con el PIN maestro
+        const isValid = secretToken === expectedHash || secretToken === currentPin;
+        
+        if (!isValid) {
+            return res.status(404).send('Not Found');
+        }
+
         const db = await getDbConnection();
         await db.run('UPDATE admin_security SET failed_attempts = 0, locked_until = NULL');
         await db.run('UPDATE users SET failed_login_attempts = 0, locked_until = NULL');
-        res.json({ success: true, message: 'Todos los bloqueos de intentos fallidos han sido reiniciados a 0.' });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+
+        return res.send(`
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Desbloqueo Maestro - Alidea</title>
+                <style>
+                    body { background: #0b0f19; color: #fff; font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+                    .box { background: #111827; border: 1px solid #10b981; padding: 2rem; border-radius: 1rem; text-align: center; max-width: 400px; }
+                    h3 { color: #10b981; margin: 0 0 0.5rem 0; }
+                    p { color: #9ca3af; font-size: 0.9rem; line-height: 1.4; }
+                    a { display: inline-block; margin-top: 1.2rem; background: #f59e0b; color: #000; text-decoration: none; padding: 0.6rem 1.2rem; border-radius: 0.5rem; font-weight: 600; }
+                </style>
+            </head>
+            <body>
+                <div class="box">
+                    <h3>✓ Seguridad Desbloqueada</h3>
+                    <p>Los bloqueos por intentos fallidos han sido eliminados. Ya puedes volver a ingresar.</p>
+                    <a href="/login?mode=admin">Ir al Panel de Administración</a>
+                </div>
+            </body>
+            </html>
+        `);
+    } catch(e) {
+        res.status(500).send('Error');
     }
 });
 

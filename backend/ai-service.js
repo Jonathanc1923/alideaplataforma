@@ -19,8 +19,72 @@ async function runWithSessionLock(sessionId, fn) {
 }
 
 /**
- * Genera respuesta con Alidea Genesis AI™ (Motor Qwen 2.5 7B vía SiliconFlow API / OpenAI Compatible)
- * Implementa auto-evaluación previa contra alucinaciones, memoria conversacional y división en mensajes humanos.
+ * Retorna la lista ordenada de proveedores de IA disponibles según las variables de entorno.
+ * Prioridad: 1. Groq Cloud (Principal) -> 2. SiliconFlow (Respaldo) -> 3. OpenRouter (Respaldo terciario)
+ */
+function getActiveProviders() {
+  const providers = [];
+
+  const cleanKey = (k) => {
+    if (!k) return '';
+    let val = String(k).trim().replace(/^["']|["']$/g, '').trim();
+    if (val.toLowerCase().startsWith('bearer ')) {
+      val = val.slice(7).trim();
+    }
+    return val;
+  };
+
+  // 1. Principal: Groq Cloud LPU
+  const groqKey = cleanKey(
+    process.env.GROQ_API_KEY || 
+    (process.env.AI_API_KEY?.startsWith('gsk_') ? process.env.AI_API_KEY : '') ||
+    (process.env.SILICONFLOW_API_KEY?.startsWith('gsk_') ? process.env.SILICONFLOW_API_KEY : '')
+  );
+  if (groqKey) {
+    providers.push({
+      id: 'groq',
+      name: 'Groq Cloud LPU™',
+      apiKey: groqKey,
+      apiUrl: (process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions').trim(),
+      model: (process.env.GROQ_MODEL || 'qwen/qwen3.8-27b').trim(),
+      isPrimary: true
+    });
+  }
+
+  // 2. Respaldo: SiliconFlow Cloud GPU (si se agotan tokens o falla Groq)
+  const rawSilicon = process.env.SILICONFLOW_API_KEY || (process.env.AI_API_KEY && !process.env.AI_API_KEY.startsWith('gsk_') && !process.env.AI_API_KEY.startsWith('sk-or-') ? process.env.AI_API_KEY : '');
+  const siliconKey = cleanKey(rawSilicon && !rawSilicon.startsWith('gsk_') && !rawSilicon.startsWith('sk-or-') ? rawSilicon : '');
+  if (siliconKey) {
+    providers.push({
+      id: 'siliconflow',
+      name: 'SiliconFlow Cloud GPU',
+      apiKey: siliconKey,
+      apiUrl: (process.env.SILICONFLOW_API_URL || 'https://api.siliconflow.com/v1/chat/completions').trim(),
+      model: (process.env.SILICONFLOW_MODEL || 'Qwen/Qwen2.5-7B-Instruct').trim(),
+      isPrimary: providers.length === 0
+    });
+  }
+
+  // 3. Respaldo Terciario: OpenRouter
+  const rawOpenRouter = process.env.OPENROUTER_API_KEY || (process.env.AI_API_KEY?.startsWith('sk-or-') ? process.env.AI_API_KEY : '');
+  const openRouterKey = cleanKey(rawOpenRouter);
+  if (openRouterKey) {
+    providers.push({
+      id: 'openrouter',
+      name: 'OpenRouter Free/Pro',
+      apiKey: openRouterKey,
+      apiUrl: (process.env.OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions').trim(),
+      model: (process.env.OPENROUTER_MODEL || 'openrouter/free').trim(),
+      isPrimary: providers.length === 0
+    });
+  }
+
+  return providers;
+}
+
+/**
+ * Genera respuesta con Alidea Genesis AI™
+ * Conmutación por error automática (Failover): Groq Cloud -> SiliconFlow -> OpenRouter -> Ollama Local
  */
 async function generateLocalAIResponse({ 
   sessionId, 
@@ -32,36 +96,6 @@ async function generateLocalAIResponse({
   allowGreeting = true 
 }) {
   return runWithSessionLock(sessionId, async () => {
-    // API Configuration from environment variables (Groq, OpenRouter, SiliconFlow, or generic AI)
-    let apiKey = (
-      process.env.GROQ_API_KEY ||
-      process.env.SILICONFLOW_API_KEY || 
-      process.env.OPENROUTER_API_KEY ||
-      process.env.AI_API_KEY || 
-      ''
-    ).trim();
-
-    // Clean accidental quotes, extra spaces, or duplicate "Bearer " prefix
-    apiKey = apiKey.replace(/^["']|["']$/g, '').trim();
-    if (apiKey.toLowerCase().startsWith('bearer ')) {
-      apiKey = apiKey.slice(7).trim();
-    }
-
-    // Smart default URL and model detection based on API Key format or explicit environment variables
-    let defaultUrl = 'https://api.siliconflow.com/v1/chat/completions';
-    let defaultModel = 'Qwen/Qwen2.5-7B-Instruct';
-
-    if (apiKey.startsWith('gsk_') || process.env.GROQ_API_KEY) {
-      defaultUrl = 'https://api.groq.com/openai/v1/chat/completions';
-      defaultModel = 'qwen/qwen3.8-27b';
-    } else if (apiKey.startsWith('sk-or-') || process.env.OPENROUTER_API_KEY) {
-      defaultUrl = 'https://openrouter.ai/api/v1/chat/completions';
-      defaultModel = 'openrouter/free';
-    }
-
-    const apiUrl = (process.env.SILICONFLOW_API_URL || process.env.GROQ_API_URL || process.env.OPENROUTER_API_URL || process.env.AI_API_URL || defaultUrl).trim();
-    const modelName = (process.env.SILICONFLOW_MODEL || process.env.GROQ_MODEL || process.env.OPENROUTER_MODEL || process.env.AI_MODEL || defaultModel).trim();
-
     // Default business context if none provided
     const businessContext = (systemPrompt && systemPrompt.trim()) 
       ? systemPrompt.trim()
@@ -103,9 +137,6 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
 7. FORMATO: Responde en 1 o máximo 2 párrafos concisos ideales para WhatsApp. Si deseas enviar 2 mensajes sucesivos, sepáralos con [MSG_SPLIT].`;
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
-
       // Assemble chat messages with system prompt, recent history context, and current user prompt
       const messagesPayload = [
         { role: 'system', content: systemInstruction }
@@ -138,44 +169,85 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
       let rawOutput = '';
       let tokensUsed = 0;
       let usageDetails = null;
+      let engineName = 'Alidea Genesis AI™';
+      let providerSuccess = false;
 
-      // Mode 1: Cloud GPU API (Groq, OpenRouter, SiliconFlow)
-      if (apiKey) {
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': 'https://alidea.com',
-            'X-Title': 'Alidea Platform'
-          },
-          signal: controller.signal,
-          body: JSON.stringify({
-            model: modelName,
-            messages: messagesPayload,
-            temperature: typeof temperature === 'number' ? temperature : 0.35,
-            max_tokens: 500,
-            stream: false
-          })
-        });
+      const activeProviders = getActiveProviders();
 
-        clearTimeout(timeoutId);
+      // =========================================================================
+      // MOTOR MULTI-PROVEEDOR: Intentar en orden de prioridad con Failover automático
+      // =========================================================================
+      if (activeProviders.length > 0) {
+        for (let idx = 0; idx < activeProviders.length; idx++) {
+          const prov = activeProviders[idx];
+          const isLast = idx === activeProviders.length - 1;
+          const nextProv = !isLast ? activeProviders[idx + 1] : null;
 
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`AI API (${modelName}) respondió: ${response.status} ${errText}`);
+          try {
+            console.log(`[Alidea AI Engine] Enviando solicitud a ${prov.name} (Modelo: ${prov.model})...`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout
+
+            const response = await fetch(prov.apiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${prov.apiKey}`,
+                'HTTP-Referer': 'https://alidea.com',
+                'X-Title': 'Alidea Platform'
+              },
+              signal: controller.signal,
+              body: JSON.stringify({
+                model: prov.model,
+                messages: messagesPayload,
+                temperature: typeof temperature === 'number' ? temperature : 0.35,
+                max_tokens: 500,
+                stream: false
+              })
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+              const errText = await response.text();
+              console.warn(`[Alidea AI Failover] ⚠️ ${prov.name} respondió con código HTTP ${response.status}: ${errText.slice(0, 150)}`);
+              
+              if (nextProv) {
+                console.log(`[Alidea AI Failover] 🔄 Conmutando automáticamente a proveedor de respaldo: ${nextProv.name} (Modelo: ${nextProv.model})...`);
+              }
+              continue; // Probar siguiente proveedor
+            }
+
+            const data = await response.json();
+            rawOutput = (data.choices?.[0]?.message?.content || '').trim();
+            tokensUsed = data.usage?.total_tokens || 0;
+            usageDetails = data.usage || null;
+            engineName = `${prov.name} (${prov.model})`;
+            providerSuccess = true;
+            console.log(`[Alidea AI Engine] ✓ Respuesta generada exitosamente vía ${prov.name} (${tokensUsed} tokens)`);
+            break; // Éxito: salir del bucle de proveedores
+
+          } catch (provErr) {
+            console.warn(`[Alidea AI Failover] ⚠️ Error de red en ${prov.name}: ${provErr.message}`);
+            if (nextProv) {
+              console.log(`[Alidea AI Failover] 🔄 Conmutando automáticamente a proveedor de respaldo: ${nextProv.name}...`);
+            }
+          }
         }
+      }
 
-        const data = await response.json();
-        rawOutput = (data.choices?.[0]?.message?.content || '').trim();
-        tokensUsed = data.usage?.total_tokens || 0;
-        usageDetails = data.usage || null;
-      } else {
-        // Mode 2: Local Ollama Fallback (Development)
+      // =========================================================================
+      // FALLBACK LOCAL: Ollama Local (Desarrollo / Si ningún proveedor cloud responde)
+      // =========================================================================
+      if (!providerSuccess) {
         let cleanEndpoint = endpoint ? endpoint.replace(/\/$/, '') : (process.env.AI_ENDPOINT || 'http://127.0.0.1:11434');
         if (cleanEndpoint.includes('localhost')) {
           cleanEndpoint = cleanEndpoint.replace('localhost', '127.0.0.1');
         }
+
+        console.log(`[Alidea AI Engine] Intentando motor local en ${cleanEndpoint}...`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
 
         const response = await fetch(`${cleanEndpoint}/api/chat`, {
           method: 'POST',
@@ -199,12 +271,13 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
 
         if (!response.ok) {
           const errText = await response.text();
-          throw new Error(`Local Ollama respondió: ${response.status} ${errText}`);
+          throw new Error(`Ningún proveedor de IA disponible. Local Ollama: ${response.status} ${errText}`);
         }
 
         const data = await response.json();
         rawOutput = (data.message?.content || data.response || '').trim();
         tokensUsed = (data.prompt_eval_count || 0) + (data.eval_count || 0);
+        engineName = 'Ollama Local (qwen2.5:7b)';
       }
 
       // Guardrail Check: Safe transfer if model indicates lack of certainty or refusal
@@ -257,7 +330,7 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
         rawText: rawOutput,
         totalTokens: tokensUsed,
         usage: usageDetails,
-        engine: 'Alidea Genesis AI™ (Qwen 2.5 7B)'
+        engine: engineName
       };
     } catch (err) {
       console.error('[Alidea AI Engine Error]:', err.message);
@@ -271,33 +344,17 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
 }
 
 async function checkLocalAIStatus(endpoint = null) {
-  const apiKey = (
-    process.env.GROQ_API_KEY ||
-    process.env.SILICONFLOW_API_KEY || 
-    process.env.OPENROUTER_API_KEY ||
-    process.env.AI_API_KEY || 
-    ''
-  ).trim();
+  const activeProviders = getActiveProviders();
 
-  if (apiKey) {
-    let provider = 'Cloud GPU API';
-    let model = process.env.SILICONFLOW_MODEL || process.env.GROQ_MODEL || process.env.OPENROUTER_MODEL || process.env.AI_MODEL || 'Qwen 2.5';
-    if (apiKey.startsWith('gsk_') || process.env.GROQ_API_KEY) {
-      provider = 'Groq Cloud LPU™';
-      model = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b';
-    } else if (apiKey.startsWith('sk-or-') || process.env.OPENROUTER_API_KEY) {
-      provider = 'OpenRouter';
-      model = process.env.OPENROUTER_MODEL || 'openrouter/free';
-    } else if (process.env.SILICONFLOW_API_KEY) {
-      provider = 'SiliconFlow GPU';
-      model = process.env.SILICONFLOW_MODEL || 'Qwen/Qwen2.5-7B-Instruct';
-    }
-
+  if (activeProviders.length > 0) {
+    const primary = activeProviders[0];
+    const fallbacks = activeProviders.slice(1).map(p => p.name).join(', ');
     return {
       connected: true,
-      provider: provider,
-      model: model,
-      message: `Alidea Genesis AI™ (${provider} - ${model}) activo y listo`
+      provider: primary.name,
+      model: primary.model,
+      fallback: fallbacks || 'Ninguno (Directo)',
+      message: `Alidea Genesis AI™ [Principal: ${primary.name}] ${fallbacks ? `[Respaldo: ${fallbacks}]` : ''} activo y listo`
     };
   }
 
@@ -322,5 +379,6 @@ async function checkLocalAIStatus(endpoint = null) {
 
 module.exports = {
   generateLocalAIResponse,
-  checkLocalAIStatus
+  checkLocalAIStatus,
+  getActiveProviders
 };

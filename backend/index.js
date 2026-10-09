@@ -2698,6 +2698,346 @@ app.put('/api/accounting/tax-settings', async (req, res) => {
     }
 });
 
+// ==========================================
+// 10. BUSINESS ANALYTICS & BI INSIGHTS
+// ==========================================
+app.get('/api/analytics/business-insights', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+
+        const selectedYear = parseInt(req.query.year) || new Date().getFullYear();
+        const db = await getDbConnection();
+
+        // 1. Fetch leads
+        const leads = await db.all(
+            'SELECT id, stage, deal_value, source, created_at FROM crm_leads WHERE user_id = ?',
+            [userId]
+        );
+
+        // 2. Fetch orders
+        const orders = await db.all(
+            'SELECT id, order_number, total_amount, status, items_json, created_at FROM orders WHERE user_id = ?',
+            [userId]
+        );
+
+        // 3. Fetch accounting entries
+        const entries = await db.all(
+            'SELECT id, entry_date, description, entry_type, classification, amount, tax_percentage, tax_amount, total_amount FROM accounting_entries WHERE user_id = ?',
+            [userId]
+        );
+
+        // 4. Fetch chat messages
+        const messages = await db.all(
+            'SELECT id, from_me, created_at FROM chat_messages WHERE user_id = ?',
+            [userId]
+        );
+
+        // --- A. MONTHLY BREAKDOWN (12 months for selectedYear) ---
+        const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Dic'];
+        const monthlyData = Array.from({ length: 12 }, (_, i) => ({
+            monthIndex: i + 1,
+            monthName: monthNames[i],
+            year: selectedYear,
+            ingresos: 0,
+            egresos: 0,
+            utilidad: 0,
+            margenNeto: 0,
+            leadsNuevos: 0,
+            leadsGanados: 0,
+            valorPipeline: 0,
+            ordenesCount: 0,
+            ordenesTotal: 0,
+            ticketPromedio: 0,
+            mensajesCount: 0
+        }));
+
+        // Populate accounting entries in monthlyData
+        entries.forEach(e => {
+            if (!e.entry_date) return;
+            const d = new Date(e.entry_date);
+            if (d.getFullYear() === selectedYear) {
+                const m = d.getMonth();
+                if (m >= 0 && m < 12) {
+                    if (e.entry_type === 'ingreso') {
+                        monthlyData[m].ingresos += (e.amount || 0);
+                    } else if (e.entry_type === 'egreso') {
+                        monthlyData[m].egresos += (e.amount || 0);
+                    }
+                }
+            }
+        });
+
+        // Populate leads in monthlyData
+        leads.forEach(l => {
+            if (!l.created_at) return;
+            const d = new Date(l.created_at);
+            if (d.getFullYear() === selectedYear) {
+                const m = d.getMonth();
+                if (m >= 0 && m < 12) {
+                    monthlyData[m].leadsNuevos += 1;
+                    monthlyData[m].valorPipeline += (l.deal_value || 0);
+                    if (l.stage === 'ganado') {
+                        monthlyData[m].leadsGanados += 1;
+                    }
+                }
+            }
+        });
+
+        // Populate orders in monthlyData
+        orders.forEach(o => {
+            if (!o.created_at) return;
+            const d = new Date(o.created_at);
+            if (d.getFullYear() === selectedYear) {
+                const m = d.getMonth();
+                if (m >= 0 && m < 12) {
+                    monthlyData[m].ordenesCount += 1;
+                    monthlyData[m].ordenesTotal += (o.total_amount || 0);
+                }
+            }
+        });
+
+        // Populate messages in monthlyData
+        messages.forEach(msg => {
+            if (!msg.created_at) return;
+            const d = new Date(msg.created_at);
+            if (d.getFullYear() === selectedYear) {
+                const m = d.getMonth();
+                if (m >= 0 && m < 12) {
+                    monthlyData[m].mensajesCount += 1;
+                }
+            }
+        });
+
+        // Compute monthly derived metrics
+        monthlyData.forEach(m => {
+            m.utilidad = m.ingresos - m.egresos;
+            m.margenNeto = m.ingresos > 0 ? parseFloat(((m.utilidad / m.ingresos) * 100).toFixed(1)) : 0;
+            m.ticketPromedio = m.ordenesCount > 0 ? parseFloat((m.ordenesTotal / m.ordenesCount).toFixed(2)) : 0;
+        });
+
+        // --- B. WEEKLY BREAKDOWN (Last 8 rolling weeks) ---
+        const now = new Date();
+        const weeklyData = [];
+        for (let i = 7; i >= 0; i--) {
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() - (i * 7 + now.getDay() - 1));
+            startOfWeek.setHours(0, 0, 0, 0);
+
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            endOfWeek.setHours(23, 59, 59, 999);
+
+            const formatD = (d) => `${d.getDate()} ${monthNames[d.getMonth()]}`;
+            const label = `Sem ${8 - i}`;
+            const dateRange = `${formatD(startOfWeek)} - ${formatD(endOfWeek)}`;
+
+            let wIngresos = 0;
+            let wEgresos = 0;
+            let wLeads = 0;
+            let wGanados = 0;
+            let wOrders = 0;
+            let wOrdersTotal = 0;
+            let wMessages = 0;
+
+            entries.forEach(e => {
+                if (!e.entry_date) return;
+                const d = new Date(e.entry_date);
+                if (d >= startOfWeek && d <= endOfWeek) {
+                    if (e.entry_type === 'ingreso') wIngresos += (e.amount || 0);
+                    else if (e.entry_type === 'egreso') wEgresos += (e.amount || 0);
+                }
+            });
+
+            leads.forEach(l => {
+                if (!l.created_at) return;
+                const d = new Date(l.created_at);
+                if (d >= startOfWeek && d <= endOfWeek) {
+                    wLeads += 1;
+                    if (l.stage === 'ganado') wGanados += 1;
+                }
+            });
+
+            orders.forEach(o => {
+                if (!o.created_at) return;
+                const d = new Date(o.created_at);
+                if (d >= startOfWeek && d <= endOfWeek) {
+                    wOrders += 1;
+                    wOrdersTotal += (o.total_amount || 0);
+                }
+            });
+
+            messages.forEach(msg => {
+                if (!msg.created_at) return;
+                const d = new Date(msg.created_at);
+                if (d >= startOfWeek && d <= endOfWeek) {
+                    wMessages += 1;
+                }
+            });
+
+            const wUtilidad = wIngresos - wEgresos;
+            weeklyData.push({
+                weekIndex: 8 - i,
+                weekLabel: label,
+                dateRange: dateRange,
+                ingresos: wIngresos,
+                egresos: wEgresos,
+                utilidad: wUtilidad,
+                margenNeto: wIngresos > 0 ? parseFloat(((wUtilidad / wIngresos) * 100).toFixed(1)) : 0,
+                leadsNuevos: wLeads,
+                leadsGanados: wGanados,
+                ordenesCount: wOrders,
+                ordenesTotal: wOrdersTotal,
+                ticketPromedio: wOrders > 0 ? parseFloat((wOrdersTotal / wOrders).toFixed(2)) : 0,
+                mensajesCount: wMessages
+            });
+        }
+
+        // --- C. SALES FUNNEL STAGES CONVERSION ---
+        const stagesList = [
+            { key: 'nuevo', label: '1. Nuevos Leads', color: '#6366f1' },
+            { key: 'contactado', label: '2. En Conversación', color: '#38bdf8' },
+            { key: 'propuesta', label: '3. Propuesta Enviada', color: '#a855f7' },
+            { key: 'negociacion', label: '4. Negociación', color: '#f59e0b' },
+            { key: 'ganado', label: '5. Ventas Ganadas 🏆', color: '#10b981' },
+            { key: 'perdido', label: '6. Descartados', color: '#64748b' }
+        ];
+
+        const funnelStages = stagesList.map(st => {
+            const count = leads.filter(l => l.stage === st.key).length;
+            const value = leads.filter(l => l.stage === st.key).reduce((sum, l) => sum + (l.deal_value || 0), 0);
+            return {
+                stage: st.key,
+                label: st.label,
+                color: st.color,
+                count,
+                value,
+                percentage: leads.length > 0 ? parseFloat(((count / leads.length) * 100).toFixed(1)) : 0
+            };
+        });
+
+        // --- D. WEEKDAY HEATMAP / ACTIVITY DISTRIBUTION (Lunes to Domingo) ---
+        const weekdayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const weekdayStats = [1, 2, 3, 4, 5, 6, 0].map(dayIdx => {
+            let leadCount = 0;
+            let msgCount = 0;
+            let orderCount = 0;
+            let salesVolume = 0;
+
+            leads.forEach(l => {
+                if (l.created_at && new Date(l.created_at).getDay() === dayIdx) leadCount++;
+            });
+
+            messages.forEach(m => {
+                if (m.created_at && new Date(m.created_at).getDay() === dayIdx) msgCount++;
+            });
+
+            orders.forEach(o => {
+                if (o.created_at && new Date(o.created_at).getDay() === dayIdx) {
+                    orderCount++;
+                    salesVolume += (o.total_amount || 0);
+                }
+            });
+
+            return {
+                dayIndex: dayIdx,
+                dayName: weekdayNames[dayIdx],
+                leadCount,
+                msgCount,
+                orderCount,
+                salesVolume,
+                totalActivity: leadCount + msgCount + orderCount
+            };
+        });
+
+        // --- E. TOP PRODUCTS & ORDER ITEMS ---
+        const productMap = {};
+        orders.forEach(o => {
+            let items = [];
+            try { items = JSON.parse(o.items_json); } catch(e) {}
+            if (Array.isArray(items)) {
+                items.forEach(it => {
+                    const name = it.name || 'Producto';
+                    if (!productMap[name]) productMap[name] = { name, quantity: 0, revenue: 0 };
+                    productMap[name].quantity += (parseInt(it.quantity) || 1);
+                    productMap[name].revenue += ((parseFloat(it.price) || 0) * (parseInt(it.quantity) || 1));
+                });
+            }
+        });
+        const topProducts = Object.values(productMap)
+            .sort((a, b) => b.revenue - a.revenue)
+            .slice(0, 6);
+
+        // --- F. CLASSIFICATION BREAKDOWN (Accounting & Streams) ---
+        const classificationBreakdown = {
+            activo: 0,
+            pasivo: 0,
+            patrimonio: 0,
+            nota_credito: 0,
+            nota_debito: 0,
+            ventas_directas: 0
+        };
+        entries.forEach(e => {
+            const amt = e.amount || 0;
+            if (e.classification && classificationBreakdown[e.classification] !== undefined) {
+                classificationBreakdown[e.classification] += amt;
+            } else if (e.entry_type === 'ingreso') {
+                classificationBreakdown.ventas_directas += amt;
+            }
+        });
+
+        // --- G. EXECUTIVE SUMMARY & MOM GROWTH ---
+        const curMonthIdx = new Date().getMonth();
+        const curMonthData = monthlyData[curMonthIdx];
+        const prevMonthData = curMonthIdx > 0 ? monthlyData[curMonthIdx - 1] : { ingresos: 0, leadsNuevos: 0, ordenesTotal: 0 };
+
+        const revenueGrowthMoM = prevMonthData.ingresos > 0 
+            ? (((curMonthData.ingresos - prevMonthData.ingresos) / prevMonthData.ingresos) * 100).toFixed(1)
+            : 0;
+
+        const leadsGrowthMoM = prevMonthData.leadsNuevos > 0
+            ? (((curMonthData.leadsNuevos - prevMonthData.leadsNuevos) / prevMonthData.leadsNuevos) * 100).toFixed(1)
+            : 0;
+
+        const totalRevenueYear = monthlyData.reduce((acc, m) => acc + m.ingresos, 0);
+        const totalExpensesYear = monthlyData.reduce((acc, m) => acc + m.egresos, 0);
+        const totalProfitYear = totalRevenueYear - totalExpensesYear;
+        const totalWonLeads = leads.filter(l => l.stage === 'ganado').length;
+        const globalConversionRate = leads.length > 0 ? ((totalWonLeads / leads.length) * 100).toFixed(1) : 0;
+        const totalOrdersVolume = orders.reduce((acc, o) => acc + (o.total_amount || 0), 0);
+        const averageOrderValue = orders.length > 0 ? (totalOrdersVolume / orders.length).toFixed(2) : 0;
+
+        res.json({
+            year: selectedYear,
+            summary: {
+                totalRevenueYear,
+                totalExpensesYear,
+                totalProfitYear,
+                overallMargin: totalRevenueYear > 0 ? ((totalProfitYear / totalRevenueYear) * 100).toFixed(1) : 0,
+                totalLeads: leads.length,
+                totalWonLeads,
+                globalConversionRate,
+                totalOrders: orders.length,
+                totalOrdersVolume,
+                averageOrderValue,
+                totalMessages: messages.length,
+                revenueGrowthMoM: parseFloat(revenueGrowthMoM),
+                leadsGrowthMoM: parseFloat(leadsGrowthMoM)
+            },
+            monthlyData,
+            weeklyData,
+            funnelStages,
+            weekdayStats,
+            topProducts,
+            classificationBreakdown
+        });
+
+    } catch (err) {
+        console.error('Error in business insights analytics:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Static serve frontend files
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 app.use((req, res) => {

@@ -58,7 +58,12 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Scale,
-  Percent
+  Percent,
+  BarChart3,
+  PieChart,
+  Target,
+  Flame,
+  Calendar
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
@@ -320,6 +325,15 @@ export default function UserWorkspace() {
   const [taxFormIncomeManual, setTaxFormIncomeManual] = useState(0);
   const [taxFormIncomeMode, setTaxFormIncomeMode] = useState('percentage');
   const [isSavingTax, setIsSavingTax] = useState(false);
+
+  // ==========================================
+  // NEW: 8. BUSINESS ANALYTICS & BI STATE
+  // ==========================================
+  const [analyticsGranularity, setAnalyticsGranularity] = useState('monthly'); // 'monthly' | 'weekly'
+  const [analyticsYear, setAnalyticsYear] = useState(new Date().getFullYear());
+  const [analyticsCategoryFilter, setAnalyticsCategoryFilter] = useState('all'); // 'all' | 'financial' | 'funnel' | 'products' | 'traffic'
+  const [businessInsights, setBusinessInsights] = useState(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   // 1. Initial Load & Auth Check
   useEffect(() => {
@@ -1292,6 +1306,31 @@ export default function UserWorkspace() {
     document.body.removeChild(link);
   };
 
+  // ==========================================
+  // BUSINESS ANALYTICS & BI HANDLERS
+  // ==========================================
+  const fetchBusinessInsights = async () => {
+    if (!auth) return;
+    setLoadingAnalytics(true);
+    try {
+      const res = await axios.get(`${API_BASE}/analytics/business-insights`, {
+        headers: { 'x-user-id': auth.user.id },
+        params: { year: analyticsYear }
+      });
+      setBusinessInsights(res.data);
+    } catch (err) {
+      console.error('Error fetching business insights:', err);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'dashboard' && auth) {
+      fetchBusinessInsights();
+    }
+  }, [activeTab, analyticsYear, auth]);
+
   // Bot Actions
   const handleStartBot = async () => {
     setLoadingBot(true);
@@ -1789,7 +1828,7 @@ export default function UserWorkspace() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <TrendingUp size={14} /> Métricas
+              <TrendingUp size={14} /> Analítica & BI
             </button>
           </div>
 
@@ -1813,7 +1852,7 @@ export default function UserWorkspace() {
           <button onClick={() => setActiveTab('catalog')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'catalog' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Catálogo & Pedidos</button>
           <button onClick={() => setActiveTab('accounting')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'accounting' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Contabilidad</button>
           <button onClick={() => setActiveTab('bot')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'bot' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Bot WhatsApp</button>
-          <button onClick={() => setActiveTab('dashboard')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'dashboard' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Métricas</button>
+          <button onClick={() => setActiveTab('dashboard')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'dashboard' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Analítica & BI</button>
         </div>
       </header>
 
@@ -3968,61 +4007,698 @@ export default function UserWorkspace() {
         )}
 
         {/* ==================================================== */}
-        {/* TAB 6: DASHBOARD DE MÉTRICAS */}
+        {/* ==================================================== */}
+        {/* TAB 6: ANALÍTICA DE NEGOCIO & BUSINESS INTELLIGENCE  */}
         {/* ==================================================== */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              <div className="glass-panel p-6 rounded-2xl">
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Estado WhatsApp</span>
-                <div className="text-2xl font-bold mt-2 flex items-center gap-2">
-                  {botStatus.status === 'CONNECTED' ? (
-                    <span className="text-emerald-400 flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      Conectado
+          <div className="space-y-6 animate-fade-in">
+            
+            {/* Top Header & Control Toolbar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-panel p-6 rounded-3xl border border-slate-800">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-emerald-400 p-0.5 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
+                  <div className="w-full h-full bg-[#070c18] rounded-[14px] flex items-center justify-center">
+                    <TrendingUp className="text-indigo-400" size={24} />
+                  </div>
+                </div>
+                <div>
+                  <h2 className="text-2xl font-extrabold text-white font-heading flex items-center gap-2">
+                    Analítica de Negocio & BI
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-sans font-semibold">
+                      Inteligencia Comercial en Vivo
                     </span>
-                  ) : (
-                    <span className="text-slate-400">Desconectado</span>
-                  )}
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+                    Seguimiento detallado de la evolución semana a semana y mes a mes de tus ingresos, rentabilidad, embudo de clientes, ticket promedio y días de mayor tráfico.
+                  </p>
                 </div>
-                <div className="text-xs text-slate-500 mt-1">{botStatus.phone || 'Sin número'}</div>
               </div>
 
-              <div className="glass-panel p-6 rounded-2xl">
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Leads</span>
-                <div className="text-3xl font-extrabold text-white mt-2 font-heading">{crmStats.totalLeads}</div>
-                <div className="text-xs text-slate-500 mt-1">Prospectos registrados</div>
-              </div>
-
-              <div className="glass-panel p-6 rounded-2xl">
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tasa de Cierre</span>
-                <div className="text-3xl font-extrabold text-emerald-400 mt-2 font-heading">{crmStats.conversionRate}%</div>
-                <div className="text-xs text-slate-500 mt-1">Porcentaje de ventas ganadas</div>
-              </div>
-
-              <div className="glass-panel p-6 rounded-2xl">
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Valor en Pipeline</span>
-                <div className="text-3xl font-extrabold text-indigo-400 mt-2 font-heading">
-                  ${(crmStats.totalPipelineValue || 0).toLocaleString()}
+              {/* Time Frame & Granularity Controls */}
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-400">Año:</span>
+                  <select
+                    value={analyticsYear}
+                    onChange={(e) => setAnalyticsYear(parseInt(e.target.value))}
+                    className="glass-input px-3 py-1.5 rounded-xl text-xs bg-slate-900 font-bold"
+                  >
+                    {[2024, 2025, 2026, 2027, 2028].map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="text-xs text-slate-500 mt-1">Monto total estimado</div>
+
+                <div className="flex items-center p-1 bg-slate-950/90 rounded-xl border border-slate-800 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setAnalyticsGranularity('monthly')}
+                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                      analyticsGranularity === 'monthly'
+                        ? 'bg-gradient-to-r from-indigo-600 to-emerald-500 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Calendar size={13} />
+                    <span>Mes a Mes</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAnalyticsGranularity('weekly')}
+                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                      analyticsGranularity === 'weekly'
+                        ? 'bg-gradient-to-r from-indigo-600 to-emerald-500 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Clock size={13} />
+                    <span>Semana a Semana</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={fetchBusinessInsights}
+                  className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-colors"
+                  title="Actualizar datos de analítica"
+                >
+                  <RefreshCw size={14} className={loadingAnalytics ? 'animate-spin text-indigo-400' : ''} />
+                </button>
               </div>
             </div>
 
-            <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800">
-              <h3 className="font-bold text-white text-lg mb-6">Desglose de Prospectos por Etapa</h3>
-              
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                {STAGES.map((s) => (
-                  <div key={s.key} className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 text-center">
-                    <span className="text-xs text-slate-400 font-medium block truncate">{s.label}</span>
-                    <div className="text-2xl font-extrabold text-white mt-2 font-heading">
-                      {crmStats.stageCounts?.[s.key] || 0}
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold">
+              <button
+                onClick={() => setAnalyticsCategoryFilter('all')}
+                className={`px-3.5 py-1.5 rounded-xl transition-all whitespace-nowrap border ${
+                  analyticsCategoryFilter === 'all'
+                    ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/50 shadow-sm'
+                    : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white'
+                }`}
+              >
+                📊 Todos los Gráficos
+              </button>
+              <button
+                onClick={() => setAnalyticsCategoryFilter('financial')}
+                className={`px-3.5 py-1.5 rounded-xl transition-all whitespace-nowrap border ${
+                  analyticsCategoryFilter === 'financial'
+                    ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/50 shadow-sm'
+                    : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white'
+                }`}
+              >
+                💰 Finanzas & Rentabilidad
+              </button>
+              <button
+                onClick={() => setAnalyticsCategoryFilter('funnel')}
+                className={`px-3.5 py-1.5 rounded-xl transition-all whitespace-nowrap border ${
+                  analyticsCategoryFilter === 'funnel'
+                    ? 'bg-sky-600/20 text-sky-300 border-sky-500/50 shadow-sm'
+                    : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white'
+                }`}
+              >
+                👥 Embudo & Conversión de Leads
+              </button>
+              <button
+                onClick={() => setAnalyticsCategoryFilter('products')}
+                className={`px-3.5 py-1.5 rounded-xl transition-all whitespace-nowrap border ${
+                  analyticsCategoryFilter === 'products'
+                    ? 'bg-purple-600/20 text-purple-300 border-purple-500/50 shadow-sm'
+                    : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white'
+                }`}
+              >
+                📦 Pedidos & Ticket Promedio
+              </button>
+              <button
+                onClick={() => setAnalyticsCategoryFilter('traffic')}
+                className={`px-3.5 py-1.5 rounded-xl transition-all whitespace-nowrap border ${
+                  analyticsCategoryFilter === 'traffic'
+                    ? 'bg-amber-600/20 text-amber-300 border-amber-500/50 shadow-sm'
+                    : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white'
+                }`}
+              >
+                🔥 Días de Mayor Tráfico
+              </button>
+            </div>
+
+            {loadingAnalytics && !businessInsights ? (
+              <div className="p-16 text-center text-slate-400 flex items-center justify-center gap-3 glass-panel rounded-3xl border border-slate-800">
+                <div className="w-6 h-6 rounded-full border-r-2 border-indigo-400 animate-spin"></div>
+                <span>Procesando analítica e inteligencia de negocio...</span>
+              </div>
+            ) : businessInsights ? (
+              <>
+                {/* 1. TOP EXECUTIVE KPI CARDS */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+                  {/* Revenue */}
+                  <div className="glass-panel p-4 rounded-2xl border border-slate-800">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                      <span>Ingresos Totales</span>
+                      <DollarSign size={15} className="text-emerald-400" />
+                    </div>
+                    <div className="text-2xl font-extrabold text-emerald-400 mt-2 font-heading">
+                      ${(businessInsights.summary?.totalRevenueYear || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                      <span className={`font-bold ${businessInsights.summary?.revenueGrowthMoM >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {businessInsights.summary?.revenueGrowthMoM >= 0 ? '▲ +' : '▼ '}{businessInsights.summary?.revenueGrowthMoM}%
+                      </span>
+                      <span>vs mes ant.</span>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
+
+                  {/* Net Margin */}
+                  <div className="glass-panel p-4 rounded-2xl border border-slate-800">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                      <span>Margen Neto</span>
+                      <Percent size={15} className="text-indigo-400" />
+                    </div>
+                    <div className="text-2xl font-extrabold text-indigo-400 mt-2 font-heading">
+                      {businessInsights.summary?.overallMargin || 0}%
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1">
+                      Utilidad: ${(businessInsights.summary?.totalProfitYear || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </div>
+                  </div>
+
+                  {/* Conversion Rate */}
+                  <div className="glass-panel p-4 rounded-2xl border border-slate-800">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                      <span>Tasa Cierre</span>
+                      <Target size={15} className="text-cyan-400" />
+                    </div>
+                    <div className="text-2xl font-extrabold text-cyan-400 mt-2 font-heading">
+                      {businessInsights.summary?.globalConversionRate || 0}%
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1">
+                      {businessInsights.summary?.totalWonLeads || 0} ventas cerradas
+                    </div>
+                  </div>
+
+                  {/* Average Order Value (AOV) */}
+                  <div className="glass-panel p-4 rounded-2xl border border-slate-800">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                      <span>Ticket Promedio</span>
+                      <ShoppingCart size={15} className="text-purple-400" />
+                    </div>
+                    <div className="text-2xl font-extrabold text-purple-400 mt-2 font-heading">
+                      ${businessInsights.summary?.averageOrderValue || 0}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1">Gasto medio por pedido</div>
+                  </div>
+
+                  {/* Total Orders Volume */}
+                  <div className="glass-panel p-4 rounded-2xl border border-slate-800">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                      <span>Total Pedidos</span>
+                      <Package size={15} className="text-amber-400" />
+                    </div>
+                    <div className="text-2xl font-extrabold text-amber-400 mt-2 font-heading">
+                      {businessInsights.summary?.totalOrders || 0}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1">
+                      ${(businessInsights.summary?.totalOrdersVolume || 0).toLocaleString()} cotizado
+                    </div>
+                  </div>
+
+                  {/* Chat Activity */}
+                  <div className="glass-panel p-4 rounded-2xl border border-slate-800">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                      <span>Interacciones</span>
+                      <MessageSquare size={15} className="text-sky-400" />
+                    </div>
+                    <div className="text-2xl font-extrabold text-sky-400 mt-2 font-heading">
+                      {businessInsights.summary?.totalMessages || 0}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1">Mensajes procesados</div>
+                  </div>
+                </div>
+
+                {/* 2. MAIN EVOLUTION CHART (Ingresos vs Egresos vs Utilidad Neta) */}
+                {(analyticsCategoryFilter === 'all' || analyticsCategoryFilter === 'financial') && (
+                  <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h3 className="font-bold text-white text-lg font-heading flex items-center gap-2">
+                          <BarChart3 className="text-emerald-400" size={20} />
+                          Evolución Financiera {analyticsGranularity === 'monthly' ? 'Mes a Mes' : 'Semana a Semana'}
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Comparativa de volumen de ingresos (facturación), egresos operativos y rentabilidad neta generada.
+                        </p>
+                      </div>
+
+                      {/* Legend */}
+                      <div className="flex items-center gap-4 text-xs font-semibold">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-3 h-3 rounded-md bg-emerald-500"></span>
+                          <span className="text-slate-300">Ingresos ($)</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-3 h-3 rounded-md bg-rose-500"></span>
+                          <span className="text-slate-300">Egresos ($)</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-3 h-3 rounded-full bg-indigo-400"></span>
+                          <span className="text-slate-300">Utilidad Neta ($)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Interactive Visual Bar & Line Chart Container */}
+                    {(() => {
+                      const data = analyticsGranularity === 'monthly' 
+                        ? businessInsights.monthlyData 
+                        : businessInsights.weeklyData;
+
+                      const maxVal = Math.max(
+                        ...data.map(d => Math.max(d.ingresos || 0, d.egresos || 0, Math.abs(d.utilidad || 0))),
+                        100
+                      );
+
+                      return (
+                        <div className="space-y-4">
+                          <div className="h-64 sm:h-72 flex items-end gap-2 sm:gap-4 pt-6 pb-2 px-2 bg-slate-950/60 rounded-2xl border border-slate-800/80 overflow-x-auto relative">
+                            {data.map((item, idx) => {
+                              const label = analyticsGranularity === 'monthly' ? item.monthName : item.weekLabel;
+                              const subLabel = analyticsGranularity === 'weekly' ? item.dateRange : '';
+                              const ingresoH = Math.min(100, Math.round(((item.ingresos || 0) / maxVal) * 100));
+                              const egresoH = Math.min(100, Math.round(((item.egresos || 0) / maxVal) * 100));
+                              const isProfitable = (item.utilidad || 0) >= 0;
+
+                              return (
+                                <div key={idx} className="flex-1 min-w-[48px] h-full flex flex-col justify-end items-center group relative">
+                                  
+                                  {/* Tooltip on Hover */}
+                                  <div className="absolute -top-16 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-30 bg-slate-900 text-white p-2.5 rounded-xl border border-slate-700 shadow-xl text-[11px] whitespace-nowrap flex flex-col gap-0.5">
+                                    <span className="font-bold text-indigo-300">{label} {subLabel && `(${subLabel})`}</span>
+                                    <span className="text-emerald-400">Ingresos: ${(item.ingresos || 0).toFixed(2)}</span>
+                                    <span className="text-rose-400">Egresos: ${(item.egresos || 0).toFixed(2)}</span>
+                                    <span className={`font-bold ${isProfitable ? 'text-indigo-400' : 'text-amber-400'}`}>
+                                      Utilidad: ${(item.utilidad || 0).toFixed(2)} ({item.margenNeto}%)
+                                    </span>
+                                  </div>
+
+                                  {/* Bars Container */}
+                                  <div className="w-full flex justify-center items-end gap-1 h-[80%] pb-1">
+                                    {/* Ingreso Bar */}
+                                    <div 
+                                      className="w-3 sm:w-5 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-md transition-all duration-500 group-hover:brightness-125 shadow-sm"
+                                      style={{ height: `${Math.max(4, ingresoH)}%` }}
+                                      title={`Ingresos: $${item.ingresos}`}
+                                    />
+                                    {/* Egreso Bar */}
+                                    <div 
+                                      className="w-3 sm:w-5 bg-gradient-to-t from-rose-600 to-rose-400 rounded-t-md transition-all duration-500 group-hover:brightness-125 shadow-sm"
+                                      style={{ height: `${Math.max(4, egresoH)}%` }}
+                                      title={`Egresos: $${item.egresos}`}
+                                    />
+                                  </div>
+
+                                  {/* Net Profit Dot / Indicator */}
+                                  <div className={`text-[10px] font-mono font-bold mt-1 px-1.5 py-0.2 rounded ${
+                                    item.utilidad > 0 
+                                      ? 'text-emerald-300 bg-emerald-500/10' 
+                                      : item.utilidad < 0 
+                                      ? 'text-rose-300 bg-rose-500/10' 
+                                      : 'text-slate-500'
+                                  }`}>
+                                    {item.utilidad !== 0 ? `$${Math.round(item.utilidad)}` : '-'}
+                                  </div>
+
+                                  {/* Period Label */}
+                                  <span className="text-[11px] font-semibold text-slate-400 mt-1 truncate max-w-[50px] text-center">
+                                    {label}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Insights Highlight Footer */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                            <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 text-xs">
+                              <span className="text-slate-400 block text-[11px]">Periodo con Mayor Facturación:</span>
+                              <span className="font-bold text-white text-sm mt-0.5 block">
+                                {(() => {
+                                  const best = [...data].sort((a,b) => (b.ingresos || 0) - (a.ingresos || 0))[0];
+                                  return best ? `${analyticsGranularity === 'monthly' ? best.monthName : best.weekLabel} ($${(best.ingresos || 0).toLocaleString()})` : 'N/A';
+                                })()}
+                              </span>
+                            </div>
+
+                            <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 text-xs">
+                              <span className="text-slate-400 block text-[11px]">Periodo Más Rentable:</span>
+                              <span className="font-bold text-emerald-400 text-sm mt-0.5 block">
+                                {(() => {
+                                  const bestP = [...data].sort((a,b) => (b.utilidad || 0) - (a.utilidad || 0))[0];
+                                  return bestP ? `${analyticsGranularity === 'monthly' ? bestP.monthName : bestP.weekLabel} (+$${(bestP.utilidad || 0).toLocaleString()})` : 'N/A';
+                                })()}
+                              </span>
+                            </div>
+
+                            <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 text-xs">
+                              <span className="text-slate-400 block text-[11px]">Promedio Facturado por Periodo:</span>
+                              <span className="font-bold text-indigo-300 text-sm mt-0.5 block">
+                                ${data.length > 0 ? (data.reduce((acc, d) => acc + (d.ingresos || 0), 0) / data.length).toFixed(2) : 0}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* 3. GRID: FUNNEL + WEEKDAY HEATMAP */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  
+                  {/* CHART 2: EMBUDO DE CONVERSIÓN DE CLIENTES */}
+                  {(analyticsCategoryFilter === 'all' || analyticsCategoryFilter === 'funnel') && (
+                    <div className="glass-panel p-6 rounded-3xl border border-slate-800 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                          <div>
+                            <h3 className="font-bold text-white text-base font-heading flex items-center gap-2">
+                              <Target className="text-indigo-400" size={18} />
+                              Embudo de Conversión de Clientes (Funnel)
+                            </h3>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              Paso a paso de prospectos capturados hasta el cierre de venta.
+                            </p>
+                          </div>
+                          <span className="text-xs font-mono font-bold text-indigo-300 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
+                            {businessInsights.summary?.totalLeads || 0} Leads
+                          </span>
+                        </div>
+
+                        <div className="space-y-3.5">
+                          {businessInsights.funnelStages?.map((stage, idx) => {
+                            const totalLeads = businessInsights.summary?.totalLeads || 1;
+                            const widthPct = Math.max(8, Math.round((stage.count / totalLeads) * 100));
+
+                            return (
+                              <div key={idx} className="space-y-1">
+                                <div className="flex items-center justify-between text-xs font-semibold">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stage.color }}></span>
+                                    <span className="text-white">{stage.label}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 font-mono">
+                                    <span className="text-slate-400">{stage.count} ({stage.percentage}%)</span>
+                                    {stage.value > 0 && (
+                                      <span className="text-emerald-400 font-bold">${stage.value.toLocaleString()}</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                  <div 
+                                    className="h-full rounded-full transition-all duration-700"
+                                    style={{
+                                      width: `${widthPct}%`,
+                                      backgroundColor: stage.color
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="mt-6 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+                        <span className="text-slate-400">Eficiencia Global de Cierre:</span>
+                        <span className="font-bold text-emerald-400 font-mono text-sm">
+                          {businessInsights.summary?.globalConversionRate || 0}% de conversión efectiva
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CHART 3: MAPA DE CALOR / DÍAS DE MAYOR TRÁFICO */}
+                  {(analyticsCategoryFilter === 'all' || analyticsCategoryFilter === 'traffic') && (
+                    <div className="glass-panel p-6 rounded-3xl border border-slate-800 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                          <div>
+                            <h3 className="font-bold text-white text-base font-heading flex items-center gap-2">
+                              <Flame className="text-amber-400" size={18} />
+                              Días de Mayor Actividad & Ventas
+                            </h3>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              Distribución semanal de consultas, nuevos prospectos y cotizaciones.
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            Semana
+                          </span>
+                        </div>
+
+                        {/* Weekday Visual Bars */}
+                        {(() => {
+                          const maxActivity = Math.max(
+                            ...businessInsights.weekdayStats?.map(w => w.totalActivity || 0),
+                            1
+                          );
+
+                          const peakDay = [...(businessInsights.weekdayStats || [])].sort((a,b) => b.totalActivity - a.totalActivity)[0];
+
+                          return (
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-7 gap-2 h-44 items-end bg-slate-950/60 p-3 rounded-2xl border border-slate-800/80">
+                                {businessInsights.weekdayStats?.map((w, wIdx) => {
+                                  const heightPct = Math.max(8, Math.round((w.totalActivity / maxActivity) * 100));
+                                  const isPeak = peakDay && peakDay.dayName === w.dayName && w.totalActivity > 0;
+
+                                  return (
+                                    <div key={wIdx} className="flex flex-col items-center justify-end h-full group relative">
+                                      {/* Tooltip */}
+                                      <div className="absolute -top-12 opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-20 bg-slate-900 text-white p-2 rounded-lg border border-slate-700 text-[10px] shadow-lg whitespace-nowrap">
+                                        <div className="font-bold text-amber-300">{w.dayName}</div>
+                                        <div>{w.leadCount} leads · {w.msgCount} msgs</div>
+                                      </div>
+
+                                      <div 
+                                        className={`w-full rounded-t-lg transition-all duration-500 ${
+                                          isPeak 
+                                            ? 'bg-gradient-to-t from-amber-600 to-amber-400 shadow-md shadow-amber-500/20' 
+                                            : 'bg-slate-800 hover:bg-slate-700'
+                                        }`}
+                                        style={{ height: `${heightPct}%` }}
+                                      />
+
+                                      <span className={`text-[10px] mt-1.5 font-bold ${isPeak ? 'text-amber-300' : 'text-slate-400'}`}>
+                                        {w.dayName.substring(0, 3)}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Peak Day Recommendation Box */}
+                              {peakDay && peakDay.totalActivity > 0 && (
+                                <div className="p-3.5 rounded-2xl bg-amber-950/20 border border-amber-500/30 flex items-center gap-3">
+                                  <Flame className="text-amber-400 shrink-0" size={20} />
+                                  <div className="text-xs">
+                                    <span className="font-bold text-amber-300 block">
+                                      ¡Tu día pico de mayor rendimiento es el {peakDay.dayName}!
+                                    </span>
+                                    <span className="text-slate-400 text-[11px]">
+                                      Se registran más consultas y capturas de clientes. Recomendamos programar tus campañas de WhatsApp en este día.
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+
+                {/* 4. GRID: TOP PRODUCTS + AVERAGE ORDER VALUE */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  
+                  {/* TOP PRODUCTS & ITEMS */}
+                  {(analyticsCategoryFilter === 'all' || analyticsCategoryFilter === 'products') && (
+                    <div className="glass-panel p-6 rounded-3xl border border-slate-800">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                        <h3 className="font-bold text-white text-base font-heading flex items-center gap-2">
+                          <Package className="text-purple-400" size={18} />
+                          Productos & Servicios Más Cotizados
+                        </h3>
+                        <span className="text-xs text-slate-400 font-mono">Ranking de Ventas</span>
+                      </div>
+
+                      {(!businessInsights.topProducts || businessInsights.topProducts.length === 0) ? (
+                        <div className="p-8 text-center text-slate-500 text-xs">
+                          Aún no hay cotizaciones o pedidos registrados para calcular el ranking de productos.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {businessInsights.topProducts.map((prod, pIdx) => {
+                            const maxRev = Math.max(...businessInsights.topProducts.map(p => p.revenue), 1);
+                            const revPct = Math.round((prod.revenue / maxRev) * 100);
+
+                            return (
+                              <div key={pIdx} className="space-y-1">
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="font-semibold text-white truncate max-w-[200px]">
+                                    #{pIdx + 1} {prod.name}
+                                  </span>
+                                  <div className="flex items-center gap-2 font-mono">
+                                    <span className="text-slate-400">{prod.quantity} unid.</span>
+                                    <span className="font-bold text-purple-300">${prod.revenue.toFixed(2)}</span>
+                                  </div>
+                                </div>
+
+                                <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                  <div 
+                                    className="h-full bg-gradient-to-r from-purple-600 to-indigo-400 rounded-full"
+                                    style={{ width: `${Math.max(5, revPct)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* FLUX CLASSIFICATION BREAKDOWN */}
+                  {(analyticsCategoryFilter === 'all' || analyticsCategoryFilter === 'financial') && (
+                    <div className="glass-panel p-6 rounded-3xl border border-slate-800">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                        <h3 className="font-bold text-white text-base font-heading flex items-center gap-2">
+                          <PieChart className="text-cyan-400" size={18} />
+                          Distribución de Flujos Contables
+                        </h3>
+                        <span className="text-xs text-slate-400 font-mono">Clasificación</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="p-3 rounded-2xl bg-blue-950/20 border border-blue-500/20">
+                          <span className="text-[10px] text-blue-300 font-bold uppercase">Activos Operativos</span>
+                          <div className="text-lg font-black text-blue-400 mt-1 font-heading font-mono">
+                            ${(businessInsights.classificationBreakdown?.activo || 0).toFixed(2)}
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-2xl bg-amber-950/20 border border-amber-500/20">
+                          <span className="text-[10px] text-amber-300 font-bold uppercase">Pasivos & Deudas</span>
+                          <div className="text-lg font-black text-amber-400 mt-1 font-heading font-mono">
+                            ${(businessInsights.classificationBreakdown?.pasivo || 0).toFixed(2)}
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-2xl bg-purple-950/20 border border-purple-500/20">
+                          <span className="text-[10px] text-purple-300 font-bold uppercase">Patrimonio</span>
+                          <div className="text-lg font-black text-purple-400 mt-1 font-heading font-mono">
+                            ${(businessInsights.classificationBreakdown?.patrimonio || 0).toFixed(2)}
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-2xl bg-rose-950/20 border border-rose-500/20">
+                          <span className="text-[10px] text-rose-300 font-bold uppercase">Notas de Crédito</span>
+                          <div className="text-lg font-black text-rose-400 mt-1 font-heading font-mono">
+                            -${(businessInsights.classificationBreakdown?.nota_credito || 0).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+
+                {/* 5. DETAILED EXECUTIVE EVOLUTION TABLE */}
+                <div className="glass-panel p-6 rounded-3xl border border-slate-800">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                    <div>
+                      <h3 className="font-bold text-white text-base font-heading">
+                        Tabla Comparativa de Rendimiento ({analyticsGranularity === 'monthly' ? 'Mes a Mes' : 'Semana a Semana'})
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Registro exhaustivo de métricas clave por periodo.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs text-slate-300">
+                      <thead className="bg-slate-950/70 text-slate-400 uppercase text-[10px] font-bold border-b border-slate-800">
+                        <tr>
+                          <th className="py-3 px-4">Periodo</th>
+                          <th className="py-3 px-4 text-right">Ingresos ($)</th>
+                          <th className="py-3 px-4 text-right">Egresos ($)</th>
+                          <th className="py-3 px-4 text-right">Utilidad ($)</th>
+                          <th className="py-3 px-4 text-center">Margen %</th>
+                          <th className="py-3 px-4 text-center">Nuevos Leads</th>
+                          <th className="py-3 px-4 text-center">Ventas Ganadas</th>
+                          <th className="py-3 px-4 text-right">Ticket Prom. ($)</th>
+                          <th className="py-3 px-4 text-center">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 font-sans">
+                        {(analyticsGranularity === 'monthly' ? businessInsights.monthlyData : businessInsights.weeklyData)?.map((item, idx) => {
+                          const isProfitable = (item.utilidad || 0) >= 0;
+                          const hasMovement = (item.ingresos || 0) > 0 || (item.egresos || 0) > 0 || (item.leadsNuevos || 0) > 0;
+
+                          return (
+                            <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
+                              <td className="py-3 px-4 font-bold text-white whitespace-nowrap">
+                                {analyticsGranularity === 'monthly' ? item.monthName : item.weekLabel}
+                                {analyticsGranularity === 'weekly' && (
+                                  <span className="text-[10px] text-slate-500 font-normal block">{item.dateRange}</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4 text-right font-mono text-emerald-400 font-semibold">
+                                ${(item.ingresos || 0).toFixed(2)}
+                              </td>
+                              <td className="py-3 px-4 text-right font-mono text-rose-400 font-semibold">
+                                ${(item.egresos || 0).toFixed(2)}
+                              </td>
+                              <td className={`py-3 px-4 text-right font-mono font-bold ${
+                                isProfitable ? 'text-indigo-300' : 'text-rose-400'
+                              }`}>
+                                ${(item.utilidad || 0).toFixed(2)}
+                              </td>
+                              <td className="py-3 px-4 text-center font-mono text-slate-300 font-semibold">
+                                {item.margenNeto || 0}%
+                              </td>
+                              <td className="py-3 px-4 text-center font-mono text-cyan-400">
+                                {item.leadsNuevos || 0}
+                              </td>
+                              <td className="py-3 px-4 text-center font-mono text-emerald-400 font-bold">
+                                {item.leadsGanados || 0}
+                              </td>
+                              <td className="py-3 px-4 text-right font-mono text-purple-300">
+                                ${(item.ticketPromedio || 0).toFixed(2)}
+                              </td>
+                              <td className="py-3 px-4 text-center whitespace-nowrap">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  !hasMovement
+                                    ? 'bg-slate-800 text-slate-500'
+                                    : isProfitable
+                                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                                    : 'bg-rose-500/15 text-rose-400 border border-rose-500/20'
+                                }`}>
+                                  {!hasMovement ? 'Sin actividad' : isProfitable ? 'Rentable' : 'Déficit'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            ) : null}
+
           </div>
         )}
 

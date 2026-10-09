@@ -536,6 +536,8 @@ app.get('/api/public/simulator-config', async (req, res) => {
             catalog: parsedCatalog,
             currency_code: sim.currency_code || 'PEN',
             currency_symbol: sim.currency_symbol || 'S/',
+            delay_min: sim.delay_min !== null && sim.delay_min !== undefined ? sim.delay_min : 2,
+            delay_max: sim.delay_max !== null && sim.delay_max !== undefined ? sim.delay_max : 5,
             ai_enabled: sim.ai_enabled === 1 || sim.ai_enabled === true,
             ai_system_prompt: sim.ai_system_prompt
         });
@@ -694,6 +696,8 @@ app.get('/api/admin/simulator-config', requireAdmin, async (req, res) => {
             catalog: parsedCatalog,
             currency_code: sim.currency_code || 'PEN',
             currency_symbol: sim.currency_symbol || 'S/',
+            delay_min: sim.delay_min !== null && sim.delay_min !== undefined ? sim.delay_min : 2,
+            delay_max: sim.delay_max !== null && sim.delay_max !== undefined ? sim.delay_max : 5,
             ai_enabled: sim.ai_enabled === 1 || sim.ai_enabled === true,
             ai_system_prompt: sim.ai_system_prompt,
             ai_temperature: sim.ai_temperature || 0.35
@@ -705,15 +709,17 @@ app.get('/api/admin/simulator-config', requireAdmin, async (req, res) => {
 
 app.put('/api/admin/simulator-config', requireAdmin, async (req, res) => {
     try {
-        const { bot_name, welcome_message, keywords, catalog, currency_code, currency_symbol, ai_enabled, ai_system_prompt, ai_temperature } = req.body;
+        const { bot_name, welcome_message, keywords, catalog, currency_code, currency_symbol, delay_min, delay_max, ai_enabled, ai_system_prompt, ai_temperature } = req.body;
         const db = await getDbConnection();
 
         const kwJson = typeof keywords === 'string' ? keywords : JSON.stringify(keywords || []);
         const catJson = typeof catalog === 'string' ? catalog : JSON.stringify(catalog || []);
+        const dMin = delay_min !== undefined ? Math.max(1, parseInt(delay_min, 10) || 2) : 2;
+        const dMax = delay_max !== undefined ? Math.max(dMin, parseInt(delay_max, 10) || 5) : 5;
 
         await db.run(
-            `INSERT INTO simulator_config (id, bot_name, welcome_message, keywords_json, catalog_json, currency_code, currency_symbol, ai_enabled, ai_system_prompt, ai_temperature, updated_at)
-             VALUES ('default', ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            `INSERT INTO simulator_config (id, bot_name, welcome_message, keywords_json, catalog_json, currency_code, currency_symbol, delay_min, delay_max, ai_enabled, ai_system_prompt, ai_temperature, updated_at)
+             VALUES ('default', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
              ON CONFLICT(id) DO UPDATE SET
                bot_name = excluded.bot_name,
                welcome_message = excluded.welcome_message,
@@ -721,6 +727,8 @@ app.put('/api/admin/simulator-config', requireAdmin, async (req, res) => {
                catalog_json = excluded.catalog_json,
                currency_code = excluded.currency_code,
                currency_symbol = excluded.currency_symbol,
+               delay_min = excluded.delay_min,
+               delay_max = excluded.delay_max,
                ai_enabled = excluded.ai_enabled,
                ai_system_prompt = excluded.ai_system_prompt,
                ai_temperature = excluded.ai_temperature,
@@ -732,6 +740,8 @@ app.put('/api/admin/simulator-config', requireAdmin, async (req, res) => {
                 catJson,
                 currency_code || 'PEN',
                 currency_symbol || 'S/',
+                dMin,
+                dMax,
                 ai_enabled ? 1 : 0,
                 ai_system_prompt || '',
                 ai_temperature || 0.35

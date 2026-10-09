@@ -207,6 +207,8 @@ async function getDbConnection() {
       catalog_json TEXT DEFAULT '[]',
       currency_code TEXT DEFAULT 'PEN',
       currency_symbol TEXT DEFAULT 'S/',
+      delay_min INTEGER DEFAULT 2,
+      delay_max INTEGER DEFAULT 5,
       ai_enabled INTEGER DEFAULT 1,
       ai_system_prompt TEXT DEFAULT '',
       ai_temperature REAL DEFAULT 0.35,
@@ -262,11 +264,6 @@ async function getDbConnection() {
           stage: 'Propuesta Enviada'
         },
         {
-          keyword: 'catalogo,demo,fotos,producto',
-          response: '📁 Te compartimos nuestro catálogo de productos interactivo y casos de éxito de Alidea.',
-          stage: 'Negociación'
-        },
-        {
           keyword: 'comprar,cerrar,asesor,pedido,adquirir',
           response: '🎉 ¡Excelente decisión! Tu asesor asignado se pondrá en contacto contigo de inmediato al WhatsApp 907318642.',
           stage: 'Cerrado / Ganado'
@@ -274,8 +271,8 @@ async function getDbConnection() {
       ]);
       const defaultPrompt = 'Eres Sofia, la asesora virtual comercial de Alidea en la demostración en vivo de nuestra página web. Tu objetivo es explicar de forma concisa, cálida, entusiasta y con emojis cómo Alidea ayuda a negocios a automatizar su atención por WhatsApp 24/7, capturar leads en CRM Kanban y lanzar retargeting masivo. Responde en 1 o 2 párrafos breves ideales para chat de WhatsApp.';
       await db.run(
-        `INSERT INTO simulator_config (id, bot_name, welcome_message, keywords_json, ai_enabled, ai_system_prompt)
-         VALUES ('default', 'Alidea Bot Asistente', '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.', ?, 1, ?)`,
+        `INSERT INTO simulator_config (id, bot_name, welcome_message, keywords_json, delay_min, delay_max, ai_enabled, ai_system_prompt)
+         VALUES ('default', 'Alidea Bot Asistente', '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.', ?, 2, 5, 1, ?)`,
         [defaultKeywords, defaultPrompt]
       );
     }
@@ -309,6 +306,8 @@ async function getDbConnection() {
     { table: 'simulator_config', column: "catalog_json TEXT DEFAULT '[]'" },
     { table: 'simulator_config', column: "currency_code TEXT DEFAULT 'PEN'" },
     { table: 'simulator_config', column: "currency_symbol TEXT DEFAULT 'S/'" },
+    { table: 'simulator_config', column: 'delay_min INTEGER DEFAULT 2' },
+    { table: 'simulator_config', column: 'delay_max INTEGER DEFAULT 5' },
     { table: 'users', column: "currency_code TEXT DEFAULT 'PEN'" },
     { table: 'users', column: "currency_symbol TEXT DEFAULT 'S/'" }
   ];

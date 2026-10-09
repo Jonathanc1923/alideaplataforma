@@ -58,6 +58,11 @@ export default function Landing() {
   ]);
   const [isTyping, setIsTyping] = useState(false);
   const [kanbanStage, setKanbanStage] = useState('Nuevo Lead');
+  const [simCatalog, setSimCatalog] = useState([]);
+  const [simCurrencySymbol, setSimCurrencySymbol] = useState('S/');
+  const [simDelayMin, setSimDelayMin] = useState(2);
+  const [simDelayMax, setSimDelayMax] = useState(5);
+  const [simKeywords, setSimKeywords] = useState([]);
 
   // Load simulator configuration from backend
   useEffect(() => {
@@ -71,6 +76,11 @@ export default function Landing() {
               { sender: 'bot', text: res.data.welcome_message, time: 'Ahora' }
             ]);
           }
+          if (Array.isArray(res.data.catalog)) setSimCatalog(res.data.catalog);
+          if (res.data.currency_symbol) setSimCurrencySymbol(res.data.currency_symbol);
+          if (res.data.delay_min !== undefined) setSimDelayMin(res.data.delay_min);
+          if (res.data.delay_max !== undefined) setSimDelayMax(res.data.delay_max);
+          if (Array.isArray(res.data.keywords)) setSimKeywords(res.data.keywords);
         }
       } catch (err) {
         console.warn('Usando configuración por defecto del simulador:', err.message);
@@ -99,39 +109,75 @@ export default function Landing() {
     setSimMessage('');
     setIsTyping(true);
 
-    try {
-      const res = await axios.post(`${API_BASE}/public/simulator-chat`, {
-        message: text,
-        history: newChat
+    const minD = Math.max(1, parseInt(simDelayMin, 10) || 2);
+    const maxD = Math.max(minD, parseInt(simDelayMax, 10) || 5);
+    const simulatedDelayMs = (Math.floor(Math.random() * (maxD - minD + 1)) + minD) * 1000;
+
+    const lower = text.toLowerCase().trim();
+    const isCatalog = /(catalogo|cat[aá]logo|pedir cat[aá]logo|enviar cat[aá]logo|ver cat[aá]logo|productos|servicios|lista de precios|precios|menu|menú|carta)/i.test(lower);
+
+    const getFormattedCatalog = () => {
+      const items = simCatalog && simCatalog.length > 0 ? simCatalog : [
+        { name: 'Plan Acceso Total Anual (Bot 24/7 + CRM)', price: '350.00', description: 'Sistema WhatsApp automático, CRM Kanban, Retargeting y Curso de Anuncios' },
+        { name: 'Pack Anuncios Ganadores Meta & TikTok', price: '120.00', description: 'Estrategias y plantillas para captar clientes todos los días' },
+        { name: 'Módulo de Facturación & Finanzas Pro', price: '99.00', description: 'Libro diario, mayor, balance y control de impuestos' }
+      ];
+      let msg = `📁 *CATÁLOGO DE PRODUCTOS & SERVICIOS:*\n\n`;
+      items.forEach((p, idx) => {
+        msg += `*${idx + 1}. ${p.name}* ➔ *${simCurrencySymbol || 'S/'} ${Number(p.price || 0).toFixed(2)}*\n${p.description ? `_${p.description}_\n` : ''}\n`;
       });
+      msg += `¿Deseas cotizar o realizar un pedido de alguno de estos productos?`;
+      return msg;
+    };
+
+    try {
+      const [res] = await Promise.all([
+        axios.post(`${API_BASE}/public/simulator-chat`, {
+          message: text,
+          history: newChat
+        }),
+        new Promise((resolve) => setTimeout(resolve, simulatedDelayMs))
+      ]);
 
       setIsTyping(false);
       if (res.data && res.data.text) {
-        setSimChat([...newChat, { sender: 'bot', text: res.data.text, time: 'Ahora' }]);
+        let replyText = res.data.text;
+        if (isCatalog && (!replyText.includes('1.') && !replyText.includes('➔') && !replyText.includes(simCurrencySymbol || 'S/'))) {
+          replyText = getFormattedCatalog();
+        }
+        setSimChat([...newChat, { sender: 'bot', text: replyText, time: 'Ahora' }]);
         if (res.data.stage) setKanbanStage(res.data.stage);
+        else if (isCatalog) setKanbanStage('Negociación');
       }
     } catch(e) {
-      // Fallback local si el servidor no responde
-      setTimeout(() => {
-        setIsTyping(false);
-        let reply = 'Gracias por escribirnos. Nuestro equipo comercial de Alidea ya tiene tus datos registrados.';
-        let newStage = 'En Conversación';
+      await new Promise((resolve) => setTimeout(resolve, simulatedDelayMs));
+      setIsTyping(false);
 
-        const lower = text.toLowerCase();
-        if (lower.includes('precio') || lower.includes('costo') || lower.includes('plan')) {
-          reply = '💳 Contamos con el Plan Acceso Total Anual por solo S/ 350 que incluye Bot 24/7, CRM Kanban, Retargeting Masivo y Curso de Anuncios en Meta y TikTok.';
-          newStage = 'Propuesta Enviada';
-        } else if (lower.includes('catalogo') || lower.includes('catálogo') || lower.includes('demo') || lower.includes('fotos') || lower.includes('producto') || lower.includes('servicio')) {
-          reply = `📁 *CATÁLOGO DE PRODUCTOS & SERVICIOS:*\n\n*1. Plan Acceso Total Anual (Bot 24/7 + CRM)* ➔ *S/ 350.00*\n_Sistema WhatsApp automático, CRM Kanban, Retargeting y Curso de Anuncios_\n\n*2. Pack Anuncios Ganadores Meta & TikTok* ➔ *S/ 120.00*\n_Estrategias y plantillas para captar clientes todos los días_\n\n*3. Módulo de Facturación & Finanzas Pro* ➔ *S/ 99.00*\n_Libro diario, mayor, balance y control de impuestos_\n\n¿Deseas cotizar o realizar un pedido de alguno de estos productos?`;
-          newStage = 'Negociación';
-        } else if (lower.includes('comprar') || lower.includes('cerrar') || lower.includes('asesor') || lower.includes('pedido')) {
-          reply = '🎉 ¡Excelente decisión! Tu asesor asignado se pondrá en contacto contigo de inmediato al WhatsApp 907318642.';
-          newStage = 'Cerrado / Ganado';
+      let reply = 'Gracias por escribirnos. Nuestro equipo comercial de Alidea ya tiene tus datos registrados.';
+      let newStage = 'En Conversación';
+
+      if (isCatalog) {
+        reply = getFormattedCatalog();
+        newStage = 'Negociación';
+      } else if (lower.includes('precio') || lower.includes('costo') || lower.includes('plan') || lower.includes('cuanto cuesta')) {
+        reply = `💳 Contamos con el Plan Acceso Total Anual por solo ${simCurrencySymbol || 'S/'} 350 que incluye Bot 24/7, CRM Kanban, Retargeting Masivo y Curso de Anuncios en Meta y TikTok.`;
+        newStage = 'Propuesta Enviada';
+      } else if (lower.includes('comprar') || lower.includes('cerrar') || lower.includes('asesor') || lower.includes('pedido') || lower.includes('adquirir')) {
+        reply = '🎉 ¡Excelente decisión! Tu asesor asignado se pondrá en contacto contigo de inmediato al WhatsApp 907318642.';
+        newStage = 'Cerrado / Ganado';
+      } else {
+        for (const kw of simKeywords) {
+          const list = (kw.keyword || '').toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
+          if (list.some(k => lower.includes(k))) {
+            reply = kw.response;
+            if (kw.stage) newStage = kw.stage;
+            break;
+          }
         }
+      }
 
-        setSimChat([...newChat, { sender: 'bot', text: reply, time: 'Ahora' }]);
-        setKanbanStage(newStage);
-      }, 700);
+      setSimChat([...newChat, { sender: 'bot', text: reply, time: 'Ahora' }]);
+      setKanbanStage(newStage);
     }
   };
 

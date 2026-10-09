@@ -28,7 +28,8 @@ import {
   Save,
   Sliders,
   Check,
-  Package
+  Package,
+  Clock
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
@@ -71,6 +72,8 @@ export default function AdminDashboard() {
   const [simBotName, setSimBotName] = useState('Alidea Bot Asistente');
   const [simWelcomeMessage, setSimWelcomeMessage] = useState('¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.');
   const [simKeywords, setSimKeywords] = useState([]);
+  const [simDelayMin, setSimDelayMin] = useState(2);
+  const [simDelayMax, setSimDelayMax] = useState(5);
   const [simAiEnabled, setSimAiEnabled] = useState(true);
   const [simAiPrompt, setSimAiPrompt] = useState('');
   const [simAiTemp, setSimAiTemp] = useState(0.35);
@@ -147,6 +150,8 @@ export default function AdminDashboard() {
         setSimCatalog(Array.isArray(res.data.catalog) ? res.data.catalog : []);
         setSimCurrencyCode(res.data.currency_code || 'PEN');
         setSimCurrencySymbol(res.data.currency_symbol || 'S/');
+        setSimDelayMin(res.data.delay_min !== undefined ? res.data.delay_min : 2);
+        setSimDelayMax(res.data.delay_max !== undefined ? res.data.delay_max : 5);
         setSimAiEnabled(res.data.ai_enabled === 1 || res.data.ai_enabled === true);
         setSimAiPrompt(res.data.ai_system_prompt || '');
         setSimAiTemp(res.data.ai_temperature || 0.35);
@@ -171,6 +176,8 @@ export default function AdminDashboard() {
           catalog: simCatalog,
           currency_code: simCurrencyCode.trim() || 'PEN',
           currency_symbol: simCurrencySymbol.trim() || 'S/',
+          delay_min: simDelayMin,
+          delay_max: simDelayMax,
           ai_enabled: simAiEnabled ? 1 : 0,
           ai_system_prompt: simAiPrompt.trim(),
           ai_temperature: simAiTemp
@@ -867,13 +874,70 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Bloque 3: Palabras Clave y Respuestas Rápidas */}
+              {/* Bloque 3: Tiempo de Delay de Respuesta (Simulación Humana) */}
+              <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                      <Clock size={22} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white font-heading">
+                        3. Tiempo de Delay de Respuesta (Simulación de Escritura)
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        Configura el tiempo aleatorio en segundos durante el cual el simulador muestra el estado "Simulando escritura humana...".
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="text-xs font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
+                      Rango: {simDelayMin}s a {simDelayMax}s
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Delay Mínimo (segundos)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={simDelayMin}
+                      onChange={(e) => setSimDelayMin(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                      className="w-full glass-input px-4 py-2.5 rounded-xl text-sm font-mono"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Delay Máximo (segundos)
+                    </label>
+                    <input
+                      type="number"
+                      min={simDelayMin}
+                      max={60}
+                      value={simDelayMax}
+                      onChange={(e) => setSimDelayMax(Math.max(simDelayMin, parseInt(e.target.value, 10) || simDelayMin))}
+                      className="w-full glass-input px-4 py-2.5 rounded-xl text-sm font-mono"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloque 4: Palabras Clave y Respuestas Rápidas */}
               <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-base font-bold text-white flex items-center gap-2">
                       <MessageSquare size={18} className="text-emerald-400" />
-                      <span>3. Palabras Clave del Simulador ({simKeywords.length})</span>
+                      <span>4. Palabras Clave del Simulador ({simKeywords.length})</span>
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5">
                       Si el visitante escribe estas palabras, el simulador responderá con el texto configurado y moverá la tarjeta Kanban.

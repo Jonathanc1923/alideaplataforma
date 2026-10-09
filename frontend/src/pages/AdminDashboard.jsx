@@ -85,7 +85,10 @@ export default function AdminDashboard() {
 
   // Simulator Catalog State & Modal
   const [simCatalog, setSimCatalog] = useState([]);
+  const [simCurrencyCode, setSimCurrencyCode] = useState('PEN');
+  const [simCurrencySymbol, setSimCurrencySymbol] = useState('S/');
   const [showSimProdModal, setShowSimProdModal] = useState(false);
+  const [editingSimProdIdx, setEditingSimProdIdx] = useState(null);
   const [newSimProdName, setNewSimProdName] = useState('');
   const [newSimProdPrice, setNewSimProdPrice] = useState('');
   const [newSimProdDesc, setNewSimProdDesc] = useState('');
@@ -142,6 +145,8 @@ export default function AdminDashboard() {
         setSimWelcomeMessage(res.data.welcome_message || '');
         setSimKeywords(Array.isArray(res.data.keywords) ? res.data.keywords : []);
         setSimCatalog(Array.isArray(res.data.catalog) ? res.data.catalog : []);
+        setSimCurrencyCode(res.data.currency_code || 'PEN');
+        setSimCurrencySymbol(res.data.currency_symbol || 'S/');
         setSimAiEnabled(res.data.ai_enabled === 1 || res.data.ai_enabled === true);
         setSimAiPrompt(res.data.ai_system_prompt || '');
         setSimAiTemp(res.data.ai_temperature || 0.35);
@@ -164,6 +169,8 @@ export default function AdminDashboard() {
           welcome_message: simWelcomeMessage.trim(),
           keywords: simKeywords,
           catalog: simCatalog,
+          currency_code: simCurrencyCode.trim() || 'PEN',
+          currency_symbol: simCurrencySymbol.trim() || 'S/',
           ai_enabled: simAiEnabled ? 1 : 0,
           ai_system_prompt: simAiPrompt.trim(),
           ai_temperature: simAiTemp
@@ -180,24 +187,56 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleAddSimProduct = (e) => {
+  const openAddSimProductModal = () => {
+    setEditingSimProdIdx(null);
+    setNewSimProdName('');
+    setNewSimProdPrice('');
+    setNewSimProdDesc('');
+    setNewSimProdCategory('Servicios');
+    setShowSimProdModal(true);
+  };
+
+  const openEditSimProductModal = (prod, idx) => {
+    setEditingSimProdIdx(idx);
+    setNewSimProdName(prod.name || '');
+    setNewSimProdPrice(prod.price !== undefined ? String(prod.price) : '');
+    setNewSimProdDesc(prod.description || '');
+    setNewSimProdCategory(prod.category || 'Servicios');
+    setShowSimProdModal(true);
+  };
+
+  const handleSaveSimProduct = (e) => {
     e.preventDefault();
     if (!newSimProdName.trim() || !newSimProdPrice) {
       alert('Completa el nombre y el precio del producto para la demo');
       return;
     }
-    const updated = [
-      ...simCatalog,
-      {
-        id: `sim-prod-${Date.now()}`,
+
+    if (editingSimProdIdx !== null) {
+      const updated = [...simCatalog];
+      updated[editingSimProdIdx] = {
+        ...updated[editingSimProdIdx],
         name: newSimProdName.trim(),
         price: parseFloat(newSimProdPrice) || 0,
         description: newSimProdDesc.trim(),
         category: newSimProdCategory.trim() || 'Servicios'
-      }
-    ];
-    setSimCatalog(updated);
+      };
+      setSimCatalog(updated);
+    } else {
+      const updated = [
+        ...simCatalog,
+        {
+          id: `sim-prod-${Date.now()}`,
+          name: newSimProdName.trim(),
+          price: parseFloat(newSimProdPrice) || 0,
+          description: newSimProdDesc.trim(),
+          category: newSimProdCategory.trim() || 'Servicios'
+        }
+      ];
+      setSimCatalog(updated);
+    }
     setShowSimProdModal(false);
+    setEditingSimProdIdx(null);
     setNewSimProdName('');
     setNewSimProdPrice('');
     setNewSimProdDesc('');
@@ -739,13 +778,102 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Bloque 2: Palabras Clave y Respuestas Rápidas */}
+              {/* Bloque 2: Moneda del Servicio y Símbolo */}
+              <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                      <DollarSign size={22} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white font-heading">
+                        2. Moneda del Servicio y Símbolo
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        Elige la moneda y el símbolo que el bot y catálogo de la demo usarán para mostrar los precios.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                      Vista previa: {simCurrencySymbol} 350 {simCurrencyCode}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Accesos Rápidos a Monedas */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">
+                    Preajustes Rápidos de Moneda:
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { code: 'PEN', symbol: 'S/', label: '🇵🇪 Soles (S/)' },
+                      { code: 'USD', symbol: '$', label: '🇺🇸 Dólares ($)' },
+                      { code: 'EUR', symbol: '€', label: '🇪🇺 Euros (€)' },
+                      { code: 'COP', symbol: 'COP $', label: '🇨🇴 Pesos Colombianos' },
+                      { code: 'MXN', symbol: 'MXN $', label: '🇲🇽 Pesos Mexicanos' },
+                      { code: 'CLP', symbol: 'CLP $', label: '🇨🇱 Pesos Chilenos' },
+                      { code: 'ARS', symbol: 'ARS $', label: '🇦🇷 Pesos Argentinos' }
+                    ].map((cur) => (
+                      <button
+                        key={cur.code}
+                        type="button"
+                        onClick={() => {
+                          setSimCurrencyCode(cur.code);
+                          setSimCurrencySymbol(cur.symbol);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                          simCurrencyCode === cur.code && simCurrencySymbol === cur.symbol
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
+                            : 'bg-slate-900/60 text-slate-400 hover:text-white border-slate-800'
+                        }`}
+                      >
+                        {cur.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Código de Moneda (ISO)
+                    </label>
+                    <input
+                      type="text"
+                      value={simCurrencyCode}
+                      onChange={(e) => setSimCurrencyCode(e.target.value.toUpperCase())}
+                      placeholder="PEN, USD, EUR, etc."
+                      className="w-full glass-input px-4 py-2.5 rounded-xl text-sm font-mono"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Símbolo de la Moneda
+                    </label>
+                    <input
+                      type="text"
+                      value={simCurrencySymbol}
+                      onChange={(e) => setSimCurrencySymbol(e.target.value)}
+                      placeholder="S/, $, €, etc."
+                      className="w-full glass-input px-4 py-2.5 rounded-xl text-sm font-mono"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloque 3: Palabras Clave y Respuestas Rápidas */}
               <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-base font-bold text-white flex items-center gap-2">
                       <MessageSquare size={18} className="text-emerald-400" />
-                      <span>2. Palabras Clave del Simulador ({simKeywords.length})</span>
+                      <span>3. Palabras Clave del Simulador ({simKeywords.length})</span>
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5">
                       Si el visitante escribe estas palabras, el simulador responderá con el texto configurado y moverá la tarjeta Kanban.
@@ -798,7 +926,7 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* Bloque 3: Catálogo de Productos para la Demo / Simulador */}
+              {/* Bloque 4: Catálogo de Productos para la Demo / Simulador */}
               <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
                   <div className="flex items-center gap-3">
@@ -807,7 +935,7 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-white font-heading">
-                        3. Catálogo de Productos para la Demo
+                        4. Catálogo de Productos para la Demo ({simCatalog.length})
                       </h3>
                       <p className="text-xs text-slate-400">
                         Productos que el bot de la landing mostrará cuando el visitante pida el catálogo o pregunte por planes y servicios.
@@ -817,7 +945,7 @@ export default function AdminDashboard() {
 
                   <button
                     type="button"
-                    onClick={() => setShowSimProdModal(true)}
+                    onClick={openAddSimProductModal}
                     className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-rose-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all self-start sm:self-auto"
                   >
                     <Plus size={15} />
@@ -841,7 +969,7 @@ export default function AdminDashboard() {
                               {prod.category || 'General'}
                             </span>
                             <span className="text-xs font-bold text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                              ${prod.price}
+                              {simCurrencySymbol} {prod.price}
                             </span>
                           </div>
                           <h4 className="font-bold text-white text-sm">{prod.name}</h4>
@@ -850,7 +978,16 @@ export default function AdminDashboard() {
                           )}
                         </div>
 
-                        <div className="pt-3 border-t border-slate-800 mt-3 flex justify-end">
+                        <div className="pt-3 border-t border-slate-800 mt-3 flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditSimProductModal(prod, pIdx)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-300 rounded-lg hover:bg-indigo-500/10 transition-colors flex items-center gap-1 text-xs"
+                            title="Editar producto"
+                          >
+                            <Edit3 size={14} />
+                            <span className="text-[11px]">Editar</span>
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteSimProduct(pIdx)}
@@ -866,7 +1003,7 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* Bloque 4: Inteligencia Artificial (IA) para Consultas Abiertas */}
+              {/* Bloque 5: Inteligencia Artificial (IA) para Consultas Abiertas */}
               <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -875,7 +1012,7 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-white font-heading">
-                        4. Inteligencia Artificial (IA) para la Landing
+                        5. Inteligencia Artificial (IA) para la Landing
                       </h3>
                       <p className="text-xs text-slate-400">
                         Si el visitante pregunta algo que no coincide con ninguna palabra clave, la IA responderá con este contexto y los productos del catálogo.
@@ -939,12 +1076,12 @@ export default function AdminDashboard() {
 
       </main>
 
-      {/* MODAL AGREGAR PRODUCTO AL SIMULADOR */}
+      {/* MODAL AGREGAR / EDITAR PRODUCTO AL SIMULADOR */}
       {showSimProdModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md glass-panel p-6 rounded-3xl border border-slate-700 shadow-2xl relative animate-fade-in">
             <button 
-              onClick={() => setShowSimProdModal(false)}
+              onClick={() => { setShowSimProdModal(false); setEditingSimProdIdx(null); }}
               className="absolute top-5 right-5 text-slate-400 hover:text-white"
             >
               <X size={20} />
@@ -952,10 +1089,10 @@ export default function AdminDashboard() {
 
             <h3 className="text-lg font-bold text-white font-heading mb-4 flex items-center gap-2">
               <Package size={18} className="text-rose-400" />
-              <span>Añadir Producto a la Demo</span>
+              <span>{editingSimProdIdx !== null ? 'Editar Producto de la Demo' : 'Añadir Producto a la Demo'}</span>
             </h3>
 
-            <form onSubmit={handleAddSimProduct} className="space-y-4">
+            <form onSubmit={handleSaveSimProduct} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Nombre del Producto o Plan *
@@ -973,7 +1110,7 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Precio ($ USD o S/) *
+                    Precio ({simCurrencySymbol} {simCurrencyCode}) *
                   </label>
                   <input
                     type="number"
@@ -1017,7 +1154,7 @@ export default function AdminDashboard() {
               <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowSimProdModal(false)}
+                  onClick={() => { setShowSimProdModal(false); setEditingSimProdIdx(null); }}
                   className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
                 >
                   Cancelar
@@ -1026,7 +1163,7 @@ export default function AdminDashboard() {
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 text-white text-xs font-bold shadow-lg shadow-rose-600/25"
                 >
-                  Agregar Producto
+                  {editingSimProdIdx !== null ? 'Guardar Cambios' : 'Agregar Producto'}
                 </button>
               </div>
             </form>

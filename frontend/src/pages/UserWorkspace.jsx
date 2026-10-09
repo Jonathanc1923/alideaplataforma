@@ -176,12 +176,20 @@ export default function UserWorkspace() {
   const [orders, setOrders] = useState([]);
   const [catalogSubTab, setCatalogSubTab] = useState('products'); // 'products' | 'orders'
   const [showProductModal, setShowProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
   const [prodName, setProdName] = useState('');
   const [prodSku, setProdSku] = useState('');
   const [prodPrice, setProdPrice] = useState('');
   const [prodCategory, setProdCategory] = useState('General');
   const [prodDesc, setProdDesc] = useState('');
   const [prodImageUrl, setProdImageUrl] = useState('');
+
+  // Currency & Business Settings State
+  const [currencyCode, setCurrencyCode] = useState(auth?.user?.currency_code || 'PEN');
+  const [currencySymbol, setCurrencySymbol] = useState(auth?.user?.currency_symbol || 'S/');
+  const [savingCurrency, setSavingCurrency] = useState(false);
+  const [currencySuccessMsg, setCurrencySuccessMsg] = useState('');
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
 
   // New Order Modal
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -369,6 +377,7 @@ export default function UserWorkspace() {
     fetchOrders();
     fetchCrmTags();
     fetchAiSettings();
+    fetchUserSettings();
 
     const interval = setInterval(() => {
       fetchBotStatus();
@@ -966,6 +975,62 @@ export default function UserWorkspace() {
     }
   };
 
+  // Currency & Business Settings API
+  const fetchUserSettings = async () => {
+    if (!auth?.user?.id) return;
+    try {
+      const res = await axios.get(`${API_BASE}/user/settings`, {
+        headers: { 'x-user-id': auth.user.id }
+      });
+      if (res.data) {
+        if (res.data.currency_code) setCurrencyCode(res.data.currency_code);
+        if (res.data.currency_symbol) setCurrencySymbol(res.data.currency_symbol);
+      }
+    } catch (err) {
+      console.warn('Error loading user settings:', err);
+    }
+  };
+
+  const handleSaveCurrencySettings = async (code, symbol) => {
+    if (!auth?.user?.id) return;
+    setSavingCurrency(true);
+    const finalCode = (code || currencyCode).trim() || 'PEN';
+    const finalSymbol = (symbol || currencySymbol).trim() || 'S/';
+    try {
+      await axios.put(`${API_BASE}/user/settings`, {
+        currency_code: finalCode,
+        currency_symbol: finalSymbol
+      }, {
+        headers: { 'x-user-id': auth.user.id }
+      });
+
+      setCurrencyCode(finalCode);
+      setCurrencySymbol(finalSymbol);
+
+      // Update local storage
+      const stored = localStorage.getItem('alidea_auth');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed.user) {
+            parsed.user.currency_code = finalCode;
+            parsed.user.currency_symbol = finalSymbol;
+            localStorage.setItem('alidea_auth', JSON.stringify(parsed));
+          }
+        } catch(e) {}
+      }
+
+      setCurrencySuccessMsg('¡Moneda actualizada con éxito!');
+      setShowCurrencyModal(false);
+      setTimeout(() => setCurrencySuccessMsg(''), 3500);
+    } catch (err) {
+      console.error('Error saving currency settings:', err);
+      alert('Error al guardar la moneda del negocio');
+    } finally {
+      setSavingCurrency(false);
+    }
+  };
+
   // Products & Orders API
   const fetchProducts = async () => {
     if (!auth) return;
@@ -991,22 +1056,58 @@ export default function UserWorkspace() {
     }
   };
 
-  const handleCreateProduct = async (e) => {
+  const openAddProductModal = () => {
+    setEditingProduct(null);
+    setProdName('');
+    setProdSku('');
+    setProdPrice('');
+    setProdCategory('General');
+    setProdDesc('');
+    setProdImageUrl('');
+    setShowProductModal(true);
+  };
+
+  const openEditProductModal = (product) => {
+    setEditingProduct(product);
+    setProdName(product.name || '');
+    setProdSku(product.sku || '');
+    setProdPrice(product.price !== undefined ? String(product.price) : '');
+    setProdCategory(product.category || 'General');
+    setProdDesc(product.description || '');
+    setProdImageUrl(product.image_url || '');
+    setShowProductModal(true);
+  };
+
+  const handleSaveProduct = async (e) => {
     e.preventDefault();
     if (!prodName.trim() || !prodPrice) return;
 
     try {
-      await axios.post(`${API_BASE}/products`, {
-        user_id: auth.user.id,
-        name: prodName.trim(),
-        sku: prodSku.trim(),
-        price: parseFloat(prodPrice),
-        category: prodCategory,
-        description: prodDesc.trim(),
-        image_url: prodImageUrl.trim()
-      });
+      if (editingProduct) {
+        await axios.put(`${API_BASE}/products/${editingProduct.id}`, {
+          name: prodName.trim(),
+          sku: prodSku.trim(),
+          price: parseFloat(prodPrice),
+          category: prodCategory,
+          description: prodDesc.trim(),
+          image_url: prodImageUrl.trim()
+        }, {
+          headers: { 'x-user-id': auth.user.id }
+        });
+      } else {
+        await axios.post(`${API_BASE}/products`, {
+          user_id: auth.user.id,
+          name: prodName.trim(),
+          sku: prodSku.trim(),
+          price: parseFloat(prodPrice),
+          category: prodCategory,
+          description: prodDesc.trim(),
+          image_url: prodImageUrl.trim()
+        });
+      }
 
       setShowProductModal(false);
+      setEditingProduct(null);
       setProdName('');
       setProdSku('');
       setProdPrice('');
@@ -1015,14 +1116,16 @@ export default function UserWorkspace() {
       fetchProducts();
     } catch (err) {
       console.error(err);
-      alert('Error al agregar producto');
+      alert(editingProduct ? 'Error al actualizar producto' : 'Error al agregar producto');
     }
   };
 
   const handleDeleteProduct = async (prodId) => {
     if (!window.confirm('¿Eliminar este producto?')) return;
     try {
-      await axios.delete(`${API_BASE}/products/${prodId}`);
+      await axios.delete(`${API_BASE}/products/${prodId}`, {
+        headers: { 'x-user-id': auth.user.id }
+      });
       fetchProducts();
     } catch (err) {
       console.error(err);
@@ -1065,9 +1168,9 @@ export default function UserWorkspace() {
     
     let msg = `*RESUMEN DE PEDIDO ${order.order_number}*\nHola! Te compartimos el detalle de tu cotización en ${auth.user.business_name}:\n\n`;
     items.forEach((item, idx) => {
-      msg += `• ${item.name} (x${item.quantity}): $${item.price * item.quantity}\n`;
+      msg += `• ${item.name} (x${item.quantity}): ${currencySymbol} ${item.price * item.quantity}\n`;
     });
-    msg += `\n*TOTAL A PAGAR: $${order.total_amount} USD*\n`;
+    msg += `\n*TOTAL A PAGAR: ${currencySymbol} ${order.total_amount} ${currencyCode}*\n`;
     if (order.notes) msg += `Notas: ${order.notes}\n`;
     msg += `\n¿Confirmamos tu pedido?`;
 
@@ -1094,7 +1197,7 @@ export default function UserWorkspace() {
     Object.keys(categories).forEach(cat => {
       msg += `📦 *${cat.toUpperCase()}*\n`;
       categories[cat].forEach((p) => {
-        msg += `• *${p.name}* - $${p.price} USD\n`;
+        msg += `• *${p.name}* - ${currencySymbol} ${p.price}\n`;
         if (p.description) msg += `  _${p.description}_\n`;
       });
       msg += `\n`;
@@ -1108,7 +1211,7 @@ export default function UserWorkspace() {
 
   const handleShareSingleProductWhatsApp = (p) => {
     let msg = `🛍️ *${p.name.toUpperCase()}*\n`;
-    msg += `💵 *Precio:* $${p.price} USD\n`;
+    msg += `💵 *Precio:* ${currencySymbol} ${p.price} ${currencyCode}\n`;
     if (p.category) msg += `🏷️ *Categoría:* ${p.category}\n`;
     if (p.sku) msg += `🔢 *SKU:* ${p.sku}\n`;
     if (p.description) msg += `📝 *Detalles:* ${p.description}\n`;
@@ -2102,7 +2205,7 @@ export default function UserWorkspace() {
                         </div>
                         {stageTotalValue > 0 && (
                           <span className="text-[10px] text-emerald-400 font-bold">
-                            ${stageTotalValue.toLocaleString()}
+                            {currencySymbol} {stageTotalValue.toLocaleString()}
                           </span>
                         )}
                       </div>
@@ -2115,7 +2218,7 @@ export default function UserWorkspace() {
                         ) : (
                           stageLeads.map((lead) => (
                             <div 
-                              key={lead.id}
+                              key={lead.id} 
                               className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-indigo-500/40 shadow-md transition-all group relative"
                             >
                               <div className="flex items-start justify-between mb-2">
@@ -2124,7 +2227,7 @@ export default function UserWorkspace() {
                                 </h4>
                                 {lead.deal_value > 0 && (
                                   <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                                    ${lead.deal_value}
+                                    {currencySymbol} {lead.deal_value}
                                   </span>
                                 )}
                               </div>
@@ -2302,7 +2405,7 @@ export default function UserWorkspace() {
                               </select>
                             </td>
                             <td className="py-3.5 px-4 font-bold text-emerald-400">
-                              ${l.deal_value || 0}
+                              {currencySymbol} {l.deal_value || 0}
                             </td>
                             <td className="py-3.5 px-4 text-slate-400 max-w-xs truncate">
                               {l.last_message || '—'}
@@ -2953,7 +3056,7 @@ export default function UserWorkspace() {
                       <span>Enviar Catálogo por WhatsApp</span>
                     </button>
                     <button 
-                      onClick={() => setShowProductModal(true)}
+                      onClick={openAddProductModal}
                       className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 text-white font-bold text-xs flex items-center gap-1 shadow-md shadow-rose-500/20"
                     >
                       <Plus size={15} /> Añadir Producto
@@ -2967,6 +3070,64 @@ export default function UserWorkspace() {
                     <Plus size={15} /> Crear Pedido
                   </button>
                 )}
+              </div>
+            </div>
+
+            {/* BARRA DE CONFIGURACIÓN DE MONEDA DEL NEGOCIO */}
+            <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  <DollarSign size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-white">Moneda del Negocio:</h4>
+                    <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                      {currencySymbol} ({currencyCode})
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Tus precios, cotizaciones de WhatsApp y balances usarán este símbolo.
+                  </p>
+                </div>
+              </div>
+
+              {currencySuccessMsg && (
+                <div className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 animate-fade-in flex items-center gap-1.5">
+                  <CheckCircle size={14} />
+                  <span>{currencySuccessMsg}</span>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
+                {[
+                  { code: 'PEN', symbol: 'S/', label: '🇵🇪 Soles (S/)' },
+                  { code: 'USD', symbol: '$', label: '🇺🇸 Dólares ($)' },
+                  { code: 'EUR', symbol: '€', label: '🇪🇺 Euros (€)' },
+                  { code: 'COP', symbol: 'COP $', label: '🇨🇴 COP' },
+                  { code: 'MXN', symbol: 'MXN $', label: '🇲🇽 MXN' },
+                  { code: 'CLP', symbol: 'CLP $', label: '🇨🇱 CLP' }
+                ].map((cur) => (
+                  <button
+                    key={cur.code}
+                    type="button"
+                    onClick={() => handleSaveCurrencySettings(cur.code, cur.symbol)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                      currencyCode === cur.code && currencySymbol === cur.symbol
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm font-bold'
+                        : 'bg-slate-900 text-slate-400 hover:text-white border-slate-800'
+                    }`}
+                  >
+                    {cur.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setShowCurrencyModal(true)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors ml-1"
+                >
+                  Personalizar...
+                </button>
               </div>
             </div>
 
@@ -2988,20 +3149,27 @@ export default function UserWorkspace() {
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                           <span className="absolute top-3 right-3 text-xs font-bold px-2 py-1 rounded-md bg-slate-900/90 text-emerald-400 border border-slate-700">
-                            ${p.price} USD
+                            {currencySymbol} {p.price} {currencyCode}
                           </span>
                         </div>
                         <div className="p-4">
                           <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">{p.category}</span>
                           <h4 className="font-bold text-white text-sm mt-0.5">{p.name}</h4>
                           {p.sku && <div className="text-[10px] text-slate-500 font-mono mt-0.5">SKU: {p.sku}</div>}
-                          <p className="text-xs text-slate-400 mt-2 line-clamp-2">{p.description}</p>
+                          {p.description && <p className="text-xs text-slate-400 mt-2 line-clamp-2">{p.description}</p>}
                         </div>
                       </div>
 
                       <div className="p-4 pt-0 border-t border-slate-800/60 mt-3 flex items-center justify-between">
                         <span className="text-[11px] text-emerald-400 font-semibold">● En Stock</span>
                         <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => openEditProductModal(p)}
+                            className="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-400 border border-indigo-500/30 text-[11px] font-bold flex items-center gap-1 transition-all"
+                            title="Editar producto"
+                          >
+                            <Edit2 size={11} /> Editar
+                          </button>
                           <button
                             onClick={() => handleShareSingleProductWhatsApp(p)}
                             className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold flex items-center gap-1 transition-all"
@@ -3034,7 +3202,7 @@ export default function UserWorkspace() {
                         <th className="py-3 px-4">Orden #</th>
                         <th className="py-3 px-4">Cliente / Contacto</th>
                         <th className="py-3 px-4">Detalle Items</th>
-                        <th className="py-3 px-4">Total ($)</th>
+                        <th className="py-3 px-4">Total ({currencySymbol})</th>
                         <th className="py-3 px-4">Estado</th>
                         <th className="py-3 px-4 text-right">Acción WhatsApp</th>
                       </tr>
@@ -3055,25 +3223,25 @@ export default function UserWorkspace() {
                             <tr key={o.id} className="hover:bg-slate-800/30 transition-colors">
                               <td className="py-3.5 px-4 font-mono font-bold text-indigo-400">{o.order_number}</td>
                               <td className="py-3.5 px-4 font-medium text-white">{o.lead_name || 'Cliente directo'}</td>
-                              <td className="py-3.5 px-4 text-xs text-slate-300">
+                              <td className="py-3.5 px-4 text-slate-400">
                                 {items.map((it, idx) => (
-                                  <span key={idx} className="block">• {it.name} x{it.quantity}</span>
+                                  <span key={idx} className="mr-2 inline-block bg-slate-900 px-2 py-0.5 rounded text-[11px]">
+                                    {it.name} (x{it.quantity})
+                                  </span>
                                 ))}
                               </td>
-                              <td className="py-3.5 px-4 font-extrabold text-emerald-400 text-sm">${o.total_amount}</td>
+                              <td className="py-3.5 px-4 font-extrabold text-emerald-400 text-sm">{currencySymbol} {o.total_amount}</td>
                               <td className="py-3.5 px-4">
-                                <span className={`px-2 py-0.5 rounded text-[11px] font-bold uppercase ${
-                                  o.status === 'pagado' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                }`}>
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
                                   {o.status}
                                 </span>
                               </td>
                               <td className="py-3.5 px-4 text-right">
-                                <button 
+                                <button
                                   onClick={() => handleSendOrderSummaryWhatsApp(o)}
-                                  className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30 inline-flex items-center gap-1.5 transition-colors"
+                                  className="px-3 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
                                 >
-                                  <MessageSquare size={13} /> Enviar por WhatsApp
+                                  <Send size={12} /> Enviar Cotización
                                 </button>
                               </td>
                             </tr>
@@ -3085,7 +3253,6 @@ export default function UserWorkspace() {
                 </div>
               </div>
             )}
-
           </div>
         )}
 
@@ -5750,7 +5917,9 @@ export default function UserWorkspace() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Valor Estimado ($ USD)</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Valor Estimado ({currencySymbol} {currencyCode})
+                  </label>
                   <input 
                     type="number"
                     min="0"
@@ -5972,24 +6141,28 @@ export default function UserWorkspace() {
       )}
 
       {/* ==================================================== */}
-      {/* NEW MODAL: CREATE PRODUCT */}
+      {/* NEW MODAL: CREATE / EDIT PRODUCT */}
       {/* ==================================================== */}
       {showProductModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md glass-panel p-6 rounded-3xl border border-slate-700 shadow-2xl relative animate-fade-in">
-            <button onClick={() => setShowProductModal(false)} className="absolute top-5 right-5 text-slate-400 hover:text-white">
+            <button 
+              onClick={() => { setShowProductModal(false); setEditingProduct(null); }} 
+              className="absolute top-5 right-5 text-slate-400 hover:text-white"
+            >
               <X size={20} />
             </button>
 
             <h3 className="text-lg font-bold text-white font-heading mb-4 flex items-center gap-2">
-              <Package className="text-rose-400" /> Añadir Producto al Catálogo
+              <Package className="text-rose-400" />
+              <span>{editingProduct ? 'Editar Producto del Catálogo' : 'Añadir Producto al Catálogo'}</span>
             </h3>
 
-            <form onSubmit={handleCreateProduct} className="space-y-3.5">
+            <form onSubmit={handleSaveProduct} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">Nombre del Producto o Servicio *</label>
                 <input 
-                  type="text"
+                  type="text" 
                   value={prodName}
                   onChange={(e) => setProdName(e.target.value)}
                   placeholder="ej. Pack Automatización Pro, Vestido Fiesta..."
@@ -6000,7 +6173,9 @@ export default function UserWorkspace() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Precio ($ USD) *</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Precio ({currencySymbol} {currencyCode}) *
+                  </label>
                   <input 
                     type="number"
                     step="0.01"
@@ -6008,7 +6183,7 @@ export default function UserWorkspace() {
                     value={prodPrice}
                     onChange={(e) => setProdPrice(e.target.value)}
                     placeholder="99.00"
-                    className="w-full glass-input px-3 py-2 rounded-xl text-xs"
+                    className="w-full glass-input px-3 py-2 rounded-xl text-xs font-mono"
                     required
                   />
                 </div>
@@ -6025,9 +6200,20 @@ export default function UserWorkspace() {
               </div>
 
               <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">SKU / Código (Opcional)</label>
+                <input 
+                  type="text" 
+                  value={prodSku}
+                  onChange={(e) => setProdSku(e.target.value)}
+                  placeholder="ej. PROD-001"
+                  className="w-full glass-input px-3.5 py-2 rounded-xl text-xs font-mono"
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">URL de Imagen del Producto</label>
                 <input 
-                  type="url"
+                  type="url" 
                   value={prodImageUrl}
                   onChange={(e) => setProdImageUrl(e.target.value)}
                   placeholder="https://ejemplo.com/foto.jpg"
@@ -6047,11 +6233,79 @@ export default function UserWorkspace() {
               </div>
 
               <div className="pt-2 flex justify-end gap-2">
-                <button type="button" onClick={() => setShowProductModal(false)} className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold">
+                <button 
+                  type="button" 
+                  onClick={() => { setShowProductModal(false); setEditingProduct(null); }} 
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
+                >
                   Cancelar
                 </button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 text-white font-bold text-xs shadow-md">
-                  Añadir al Catálogo
+                <button 
+                  type="submit" 
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 text-white font-bold text-xs shadow-md shadow-rose-600/20"
+                >
+                  {editingProduct ? 'Guardar Cambios' : 'Añadir al Catálogo'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* NEW MODAL: CUSTOMIZE BUSINESS CURRENCY */}
+      {/* ==================================================== */}
+      {showCurrencyModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md glass-panel p-6 rounded-3xl border border-slate-700 shadow-2xl relative animate-fade-in">
+            <button onClick={() => setShowCurrencyModal(false)} className="absolute top-5 right-5 text-slate-400 hover:text-white">
+              <X size={20} />
+            </button>
+
+            <h3 className="text-lg font-bold text-white font-heading mb-4 flex items-center gap-2">
+              <DollarSign className="text-amber-400" /> Configurar Moneda del Negocio
+            </h3>
+
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveCurrencySettings(currencyCode, currencySymbol); }} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Código de Moneda (ISO)</label>
+                <input 
+                  type="text" 
+                  value={currencyCode}
+                  onChange={(e) => setCurrencyCode(e.target.value.toUpperCase())}
+                  placeholder="PEN, USD, EUR, COP, MXN..."
+                  className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs font-mono uppercase"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Símbolo de la Moneda</label>
+                <input 
+                  type="text" 
+                  value={currencySymbol}
+                  onChange={(e) => setCurrencySymbol(e.target.value)}
+                  placeholder="S/, $, €, COP $, MXN $..."
+                  className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs font-mono"
+                  required
+                />
+              </div>
+
+              <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800 text-xs flex items-center justify-between">
+                <span className="text-slate-400">Ejemplo en Catálogo:</span>
+                <span className="font-bold text-emerald-400 font-mono">{currencySymbol} 150.00 {currencyCode}</span>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button type="button" onClick={() => setShowCurrencyModal(false)} className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold">
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={savingCurrency}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-emerald-600 text-white font-bold text-xs shadow-md disabled:opacity-50"
+                >
+                  {savingCurrency ? 'Guardando...' : 'Guardar Moneda'}
                 </button>
               </div>
             </form>
@@ -6097,13 +6351,13 @@ export default function UserWorkspace() {
                       <div key={p.id} className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 text-xs">
                         <div>
                           <span className="font-semibold text-white block">{p.name}</span>
-                          <span className="text-emerald-400 font-bold">${p.price}</span>
+                          <span className="text-emerald-400 font-bold">{currencySymbol} {p.price}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           {selected ? (
                             <div className="flex items-center gap-2">
                               <button 
-                                type="button"
+                                type="button" 
                                 onClick={() => {
                                   if (selected.quantity > 1) {
                                     setSelectedOrderItems(selectedOrderItems.map(it => it.id === p.id ? { ...it, quantity: it.quantity - 1 } : it));
@@ -6115,14 +6369,14 @@ export default function UserWorkspace() {
                               >-</button>
                               <span className="font-bold text-white">{selected.quantity}</span>
                               <button 
-                                type="button"
+                                type="button" 
                                 onClick={() => setSelectedOrderItems(selectedOrderItems.map(it => it.id === p.id ? { ...it, quantity: it.quantity + 1 } : it))}
                                 className="w-6 h-6 rounded bg-slate-800 text-white font-bold"
                               >+</button>
                             </div>
                           ) : (
                             <button 
-                              type="button"
+                              type="button" 
                               onClick={() => setSelectedOrderItems([...selectedOrderItems, { id: p.id, name: p.name, price: p.price, quantity: 1 }])}
                               className="px-2.5 py-1 rounded bg-indigo-600 text-white text-xs font-bold"
                             >
@@ -6139,7 +6393,7 @@ export default function UserWorkspace() {
               {selectedOrderItems.length > 0 && (
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex justify-between items-center text-sm font-bold text-emerald-400">
                   <span>Total Cotización:</span>
-                  <span>${selectedOrderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0)} USD</span>
+                  <span>{currencySymbol} {selectedOrderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0)} {currencyCode}</span>
                 </div>
               )}
 

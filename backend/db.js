@@ -38,6 +38,8 @@ async function getDbConnection() {
       phone TEXT,
       role TEXT DEFAULT 'user',
       plan TEXT DEFAULT 'Plan Pro',
+      currency_code TEXT DEFAULT 'PEN',
+      currency_symbol TEXT DEFAULT 'S/',
       is_active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -203,6 +205,8 @@ async function getDbConnection() {
       welcome_message TEXT DEFAULT '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.',
       keywords_json TEXT DEFAULT '[]',
       catalog_json TEXT DEFAULT '[]',
+      currency_code TEXT DEFAULT 'PEN',
+      currency_symbol TEXT DEFAULT 'S/',
       ai_enabled INTEGER DEFAULT 1,
       ai_system_prompt TEXT DEFAULT '',
       ai_temperature REAL DEFAULT 0.35,
@@ -302,7 +306,11 @@ async function getDbConnection() {
     { table: 'sessions', column: 'ai_temperature REAL DEFAULT 0.35' },
     { table: 'sessions', column: 'ai_delay_min INTEGER DEFAULT 2' },
     { table: 'sessions', column: 'ai_delay_max INTEGER DEFAULT 5' },
-    { table: 'simulator_config', column: "catalog_json TEXT DEFAULT '[]'" }
+    { table: 'simulator_config', column: "catalog_json TEXT DEFAULT '[]'" },
+    { table: 'simulator_config', column: "currency_code TEXT DEFAULT 'PEN'" },
+    { table: 'simulator_config', column: "currency_symbol TEXT DEFAULT 'S/'" },
+    { table: 'users', column: "currency_code TEXT DEFAULT 'PEN'" },
+    { table: 'users', column: "currency_symbol TEXT DEFAULT 'S/'" }
   ];
 
   for (const m of columnMigrations) {

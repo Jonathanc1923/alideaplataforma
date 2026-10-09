@@ -358,7 +358,7 @@ app.post('/api/admin/users', requireAdmin, async (req, res) => {
 app.put('/api/admin/users/:userId', requireAdmin, async (req, res) => {
     try {
         const { userId } = req.params;
-        const { business_name, phone, plan, is_active, password } = req.body;
+        const { business_name, phone, plan, is_active, password, currency_code, currency_symbol } = req.body;
         
         const db = await getDbConnection();
         const user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
@@ -375,12 +375,84 @@ app.put('/api/admin/users/:userId', requireAdmin, async (req, res) => {
                  phone = COALESCE(?, phone),
                  plan = COALESCE(?, plan),
                  is_active = COALESCE(?, is_active),
+                 currency_code = COALESCE(?, currency_code),
+                 currency_symbol = COALESCE(?, currency_symbol),
                  updated_at = CURRENT_TIMESTAMP
              WHERE id = ?`,
-            [business_name, phone, plan, is_active !== undefined ? (is_active ? 1 : 0) : null, userId]
+            [
+                business_name, 
+                phone, 
+                plan, 
+                is_active !== undefined ? (is_active ? 1 : 0) : null,
+                currency_code,
+                currency_symbol,
+                userId
+            ]
         );
 
         res.json({ message: 'Usuario actualizado correctamente' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// User self-service business settings (currency, business name, phone)
+app.get('/api/user/settings', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+
+        const db = await getDbConnection();
+        const user = await db.get('SELECT id, username, business_name, phone, role, plan, currency_code, currency_symbol, is_active, created_at FROM users WHERE id = ?', [userId]);
+        if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+        res.json({
+            ...user,
+            currency_code: user.currency_code || 'PEN',
+            currency_symbol: user.currency_symbol || 'S/'
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/user/settings', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+
+        const { business_name, phone, currency_code, currency_symbol } = req.body;
+        const db = await getDbConnection();
+
+        const user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
+        if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+        await db.run(
+            `UPDATE users
+             SET business_name = COALESCE(?, business_name),
+                 phone = COALESCE(?, phone),
+                 currency_code = COALESCE(?, currency_code),
+                 currency_symbol = COALESCE(?, currency_symbol),
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?`,
+            [
+                business_name ? business_name.trim() : null,
+                phone !== undefined ? phone.trim() : null,
+                currency_code ? currency_code.trim() : null,
+                currency_symbol ? currency_symbol.trim() : null,
+                userId
+            ]
+        );
+
+        const updatedUser = await db.get('SELECT id, username, business_name, phone, role, plan, currency_code, currency_symbol, is_active FROM users WHERE id = ?', [userId]);
+        res.json({
+            message: 'Configuración del negocio guardada exitosamente',
+            user: {
+                ...updatedUser,
+                currency_code: updatedUser.currency_code || 'PEN',
+                currency_symbol: updatedUser.currency_symbol || 'S/'
+            }
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -445,6 +517,8 @@ app.get('/api/public/simulator-config', async (req, res) => {
                 welcome_message: '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.',
                 keywords_json: '[]',
                 catalog_json: '[]',
+                currency_code: 'PEN',
+                currency_symbol: 'S/',
                 ai_enabled: 1,
                 ai_system_prompt: 'Eres Sofia, la asesora virtual comercial de Alidea en la demostración en vivo de nuestra página web.'
             };
@@ -460,6 +534,8 @@ app.get('/api/public/simulator-config', async (req, res) => {
             welcome_message: sim.welcome_message,
             keywords: parsedKeywords,
             catalog: parsedCatalog,
+            currency_code: sim.currency_code || 'PEN',
+            currency_symbol: sim.currency_symbol || 'S/',
             ai_enabled: sim.ai_enabled === 1 || sim.ai_enabled === true,
             ai_system_prompt: sim.ai_system_prompt
         });
@@ -492,6 +568,9 @@ app.post('/api/public/simulator-chat', async (req, res) => {
         let parsedCatalog = [];
         try { parsedCatalog = JSON.parse(sim.catalog_json || '[]'); } catch(e) {}
 
+        const sym = sim.currency_symbol || 'S/';
+        const code = sim.currency_code || 'PEN';
+
         const textLower = message.toLowerCase().trim();
         let matchedKw = null;
 
@@ -516,7 +595,7 @@ app.post('/api/public/simulator-chat', async (req, res) => {
         if ((textLower.includes('catalogo') || textLower.includes('catálogo') || textLower.includes('productos') || textLower.includes('servicios') || textLower.includes('pedir catálogo')) && parsedCatalog.length > 0) {
             let catMsg = `📁 *CATÁLOGO DE PRODUCTOS & SERVICIOS:*\n\n`;
             parsedCatalog.forEach((p, idx) => {
-                catMsg += `*${idx + 1}. ${p.name}* - $${p.price}\n${p.description ? `_${p.description}_\n` : ''}\n`;
+                catMsg += `*${idx + 1}. ${p.name}* - ${sym} ${p.price}\n${p.description ? `_${p.description}_\n` : ''}\n`;
             });
             catMsg += `¿Deseas cotizar o realizar un pedido de alguno de estos productos?`;
 
@@ -537,7 +616,7 @@ app.post('/api/public/simulator-chat', async (req, res) => {
 
             let effectiveSystemPrompt = sim.ai_system_prompt;
             if (parsedCatalog.length > 0) {
-                effectiveSystemPrompt += `\n\n[CATÁLOGO DE PRODUCTOS DISPONIBLES]:\n` + parsedCatalog.map(p => `- ${p.name}: $${p.price} (${p.description || ''})`).join('\n');
+                effectiveSystemPrompt += `\n\n[CATÁLOGO DE PRODUCTOS DISPONIBLES (Moneda: ${code}, Símbolo: ${sym})]:\n` + parsedCatalog.map(p => `- ${p.name}: ${sym} ${p.price} (${p.description || ''})`).join('\n');
             }
 
             const aiRes = await generateLocalAIResponse({
@@ -584,6 +663,8 @@ app.get('/api/admin/simulator-config', requireAdmin, async (req, res) => {
                 welcome_message: '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.',
                 keywords_json: '[]',
                 catalog_json: '[]',
+                currency_code: 'PEN',
+                currency_symbol: 'S/',
                 ai_enabled: 1,
                 ai_system_prompt: 'Eres Sofia, la asesora virtual comercial de Alidea en la demostración en vivo de nuestra página web.'
             };
@@ -599,6 +680,8 @@ app.get('/api/admin/simulator-config', requireAdmin, async (req, res) => {
             welcome_message: sim.welcome_message,
             keywords: parsedKeywords,
             catalog: parsedCatalog,
+            currency_code: sim.currency_code || 'PEN',
+            currency_symbol: sim.currency_symbol || 'S/',
             ai_enabled: sim.ai_enabled === 1 || sim.ai_enabled === true,
             ai_system_prompt: sim.ai_system_prompt,
             ai_temperature: sim.ai_temperature || 0.35
@@ -610,20 +693,22 @@ app.get('/api/admin/simulator-config', requireAdmin, async (req, res) => {
 
 app.put('/api/admin/simulator-config', requireAdmin, async (req, res) => {
     try {
-        const { bot_name, welcome_message, keywords, catalog, ai_enabled, ai_system_prompt, ai_temperature } = req.body;
+        const { bot_name, welcome_message, keywords, catalog, currency_code, currency_symbol, ai_enabled, ai_system_prompt, ai_temperature } = req.body;
         const db = await getDbConnection();
 
         const kwJson = typeof keywords === 'string' ? keywords : JSON.stringify(keywords || []);
         const catJson = typeof catalog === 'string' ? catalog : JSON.stringify(catalog || []);
 
         await db.run(
-            `INSERT INTO simulator_config (id, bot_name, welcome_message, keywords_json, catalog_json, ai_enabled, ai_system_prompt, ai_temperature, updated_at)
-             VALUES ('default', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            `INSERT INTO simulator_config (id, bot_name, welcome_message, keywords_json, catalog_json, currency_code, currency_symbol, ai_enabled, ai_system_prompt, ai_temperature, updated_at)
+             VALUES ('default', ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
              ON CONFLICT(id) DO UPDATE SET
                bot_name = excluded.bot_name,
                welcome_message = excluded.welcome_message,
                keywords_json = excluded.keywords_json,
                catalog_json = excluded.catalog_json,
+               currency_code = excluded.currency_code,
+               currency_symbol = excluded.currency_symbol,
                ai_enabled = excluded.ai_enabled,
                ai_system_prompt = excluded.ai_system_prompt,
                ai_temperature = excluded.ai_temperature,
@@ -633,6 +718,8 @@ app.put('/api/admin/simulator-config', requireAdmin, async (req, res) => {
                 welcome_message || '',
                 kwJson,
                 catJson,
+                currency_code || 'PEN',
+                currency_symbol || 'S/',
                 ai_enabled ? 1 : 0,
                 ai_system_prompt || '',
                 ai_temperature || 0.35

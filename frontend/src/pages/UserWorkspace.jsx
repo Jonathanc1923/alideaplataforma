@@ -1075,6 +1075,49 @@ export default function UserWorkspace() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
+  const handleShareFullCatalogWhatsApp = () => {
+    if (!products || products.length === 0) {
+      alert('Aún no tienes productos registrados en tu catálogo para compartir.');
+      return;
+    }
+
+    let msg = `🛍️ *CATÁLOGO DE PRODUCTOS & SERVICIOS*\n_${auth?.user?.business_name || 'Alidea'}_\n\n`;
+    
+    // Group by category
+    const categories = {};
+    products.forEach(p => {
+      const cat = p.category || 'General';
+      if (!categories[cat]) categories[cat] = [];
+      categories[cat].push(p);
+    });
+
+    Object.keys(categories).forEach(cat => {
+      msg += `📦 *${cat.toUpperCase()}*\n`;
+      categories[cat].forEach((p) => {
+        msg += `• *${p.name}* - $${p.price} USD\n`;
+        if (p.description) msg += `  _${p.description}_\n`;
+      });
+      msg += `\n`;
+    });
+
+    msg += `¿Deseas cotizar o realizar un pedido de alguno de estos productos? ¡Responde a este mensaje y con gusto te atendemos!`;
+
+    const encoded = encodeURIComponent(msg);
+    window.open(`https://wa.me/?text=${encoded}`, '_blank');
+  };
+
+  const handleShareSingleProductWhatsApp = (p) => {
+    let msg = `🛍️ *${p.name.toUpperCase()}*\n`;
+    msg += `💵 *Precio:* $${p.price} USD\n`;
+    if (p.category) msg += `🏷️ *Categoría:* ${p.category}\n`;
+    if (p.sku) msg += `🔢 *SKU:* ${p.sku}\n`;
+    if (p.description) msg += `📝 *Detalles:* ${p.description}\n`;
+    msg += `\n¿Te gustaría adquirirlo o solicitar más información? Escríbenos para confirmar tu pedido.`;
+
+    const encoded = encodeURIComponent(msg);
+    window.open(`https://wa.me/?text=${encoded}`, '_blank');
+  };
+
   // ==========================================
   // CONTABILIDAD & FINANZAS HANDLERS
   // ==========================================
@@ -2900,12 +2943,22 @@ export default function UserWorkspace() {
                 </div>
 
                 {catalogSubTab === 'products' ? (
-                  <button 
-                    onClick={() => setShowProductModal(true)}
-                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 text-white font-bold text-xs flex items-center gap-1 shadow-md shadow-rose-500/20"
-                  >
-                    <Plus size={15} /> Añadir Producto
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={handleShareFullCatalogWhatsApp}
+                      className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-white border border-emerald-500/30 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                      title="Generar mensaje con todos los productos y enviar por WhatsApp"
+                    >
+                      <MessageCircle size={15} className="text-emerald-400" />
+                      <span>Enviar Catálogo por WhatsApp</span>
+                    </button>
+                    <button 
+                      onClick={() => setShowProductModal(true)}
+                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 text-white font-bold text-xs flex items-center gap-1 shadow-md shadow-rose-500/20"
+                    >
+                      <Plus size={15} /> Añadir Producto
+                    </button>
+                  </div>
                 ) : (
                   <button 
                     onClick={() => setShowOrderModal(true)}
@@ -2948,13 +3001,22 @@ export default function UserWorkspace() {
 
                       <div className="p-4 pt-0 border-t border-slate-800/60 mt-3 flex items-center justify-between">
                         <span className="text-[11px] text-emerald-400 font-semibold">● En Stock</span>
-                        <button 
-                          onClick={() => handleDeleteProduct(p.id)} 
-                          className="p-1.5 text-slate-500 hover:text-rose-400"
-                          title="Eliminar producto"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleShareSingleProductWhatsApp(p)}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold flex items-center gap-1 transition-all"
+                            title="Enviar producto individual por WhatsApp"
+                          >
+                            <Send size={11} /> Enviar
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteProduct(p.id)} 
+                            className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors"
+                            title="Eliminar producto"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))

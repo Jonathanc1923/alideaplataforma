@@ -202,6 +202,7 @@ async function getDbConnection() {
       bot_name TEXT DEFAULT 'Alidea Bot Asistente',
       welcome_message TEXT DEFAULT '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.',
       keywords_json TEXT DEFAULT '[]',
+      catalog_json TEXT DEFAULT '[]',
       ai_enabled INTEGER DEFAULT 1,
       ai_system_prompt TEXT DEFAULT '',
       ai_temperature REAL DEFAULT 0.35,
@@ -300,7 +301,8 @@ async function getDbConnection() {
     { table: 'sessions', column: "ai_system_prompt TEXT DEFAULT ''" },
     { table: 'sessions', column: 'ai_temperature REAL DEFAULT 0.35' },
     { table: 'sessions', column: 'ai_delay_min INTEGER DEFAULT 2' },
-    { table: 'sessions', column: 'ai_delay_max INTEGER DEFAULT 5' }
+    { table: 'sessions', column: 'ai_delay_max INTEGER DEFAULT 5' },
+    { table: 'simulator_config', column: "catalog_json TEXT DEFAULT '[]'" }
   ];
 
   for (const m of columnMigrations) {

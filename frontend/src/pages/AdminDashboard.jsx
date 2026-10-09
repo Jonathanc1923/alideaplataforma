@@ -82,6 +82,14 @@ export default function AdminDashboard() {
   const [newSimResponse, setNewSimResponse] = useState('');
   const [newSimStage, setNewSimStage] = useState('En Conversación');
 
+  // Simulator Catalog State & Modal
+  const [simCatalog, setSimCatalog] = useState([]);
+  const [showSimProdModal, setShowSimProdModal] = useState(false);
+  const [newSimProdName, setNewSimProdName] = useState('');
+  const [newSimProdPrice, setNewSimProdPrice] = useState('');
+  const [newSimProdDesc, setNewSimProdDesc] = useState('');
+  const [newSimProdCategory, setNewSimProdCategory] = useState('Servicios');
+
   // Check admin authorization
   useEffect(() => {
     const authData = localStorage.getItem('alidea_auth');
@@ -132,6 +140,7 @@ export default function AdminDashboard() {
         setSimBotName(res.data.bot_name || 'Alidea Bot Asistente');
         setSimWelcomeMessage(res.data.welcome_message || '');
         setSimKeywords(Array.isArray(res.data.keywords) ? res.data.keywords : []);
+        setSimCatalog(Array.isArray(res.data.catalog) ? res.data.catalog : []);
         setSimAiEnabled(res.data.ai_enabled === 1 || res.data.ai_enabled === true);
         setSimAiPrompt(res.data.ai_system_prompt || '');
         setSimAiTemp(res.data.ai_temperature || 0.35);
@@ -153,6 +162,7 @@ export default function AdminDashboard() {
           bot_name: simBotName.trim(),
           welcome_message: simWelcomeMessage.trim(),
           keywords: simKeywords,
+          catalog: simCatalog,
           ai_enabled: simAiEnabled ? 1 : 0,
           ai_system_prompt: simAiPrompt.trim(),
           ai_temperature: simAiTemp
@@ -167,6 +177,35 @@ export default function AdminDashboard() {
     } finally {
       setSimSaving(false);
     }
+  };
+
+  const handleAddSimProduct = (e) => {
+    e.preventDefault();
+    if (!newSimProdName.trim() || !newSimProdPrice) {
+      alert('Completa el nombre y el precio del producto para la demo');
+      return;
+    }
+    const updated = [
+      ...simCatalog,
+      {
+        id: `sim-prod-${Date.now()}`,
+        name: newSimProdName.trim(),
+        price: parseFloat(newSimProdPrice) || 0,
+        description: newSimProdDesc.trim(),
+        category: newSimProdCategory.trim() || 'Servicios'
+      }
+    ];
+    setSimCatalog(updated);
+    setShowSimProdModal(false);
+    setNewSimProdName('');
+    setNewSimProdPrice('');
+    setNewSimProdDesc('');
+    setNewSimProdCategory('Servicios');
+  };
+
+  const handleDeleteSimProduct = (idx) => {
+    const updated = simCatalog.filter((_, i) => i !== idx);
+    setSimCatalog(updated);
   };
 
   const handleAddSimKeyword = (e) => {
@@ -444,7 +483,7 @@ export default function AdminDashboard() {
                 <div className="text-2xl font-extrabold text-amber-400 font-heading">
                   {users.reduce((sum, u) => sum + (u.total_tokens_used || 0), 0).toLocaleString()}
                 </div>
-                <div className="text-[11px] text-slate-500 mt-1">Tokens Qwen 7B de por vida</div>
+                <div className="text-[11px] text-slate-500 mt-1">Tokens de IA de por vida</div>
               </div>
 
               <div className="glass-panel p-5 rounded-2xl border border-slate-800">
@@ -558,7 +597,7 @@ export default function AdminDashboard() {
                               <Zap size={14} className="text-amber-400 fill-amber-400/20" />
                               <span>{(u.total_tokens_used || 0).toLocaleString()}</span>
                             </div>
-                            <div className="text-[11px] text-slate-500">Tokens Qwen 7B</div>
+                            <div className="text-[11px] text-slate-500">Tokens de IA consumidos</div>
                           </td>
 
                           <td className="py-4 px-6">
@@ -758,7 +797,75 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* Bloque 3: Inteligencia Artificial (IA) para Consultas Abiertas */}
+              {/* Bloque 3: Catálogo de Productos para la Demo / Simulador */}
+              <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                      <Package size={22} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white font-heading">
+                        3. Catálogo de Productos para la Demo
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        Productos que el bot de la landing mostrará cuando el visitante pida el catálogo o pregunte por planes y servicios.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowSimProdModal(true)}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-rose-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all self-start sm:self-auto"
+                  >
+                    <Plus size={15} />
+                    <span>Añadir Producto a la Demo</span>
+                  </button>
+                </div>
+
+                {simCatalog.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-950/60 rounded-2xl border border-slate-800/80">
+                    <Package className="w-10 h-10 text-slate-600 mx-auto mb-2" />
+                    <p className="text-xs text-slate-400 font-semibold">No hay productos agregados al catálogo de la demo.</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Haz clic en "Añadir Producto a la Demo" para que el bot tenga productos que ofrecer en vivo.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {simCatalog.map((prod, pIdx) => (
+                      <div key={prod.id || pIdx} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between group hover:border-rose-500/30 transition-all">
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">
+                              {prod.category || 'General'}
+                            </span>
+                            <span className="text-xs font-bold text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                              ${prod.price}
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-white text-sm">{prod.name}</h4>
+                          {prod.description && (
+                            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{prod.description}</p>
+                          )}
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-800 mt-3 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSimProduct(pIdx)}
+                            className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors"
+                            title="Eliminar producto"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Bloque 4: Inteligencia Artificial (IA) para Consultas Abiertas */}
               <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -767,10 +874,10 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-white font-heading">
-                        3. Inteligencia Artificial (IA) para la Landing
+                        4. Inteligencia Artificial (IA) para la Landing
                       </h3>
                       <p className="text-xs text-slate-400">
-                        Si el visitante pregunta algo que no coincide con ninguna palabra clave, la IA responderá con este contexto.
+                        Si el visitante pregunta algo que no coincide con ninguna palabra clave, la IA responderá con este contexto y los productos del catálogo.
                       </p>
                     </div>
                   </div>
@@ -793,8 +900,8 @@ export default function AdminDashboard() {
                         <label className="text-xs font-semibold text-slate-300">
                           Prompt del Sistema / Instrucciones Comerciales de la Demo
                         </label>
-                        <span className="text-[10px] text-amber-400 font-mono bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                          Motor: Groq Cloud LPU™ (Respaldo SiliconFlow)
+                        <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                          Motor: Alidea Genesis AI™
                         </span>
                       </div>
                       <textarea
@@ -830,6 +937,101 @@ export default function AdminDashboard() {
         )}
 
       </main>
+
+      {/* MODAL AGREGAR PRODUCTO AL SIMULADOR */}
+      {showSimProdModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md glass-panel p-6 rounded-3xl border border-slate-700 shadow-2xl relative animate-fade-in">
+            <button 
+              onClick={() => setShowSimProdModal(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+
+            <h3 className="text-lg font-bold text-white font-heading mb-4 flex items-center gap-2">
+              <Package size={18} className="text-rose-400" />
+              <span>Añadir Producto a la Demo</span>
+            </h3>
+
+            <form onSubmit={handleAddSimProduct} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Nombre del Producto o Plan *
+                </label>
+                <input
+                  type="text"
+                  value={newSimProdName}
+                  onChange={(e) => setNewSimProdName(e.target.value)}
+                  placeholder="Ej: Plan Acceso Total Anual"
+                  className="w-full glass-input px-4 py-2.5 rounded-xl text-xs"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Precio ($ USD o S/) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={newSimProdPrice}
+                    onChange={(e) => setNewSimProdPrice(e.target.value)}
+                    placeholder="350"
+                    className="w-full glass-input px-4 py-2.5 rounded-xl text-xs font-mono"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Categoría
+                  </label>
+                  <input
+                    type="text"
+                    value={newSimProdCategory}
+                    onChange={(e) => setNewSimProdCategory(e.target.value)}
+                    placeholder="Servicios, Software, etc."
+                    className="w-full glass-input px-4 py-2.5 rounded-xl text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Descripción o Beneficios Clave
+                </label>
+                <textarea
+                  rows={2}
+                  value={newSimProdDesc}
+                  onChange={(e) => setNewSimProdDesc(e.target.value)}
+                  placeholder="Incluye Bot WhatsApp 24/7, CRM Kanban, Retargeting Masivo..."
+                  className="w-full glass-input px-4 py-2 rounded-xl text-xs"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSimProdModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 text-white text-xs font-bold shadow-lg shadow-rose-600/25"
+                >
+                  Agregar Producto
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL AGREGAR PALABRA CLAVE AL SIMULADOR */}
       {showSimKwModal && (

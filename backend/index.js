@@ -444,17 +444,22 @@ app.get('/api/public/simulator-config', async (req, res) => {
                 bot_name: 'Alidea Bot Asistente',
                 welcome_message: '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.',
                 keywords_json: '[]',
+                catalog_json: '[]',
                 ai_enabled: 1,
                 ai_system_prompt: 'Eres Sofia, la asesora virtual comercial de Alidea en la demostración en vivo de nuestra página web.'
             };
         }
         let parsedKeywords = [];
         try { parsedKeywords = JSON.parse(sim.keywords_json || '[]'); } catch(e) {}
+
+        let parsedCatalog = [];
+        try { parsedCatalog = JSON.parse(sim.catalog_json || '[]'); } catch(e) {}
         
         res.json({
             bot_name: sim.bot_name,
             welcome_message: sim.welcome_message,
             keywords: parsedKeywords,
+            catalog: parsedCatalog,
             ai_enabled: sim.ai_enabled === 1 || sim.ai_enabled === true,
             ai_system_prompt: sim.ai_system_prompt
         });
@@ -484,6 +489,9 @@ app.post('/api/public/simulator-chat', async (req, res) => {
         let parsedKeywords = [];
         try { parsedKeywords = JSON.parse(sim.keywords_json || '[]'); } catch(e) {}
 
+        let parsedCatalog = [];
+        try { parsedCatalog = JSON.parse(sim.catalog_json || '[]'); } catch(e) {}
+
         const textLower = message.toLowerCase().trim();
         let matchedKw = null;
 
@@ -504,6 +512,22 @@ app.post('/api/public/simulator-chat', async (req, res) => {
             });
         }
 
+        // Special handler: If asking for catalog and catalog has items
+        if ((textLower.includes('catalogo') || textLower.includes('catálogo') || textLower.includes('productos') || textLower.includes('servicios') || textLower.includes('pedir catálogo')) && parsedCatalog.length > 0) {
+            let catMsg = `📁 *CATÁLOGO DE PRODUCTOS & SERVICIOS:*\n\n`;
+            parsedCatalog.forEach((p, idx) => {
+                catMsg += `*${idx + 1}. ${p.name}* - $${p.price}\n${p.description ? `_${p.description}_\n` : ''}\n`;
+            });
+            catMsg += `¿Deseas cotizar o realizar un pedido de alguno de estos productos?`;
+
+            return res.json({
+                sender: 'bot',
+                text: catMsg,
+                stage: 'Negociación',
+                isCatalog: true
+            });
+        }
+
         // Evaluate with AI engine if enabled
         if (sim.ai_enabled === 1 && sim.ai_system_prompt && sim.ai_system_prompt.trim()) {
             const formattedHistory = (history || []).map(h => ({
@@ -511,10 +535,15 @@ app.post('/api/public/simulator-chat', async (req, res) => {
                 content: h.text
             }));
 
+            let effectiveSystemPrompt = sim.ai_system_prompt;
+            if (parsedCatalog.length > 0) {
+                effectiveSystemPrompt += `\n\n[CATÁLOGO DE PRODUCTOS DISPONIBLES]:\n` + parsedCatalog.map(p => `- ${p.name}: $${p.price} (${p.description || ''})`).join('\n');
+            }
+
             const aiRes = await generateLocalAIResponse({
                 sessionId: 'landing_demo_simulator',
                 prompt: message,
-                systemPrompt: sim.ai_system_prompt,
+                systemPrompt: effectiveSystemPrompt,
                 conversationHistory: formattedHistory,
                 temperature: sim.ai_temperature || 0.35,
                 allowGreeting: false
@@ -554,6 +583,7 @@ app.get('/api/admin/simulator-config', requireAdmin, async (req, res) => {
                 bot_name: 'Alidea Bot Asistente',
                 welcome_message: '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.',
                 keywords_json: '[]',
+                catalog_json: '[]',
                 ai_enabled: 1,
                 ai_system_prompt: 'Eres Sofia, la asesora virtual comercial de Alidea en la demostración en vivo de nuestra página web.'
             };
@@ -561,10 +591,14 @@ app.get('/api/admin/simulator-config', requireAdmin, async (req, res) => {
         let parsedKeywords = [];
         try { parsedKeywords = JSON.parse(sim.keywords_json || '[]'); } catch(e) {}
 
+        let parsedCatalog = [];
+        try { parsedCatalog = JSON.parse(sim.catalog_json || '[]'); } catch(e) {}
+
         res.json({
             bot_name: sim.bot_name,
             welcome_message: sim.welcome_message,
             keywords: parsedKeywords,
+            catalog: parsedCatalog,
             ai_enabled: sim.ai_enabled === 1 || sim.ai_enabled === true,
             ai_system_prompt: sim.ai_system_prompt,
             ai_temperature: sim.ai_temperature || 0.35
@@ -576,18 +610,20 @@ app.get('/api/admin/simulator-config', requireAdmin, async (req, res) => {
 
 app.put('/api/admin/simulator-config', requireAdmin, async (req, res) => {
     try {
-        const { bot_name, welcome_message, keywords, ai_enabled, ai_system_prompt, ai_temperature } = req.body;
+        const { bot_name, welcome_message, keywords, catalog, ai_enabled, ai_system_prompt, ai_temperature } = req.body;
         const db = await getDbConnection();
 
         const kwJson = typeof keywords === 'string' ? keywords : JSON.stringify(keywords || []);
+        const catJson = typeof catalog === 'string' ? catalog : JSON.stringify(catalog || []);
 
         await db.run(
-            `INSERT INTO simulator_config (id, bot_name, welcome_message, keywords_json, ai_enabled, ai_system_prompt, ai_temperature, updated_at)
-             VALUES ('default', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            `INSERT INTO simulator_config (id, bot_name, welcome_message, keywords_json, catalog_json, ai_enabled, ai_system_prompt, ai_temperature, updated_at)
+             VALUES ('default', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
              ON CONFLICT(id) DO UPDATE SET
                bot_name = excluded.bot_name,
                welcome_message = excluded.welcome_message,
                keywords_json = excluded.keywords_json,
+               catalog_json = excluded.catalog_json,
                ai_enabled = excluded.ai_enabled,
                ai_system_prompt = excluded.ai_system_prompt,
                ai_temperature = excluded.ai_temperature,
@@ -596,6 +632,7 @@ app.put('/api/admin/simulator-config', requireAdmin, async (req, res) => {
                 bot_name || 'Alidea Bot Asistente',
                 welcome_message || '',
                 kwJson,
+                catJson,
                 ai_enabled ? 1 : 0,
                 ai_system_prompt || '',
                 ai_temperature || 0.35

@@ -431,6 +431,184 @@ app.get('/api/admin/stats', requireAdmin, async (req, res) => {
 });
 
 // ==========================================
+// 2.5 SIMULATOR CONFIGURATION & CHAT (LANDING DEMO)
+// ==========================================
+
+// Public endpoint to load landing simulator configuration
+app.get('/api/public/simulator-config', async (req, res) => {
+    try {
+        const db = await getDbConnection();
+        let sim = await db.get("SELECT * FROM simulator_config WHERE id = 'default'");
+        if (!sim) {
+            sim = {
+                bot_name: 'Alidea Bot Asistente',
+                welcome_message: '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.',
+                keywords_json: '[]',
+                ai_enabled: 1,
+                ai_system_prompt: 'Eres Sofia, la asesora virtual comercial de Alidea en la demostración en vivo de nuestra página web.'
+            };
+        }
+        let parsedKeywords = [];
+        try { parsedKeywords = JSON.parse(sim.keywords_json || '[]'); } catch(e) {}
+        
+        res.json({
+            bot_name: sim.bot_name,
+            welcome_message: sim.welcome_message,
+            keywords: parsedKeywords,
+            ai_enabled: sim.ai_enabled === 1 || sim.ai_enabled === true,
+            ai_system_prompt: sim.ai_system_prompt
+        });
+    } catch(err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Public endpoint to process landing simulator chat messages
+app.post('/api/public/simulator-chat', async (req, res) => {
+    try {
+        const { message, history } = req.body;
+        if (!message || !message.trim()) {
+            return res.status(400).json({ error: 'Mensaje requerido' });
+        }
+
+        const db = await getDbConnection();
+        let sim = await db.get("SELECT * FROM simulator_config WHERE id = 'default'");
+        if (!sim) {
+            return res.json({
+                sender: 'bot',
+                text: 'Gracias por escribirnos. Nuestro equipo comercial de Alidea ya tiene tus datos registrados.',
+                stage: 'En Conversación'
+            });
+        }
+
+        let parsedKeywords = [];
+        try { parsedKeywords = JSON.parse(sim.keywords_json || '[]'); } catch(e) {}
+
+        const textLower = message.toLowerCase().trim();
+        let matchedKw = null;
+
+        for (const kw of parsedKeywords) {
+            const list = (kw.keyword || '').toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
+            if (list.some(k => textLower.includes(k))) {
+                matchedKw = kw;
+                break;
+            }
+        }
+
+        if (matchedKw) {
+            return res.json({
+                sender: 'bot',
+                text: matchedKw.response || '',
+                stage: matchedKw.stage || 'En Conversación',
+                matchedKeyword: true
+            });
+        }
+
+        // Evaluate with AI engine if enabled
+        if (sim.ai_enabled === 1 && sim.ai_system_prompt && sim.ai_system_prompt.trim()) {
+            const formattedHistory = (history || []).map(h => ({
+                role: h.sender === 'bot' ? 'assistant' : 'user',
+                content: h.text
+            }));
+
+            const aiRes = await generateLocalAIResponse({
+                sessionId: 'landing_demo_simulator',
+                prompt: message,
+                systemPrompt: sim.ai_system_prompt,
+                conversationHistory: formattedHistory,
+                temperature: sim.ai_temperature || 0.35,
+                allowGreeting: false
+            });
+
+            if (aiRes && aiRes.success && aiRes.shouldAnswer && aiRes.messages && aiRes.messages.length > 0) {
+                return res.json({
+                    sender: 'bot',
+                    text: aiRes.messages.join('\n\n'),
+                    stage: 'En Conversación',
+                    isAi: true
+                });
+            }
+        }
+
+        // Default fallback if AI has no answer or is disabled
+        return res.json({
+            sender: 'bot',
+            text: 'Gracias por tu consulta. Un asesor de nuestro equipo comercial de Alidea te responderá a la brevedad.',
+            stage: 'En Conversación'
+        });
+
+    } catch(err) {
+        console.error('Error in simulator chat:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin endpoints to view and update simulator config
+app.get('/api/admin/simulator-config', requireAdmin, async (req, res) => {
+    try {
+        const db = await getDbConnection();
+        let sim = await db.get("SELECT * FROM simulator_config WHERE id = 'default'");
+        if (!sim) {
+            sim = {
+                id: 'default',
+                bot_name: 'Alidea Bot Asistente',
+                welcome_message: '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.',
+                keywords_json: '[]',
+                ai_enabled: 1,
+                ai_system_prompt: 'Eres Sofia, la asesora virtual comercial de Alidea en la demostración en vivo de nuestra página web.'
+            };
+        }
+        let parsedKeywords = [];
+        try { parsedKeywords = JSON.parse(sim.keywords_json || '[]'); } catch(e) {}
+
+        res.json({
+            bot_name: sim.bot_name,
+            welcome_message: sim.welcome_message,
+            keywords: parsedKeywords,
+            ai_enabled: sim.ai_enabled === 1 || sim.ai_enabled === true,
+            ai_system_prompt: sim.ai_system_prompt,
+            ai_temperature: sim.ai_temperature || 0.35
+        });
+    } catch(err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/admin/simulator-config', requireAdmin, async (req, res) => {
+    try {
+        const { bot_name, welcome_message, keywords, ai_enabled, ai_system_prompt, ai_temperature } = req.body;
+        const db = await getDbConnection();
+
+        const kwJson = typeof keywords === 'string' ? keywords : JSON.stringify(keywords || []);
+
+        await db.run(
+            `INSERT INTO simulator_config (id, bot_name, welcome_message, keywords_json, ai_enabled, ai_system_prompt, ai_temperature, updated_at)
+             VALUES ('default', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+             ON CONFLICT(id) DO UPDATE SET
+               bot_name = excluded.bot_name,
+               welcome_message = excluded.welcome_message,
+               keywords_json = excluded.keywords_json,
+               ai_enabled = excluded.ai_enabled,
+               ai_system_prompt = excluded.ai_system_prompt,
+               ai_temperature = excluded.ai_temperature,
+               updated_at = CURRENT_TIMESTAMP`,
+            [
+                bot_name || 'Alidea Bot Asistente',
+                welcome_message || '',
+                kwJson,
+                ai_enabled ? 1 : 0,
+                ai_system_prompt || '',
+                ai_temperature || 0.35
+            ]
+        );
+
+        res.json({ success: true, message: 'Configuración del simulador guardada exitosamente' });
+    } catch(err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
 // 3. CRM LEADS & ACTIVITIES
 // ==========================================
 

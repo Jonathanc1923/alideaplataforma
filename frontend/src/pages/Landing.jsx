@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import { 
   Bot, 
   Sparkles, 
@@ -46,15 +47,37 @@ import {
   Gift
 } from 'lucide-react';
 
+const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
+
 export default function Landing() {
   // Interactive Simulator State
+  const [botName, setBotName] = useState('Alidea Bot Asistente');
   const [simMessage, setSimMessage] = useState('');
   const [simChat, setSimChat] = useState([
-    { sender: 'client', text: '¡Hola! Me interesa información de sus servicios', time: '10:42 AM' },
     { sender: 'bot', text: '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.', time: '10:42 AM' }
   ]);
   const [isTyping, setIsTyping] = useState(false);
   const [kanbanStage, setKanbanStage] = useState('Nuevo Lead');
+
+  // Load simulator configuration from backend
+  useEffect(() => {
+    const loadSimConfig = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/public/simulator-config`);
+        if (res.data) {
+          if (res.data.bot_name) setBotName(res.data.bot_name);
+          if (res.data.welcome_message) {
+            setSimChat([
+              { sender: 'bot', text: res.data.welcome_message, time: 'Ahora' }
+            ]);
+          }
+        }
+      } catch (err) {
+        console.warn('Usando configuración por defecto del simulador:', err.message);
+      }
+    };
+    loadSimConfig();
+  }, []);
 
   // ROI Calculator State
   const [monthlyChats, setMonthlyChats] = useState(600);
@@ -67,35 +90,49 @@ export default function Landing() {
   const WHATSAPP_BUY_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('¡Hola! Deseo adquirir el Paquete Completo de Alidea (S/ 350 Anual) con el curso de anuncios y consultar por las promociones y descuentos disponibles.')}`;
   const WHATSAPP_CONSULT_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, deseo más información y consultar promociones para mi negocio sobre la plataforma Alidea.')}`;
 
-  const handleSimSend = (textToSend) => {
+  const handleSimSend = async (textToSend) => {
     const text = textToSend || simMessage;
-    if (!text.trim()) return;
+    if (!text.trim() || isTyping) return;
 
     const newChat = [...simChat, { sender: 'client', text, time: 'Ahora' }];
     setSimChat(newChat);
     setSimMessage('');
     setIsTyping(true);
 
-    setTimeout(() => {
+    try {
+      const res = await axios.post(`${API_BASE}/public/simulator-chat`, {
+        message: text,
+        history: newChat
+      });
+
       setIsTyping(false);
-      let reply = 'Gracias por escribirnos. Nuestro equipo comercial de Alidea ya tiene tus datos registrados.';
-      let newStage = 'En Conversación';
-
-      const lower = text.toLowerCase();
-      if (lower.includes('precio') || lower.includes('costo') || lower.includes('plan')) {
-        reply = '💳 Contamos con el Plan Acceso Total Anual por solo S/ 350 que incluye Bot 24/7, CRM Kanban, Retargeting Masivo y Curso de Anuncios en Meta y TikTok. Te acabamos de registrar en el sistema.';
-        newStage = 'Propuesta Enviada';
-      } else if (lower.includes('catalogo') || lower.includes('demo') || lower.includes('fotos') || lower.includes('producto')) {
-        reply = '📁 Te compartimos nuestro catálogo de productos interactivo y casos de éxito de Alidea.';
-        newStage = 'Negociación';
-      } else if (lower.includes('comprar') || lower.includes('cerrar') || lower.includes('asesor') || lower.includes('pedido')) {
-        reply = '🎉 ¡Excelente decisión! Tu asesor asignado se pondrá en contacto contigo de inmediato al WhatsApp 907318642.';
-        newStage = 'Cerrado / Ganado';
+      if (res.data && res.data.text) {
+        setSimChat([...newChat, { sender: 'bot', text: res.data.text, time: 'Ahora' }]);
+        if (res.data.stage) setKanbanStage(res.data.stage);
       }
+    } catch(e) {
+      // Fallback local si el servidor no responde
+      setTimeout(() => {
+        setIsTyping(false);
+        let reply = 'Gracias por escribirnos. Nuestro equipo comercial de Alidea ya tiene tus datos registrados.';
+        let newStage = 'En Conversación';
 
-      setSimChat([...newChat, { sender: 'bot', text: reply, time: 'Ahora' }]);
-      setKanbanStage(newStage);
-    }, 1100);
+        const lower = text.toLowerCase();
+        if (lower.includes('precio') || lower.includes('costo') || lower.includes('plan')) {
+          reply = '💳 Contamos con el Plan Acceso Total Anual por solo S/ 350 que incluye Bot 24/7, CRM Kanban, Retargeting Masivo y Curso de Anuncios en Meta y TikTok.';
+          newStage = 'Propuesta Enviada';
+        } else if (lower.includes('catalogo') || lower.includes('demo') || lower.includes('fotos') || lower.includes('producto')) {
+          reply = '📁 Te compartimos nuestro catálogo de productos interactivo y casos de éxito de Alidea.';
+          newStage = 'Negociación';
+        } else if (lower.includes('comprar') || lower.includes('cerrar') || lower.includes('asesor') || lower.includes('pedido')) {
+          reply = '🎉 ¡Excelente decisión! Tu asesor asignado se pondrá en contacto contigo de inmediato al WhatsApp 907318642.';
+          newStage = 'Cerrado / Ganado';
+        }
+
+        setSimChat([...newChat, { sender: 'bot', text: reply, time: 'Ahora' }]);
+        setKanbanStage(newStage);
+      }, 700);
+    }
   };
 
   return (
@@ -594,7 +631,7 @@ export default function Landing() {
                   A
                 </div>
                 <div>
-                  <div className="font-bold text-white text-sm">Alidea Bot Asistente</div>
+                  <div className="font-bold text-white text-sm">{botName}</div>
                   <div className="text-[11px] text-emerald-400 font-medium">en línea las 24 horas</div>
                 </div>
               </div>

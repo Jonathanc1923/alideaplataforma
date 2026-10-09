@@ -197,11 +197,52 @@ async function getDbConnection() {
     CREATE INDEX IF NOT EXISTS idx_crm_activities_user_lead ON crm_activities(user_id, lead_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_user_jid ON chat_messages(user_id, jid);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_user_created ON chat_messages(user_id, created_at);
+    CREATE TABLE IF NOT EXISTS simulator_config (
+      id TEXT PRIMARY KEY DEFAULT 'default',
+      bot_name TEXT DEFAULT 'Alidea Bot Asistente',
+      welcome_message TEXT DEFAULT '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.',
+      keywords_json TEXT DEFAULT '[]',
+      ai_enabled INTEGER DEFAULT 1,
+      ai_system_prompt TEXT DEFAULT '',
+      ai_temperature REAL DEFAULT 0.35,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE INDEX IF NOT EXISTS idx_crm_tasks_user_id ON crm_tasks(user_id);
     CREATE INDEX IF NOT EXISTS idx_products_user_id ON products(user_id);
     CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
     CREATE INDEX IF NOT EXISTS idx_crm_tags_user_id ON crm_tags(user_id);
   `);
+
+  // Seed default simulator configuration if not present
+  try {
+    const existingSim = await db.get("SELECT id FROM simulator_config WHERE id = 'default'");
+    if (!existingSim) {
+      const defaultKeywords = JSON.stringify([
+        {
+          keyword: 'precio,costo,plan,cuanto cuesta',
+          response: '💳 Contamos con el Plan Acceso Total Anual por solo S/ 350 que incluye Bot 24/7, CRM Kanban, Retargeting Masivo y Curso de Anuncios en Meta y TikTok. Te acabamos de registrar en el sistema.',
+          stage: 'Propuesta Enviada'
+        },
+        {
+          keyword: 'catalogo,demo,fotos,producto',
+          response: '📁 Te compartimos nuestro catálogo de productos interactivo y casos de éxito de Alidea.',
+          stage: 'Negociación'
+        },
+        {
+          keyword: 'comprar,cerrar,asesor,pedido,adquirir',
+          response: '🎉 ¡Excelente decisión! Tu asesor asignado se pondrá en contacto contigo de inmediato al WhatsApp 907318642.',
+          stage: 'Cerrado / Ganado'
+        }
+      ]);
+      const defaultPrompt = 'Eres Sofia, la asesora virtual comercial de Alidea en la demostración en vivo de nuestra página web. Tu objetivo es explicar de forma concisa, cálida, entusiasta y con emojis cómo Alidea ayuda a negocios a automatizar su atención por WhatsApp 24/7, capturar leads en CRM Kanban y lanzar retargeting masivo. Responde en 1 o 2 párrafos breves ideales para chat de WhatsApp.';
+      await db.run(
+        `INSERT INTO simulator_config (id, bot_name, welcome_message, keywords_json, ai_enabled, ai_system_prompt)
+         VALUES ('default', 'Alidea Bot Asistente', '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.', ?, 1, ?)`,
+        [defaultKeywords, defaultPrompt]
+      );
+    }
+  } catch(e) {}
 
   // Column Migrations
   const columnMigrations = [

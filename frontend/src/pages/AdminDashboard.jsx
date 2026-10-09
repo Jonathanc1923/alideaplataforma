@@ -27,7 +27,8 @@ import {
   Plus,
   Save,
   Sliders,
-  Check
+  Check,
+  Package
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';

@@ -890,6 +890,7 @@ app.put('/api/crm/leads/:leadId', async (req, res) => {
         if (req.body.source !== undefined) { updates.push('source = ?'); params.push(req.body.source); }
         if (req.body.tags !== undefined) { updates.push('tags = ?'); params.push(req.body.tags); }
         if (req.body.notes !== undefined) { updates.push('notes = ?'); params.push(req.body.notes); }
+        if (req.body.ai_disabled !== undefined) { updates.push('ai_disabled = ?'); params.push(req.body.ai_disabled ? 1 : 0); }
 
         updates.push('updated_at = CURRENT_TIMESTAMP');
         params.push(leadId, userId);
@@ -902,6 +903,29 @@ app.put('/api/crm/leads/:leadId', async (req, res) => {
         res.json({ message: 'Lead actualizado correctamente' });
     } catch (err) {
         console.error('Error in PUT /api/crm/leads/:leadId:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Toggle AI per lead
+app.put('/api/crm/leads/:leadId/ai-toggle', async (req, res) => {
+    try {
+        const { leadId } = req.params;
+        const userId = getUserId(req);
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+
+        const db = await getDbConnection();
+        const currentLead = await db.get('SELECT id, ai_disabled FROM crm_leads WHERE id = ? AND user_id = ?', [leadId, userId]);
+        if (!currentLead) return res.status(404).json({ error: 'Lead no encontrado o no autorizado' });
+
+        const newStatus = req.body.ai_disabled !== undefined ? (req.body.ai_disabled ? 1 : 0) : (currentLead.ai_disabled ? 0 : 1);
+        await db.run(
+            'UPDATE crm_leads SET ai_disabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+            [newStatus, leadId, userId]
+        );
+
+        res.json({ success: true, id: leadId, ai_disabled: newStatus, message: `IA ${newStatus === 1 ? 'pausada' : 'activada'} para este chat` });
+    } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
@@ -1089,7 +1113,8 @@ app.get('/api/chat/conversations', async (req, res) => {
                 lead_id: lead ? lead.id : null,
                 lead_name: contactName,
                 lead_stage: lead ? lead.stage : 'nuevo',
-                lead_tags: lead ? lead.tags : ''
+                lead_tags: lead ? lead.tags : '',
+                lead_ai_disabled: lead ? (lead.ai_disabled || 0) : 0
             });
         }
 
@@ -1482,6 +1507,91 @@ app.delete('/api/crm/tags/:tagId', async (req, res) => {
         const db = await getDbConnection();
         await db.run('DELETE FROM crm_tags WHERE id = ? AND user_id = ?', [tagId, userId]);
         res.json({ message: 'Etiqueta eliminada' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Toggle AI per tag (bulk disable/enable for all chats with this tag)
+app.put('/api/crm/tags/:tagId/ai-toggle', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const { tagId } = req.params;
+        const { ai_disabled } = req.body;
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+
+        const db = await getDbConnection();
+        const tag = await db.get('SELECT * FROM crm_tags WHERE id = ? AND user_id = ?', [tagId, userId]);
+        if (!tag) return res.status(404).json({ error: 'Etiqueta no encontrada' });
+
+        const newStatus = ai_disabled !== undefined ? (ai_disabled ? 1 : 0) : (tag.ai_disabled ? 0 : 1);
+        await db.run('UPDATE crm_tags SET ai_disabled = ? WHERE id = ? AND user_id = ?', [newStatus, tagId, userId]);
+        res.json({ success: true, id: tagId, ai_disabled: newStatus, message: `IA ${newStatus === 1 ? 'desactivada' : 'activada'} para la etiqueta "${tag.name}"` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Toggle or set AI for a specific chat / lead
+app.post('/api/chat/toggle-ai', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const { leadId: inputLeadId, jid, phone, sessionId, ai_disabled } = req.body;
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+
+        const db = await getDbConnection();
+        let lead = null;
+
+        if (inputLeadId) {
+            lead = await db.get('SELECT * FROM crm_leads WHERE id = ? AND user_id = ?', [inputLeadId, userId]);
+        }
+
+        let resolvedPhone = phone;
+        if (!resolvedPhone && jid) {
+            resolvedPhone = resolvePhoneNumber(sessionId, jid);
+        }
+        const phoneDigits = (resolvedPhone || (jid ? jid.split('@')[0] : '')).replace(/[^0-9]/g, '');
+        const formattedPhone = phoneDigits ? ('+' + phoneDigits) : '';
+
+        if (!lead && phoneDigits) {
+            lead = await db.get(
+                'SELECT * FROM crm_leads WHERE user_id = ? AND (phone = ? OR phone = ? OR phone LIKE ?)',
+                [userId, formattedPhone, phoneDigits, `%${phoneDigits.slice(-8)}`]
+            );
+        }
+
+        let leadId;
+        let newStatus;
+
+        if (lead) {
+            leadId = lead.id;
+            newStatus = ai_disabled !== undefined ? (ai_disabled ? 1 : 0) : (lead.ai_disabled ? 0 : 1);
+            await db.run(
+                'UPDATE crm_leads SET ai_disabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+                [newStatus, leadId, userId]
+            );
+        } else {
+            leadId = uuidv4();
+            newStatus = ai_disabled !== undefined ? (ai_disabled ? 1 : 0) : 1;
+            await db.run(
+                `INSERT INTO crm_leads (id, user_id, name, phone, stage, deal_value, source, tags, notes, ai_disabled)
+                 VALUES (?, ?, ?, ?, 'nuevo', 0, 'whatsapp', '', 'Lead registrado desde toggle de IA en chat', ?)`,
+                [leadId, userId, `Contacto ${phoneDigits.slice(-4) || 'WhatsApp'}`, formattedPhone || phoneDigits, newStatus]
+            );
+        }
+
+        await db.run(
+            `INSERT INTO crm_activities (id, lead_id, user_id, type, content)
+             VALUES (?, ?, ?, 'note', ?)`,
+            [uuidv4(), leadId, userId, `Asesor IA ${newStatus === 1 ? 'PAUSADO (atención manual)' : 'ACTIVADO'} para este contacto`]
+        );
+
+        res.json({
+            success: true,
+            leadId,
+            ai_disabled: newStatus,
+            message: `IA ${newStatus === 1 ? 'pausada' : 'activada'} para este chat`
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

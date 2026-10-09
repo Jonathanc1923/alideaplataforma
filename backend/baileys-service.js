@@ -780,6 +780,48 @@ async function processQueue(queueKey, getDbConnection) {
                         const isAiActive = sessionRecord && (sessionRecord.ai_enabled === 1 || sessionRecord.ai_enabled === true || sessionRecord.ai_enabled === '1');
                         
                         if (isAiActive && sessionRecord.ai_system_prompt && sessionRecord.ai_system_prompt.trim()) {
+                            // Recuperar etiquetas configuradas y estado actual del lead para verificar activación de IA
+                            let availableTags = [];
+                            let disabledTagNames = new Set();
+                            let existingLead = null;
+                            if (sessionRecord.user_id) {
+                                try {
+                                    const tagRows = await db.all('SELECT name, COALESCE(ai_disabled, 0) as ai_disabled FROM crm_tags WHERE user_id = ? ORDER BY name ASC', [sessionRecord.user_id]);
+                                    availableTags = (tagRows || []).map(r => r.name);
+                                    (tagRows || []).forEach(r => {
+                                        if (r.ai_disabled === 1 || r.ai_disabled === true || r.ai_disabled === '1') {
+                                            disabledTagNames.add(r.name.toLowerCase().trim());
+                                        }
+                                    });
+                                    if (availableTags.length === 0) {
+                                        availableTags = ['Nuevo Contacto', 'Interesado', 'Catálogo Enviado', 'Cotización Pendiente', 'Cliente Caliente', 'Cerrado / Ganado'];
+                                    }
+
+                                    const phoneDigits = jid.split('@')[0];
+                                    existingLead = await db.get(
+                                        'SELECT * FROM crm_leads WHERE user_id = ? AND (phone = ? OR phone = ? OR phone LIKE ?)',
+                                        [sessionRecord.user_id, '+' + phoneDigits, phoneDigits, `%${phoneDigits.slice(-8)}`]
+                                    );
+                                } catch(e) {}
+                            }
+
+                            // 1. Verificación de exclusión individual por chat
+                            if (existingLead && (existingLead.ai_disabled === 1 || existingLead.ai_disabled === true || existingLead.ai_disabled === '1')) {
+                                console.log(`[Alidea Session ${sessionId}] ⏸️ IA Pausada para este chat individual (${jid}).`);
+                                return;
+                            }
+
+                            // 2. Verificación de exclusión grupal por Etiquetas del contacto
+                            const currentTagsStr = existingLead?.tags || '';
+                            const currentTagList = currentTagsStr.split(',').map(t => t.trim()).filter(Boolean);
+                            const matchedDisabledTag = currentTagList.find(t => disabledTagNames.has(t.toLowerCase()));
+                            if (matchedDisabledTag) {
+                                console.log(`[Alidea Session ${sessionId}] ⏸️ IA Desactivada por regla de etiqueta ("${matchedDisabledTag}") para ${jid}.`);
+                                return;
+                            }
+
+                            const currentPrimaryTag = currentTagList[0] || null;
+
                             console.log(`[Alidea Session ${sessionId}] Evaluando consulta en tiempo real con Alidea Genesis AI™: "${messageText}" para ${jid}`);
 
                             // 1. Control Inteligente de Saludo: Saludar solo 1 vez al día o si el cliente saludó
@@ -818,29 +860,6 @@ async function processQueue(queueKey, getDbConnection) {
                             } catch(histErr) {
                                 console.warn(`[Alidea Session ${sessionId}] Error al recuperar historial de chat:`, histErr.message);
                             }
-
-                            // Recuperar etiquetas configuradas y estado actual del lead para auto-etiquetado inteligente
-                            let availableTags = [];
-                            let existingLead = null;
-                            if (sessionRecord.user_id) {
-                                try {
-                                    const tagRows = await db.all('SELECT name FROM crm_tags WHERE user_id = ? ORDER BY name ASC', [sessionRecord.user_id]);
-                                    availableTags = (tagRows || []).map(r => r.name);
-                                    if (availableTags.length === 0) {
-                                        availableTags = ['Nuevo Contacto', 'Interesado', 'Catálogo Enviado', 'Cotización Pendiente', 'Cliente Caliente', 'Cerrado / Ganado'];
-                                    }
-
-                                    const phoneDigits = jid.split('@')[0];
-                                    existingLead = await db.get(
-                                        'SELECT * FROM crm_leads WHERE user_id = ? AND (phone = ? OR phone = ?)',
-                                        [sessionRecord.user_id, '+' + phoneDigits, phoneDigits]
-                                    );
-                                } catch(e) {}
-                            }
-
-                            const currentTagsStr = existingLead?.tags || '';
-                            const currentTagList = currentTagsStr.split(',').map(t => t.trim()).filter(Boolean);
-                            const currentPrimaryTag = currentTagList[0] || null;
 
                             // IMPORTANTE: NO mostrar 'escribiendo...' antes de evaluar ni marcar como leído.
                             // La IA evalúa en segundo plano con su historial completo y catálogo actualizado de productos.

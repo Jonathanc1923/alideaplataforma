@@ -83,6 +83,7 @@ async function getDbConnection() {
       tags TEXT,
       notes TEXT,
       last_message TEXT,
+      ai_disabled INTEGER DEFAULT 0,
       last_interaction DATETIME DEFAULT CURRENT_TIMESTAMP,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -157,6 +158,7 @@ async function getDbConnection() {
       user_id TEXT NOT NULL,
       name TEXT NOT NULL,
       color TEXT DEFAULT '#6366f1',
+      ai_disabled INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(user_id, name)
     );
@@ -309,7 +311,9 @@ async function getDbConnection() {
     { table: 'simulator_config', column: 'delay_min INTEGER DEFAULT 2' },
     { table: 'simulator_config', column: 'delay_max INTEGER DEFAULT 5' },
     { table: 'users', column: "currency_code TEXT DEFAULT 'PEN'" },
-    { table: 'users', column: "currency_symbol TEXT DEFAULT 'S/'" }
+    { table: 'users', column: "currency_symbol TEXT DEFAULT 'S/'" },
+    { table: 'crm_leads', column: 'ai_disabled INTEGER DEFAULT 0' },
+    { table: 'crm_tags', column: 'ai_disabled INTEGER DEFAULT 0' }
   ];
 
   for (const m of columnMigrations) {

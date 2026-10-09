@@ -63,7 +63,10 @@ import {
   PieChart,
   Target,
   Flame,
-  Calendar
+  Calendar,
+  PauseCircle,
+  PlayCircle,
+  ShieldAlert
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
@@ -675,6 +678,53 @@ export default function UserWorkspace() {
       fetchCrmStats();
     } catch (err) {
       console.error('Error toggling chat tag:', err);
+    }
+  };
+
+  const handleToggleChatAi = async (targetJid = null, forceState = null) => {
+    const jid = targetJid || activeChatJid;
+    if (!jid || !auth) return;
+    const targetConv = conversations.find(c => c.jid === jid);
+    const currentLead = leads.find(l => (targetConv?.lead_id && l.id === targetConv.lead_id) || (targetConv?.sender_phone && l.phone === targetConv.sender_phone));
+    
+    let isCurrentlyDisabled = 0;
+    if (currentLead && currentLead.ai_disabled !== undefined && currentLead.ai_disabled !== null) {
+      isCurrentlyDisabled = currentLead.ai_disabled;
+    } else if (targetConv && targetConv.lead_ai_disabled !== undefined && targetConv.lead_ai_disabled !== null) {
+      isCurrentlyDisabled = targetConv.lead_ai_disabled;
+    }
+
+    const nextDisabledState = forceState !== null ? (forceState ? 1 : 0) : (isCurrentlyDisabled === 1 ? 0 : 1);
+
+    try {
+      await axios.post(`${API_BASE}/chat/toggle-ai`, {
+        leadId: currentLead?.id || targetConv?.lead_id || null,
+        jid: jid,
+        phone: targetConv?.sender_phone || jid.split('@')[0],
+        sessionId: auth.sessionId,
+        ai_disabled: nextDisabledState
+      }, {
+        headers: { 'x-user-id': auth.user.id }
+      });
+      fetchChatConversations();
+      fetchLeads();
+    } catch (err) {
+      console.error('Error toggling chat AI:', err);
+    }
+  };
+
+  const handleToggleTagAi = async (tagId, currentDisabled) => {
+    if (!auth || !tagId) return;
+    const newDisabled = (currentDisabled === 1 || currentDisabled === true || currentDisabled === '1') ? 0 : 1;
+    try {
+      await axios.put(`${API_BASE}/crm/tags/${tagId}/ai-toggle`, {
+        ai_disabled: newDisabled
+      }, {
+        headers: { 'x-user-id': auth.user.id }
+      });
+      fetchCrmTags();
+    } catch (err) {
+      console.error('Error toggling tag AI:', err);
     }
   };
 
@@ -2539,6 +2589,12 @@ export default function UserWorkspace() {
                   return filteredConversations.map((c) => {
                     const convTags = (c.lead_tags || '').split(',').map(t => t.trim()).filter(Boolean);
                     const isActive = activeChatJid === c.jid;
+                    const matchingLead = leads.find(l => (c.lead_id && l.id === c.lead_id) || (c.sender_phone && l.phone === c.sender_phone));
+                    const isIndividuallyDisabled = (matchingLead && matchingLead.ai_disabled !== undefined && matchingLead.ai_disabled !== null)
+                      ? matchingLead.ai_disabled === 1
+                      : (c.lead_ai_disabled === 1);
+                    const mutedTagDef = crmTags.find(ct => (ct.ai_disabled === 1 || ct.ai_disabled === true || ct.ai_disabled === '1') && convTags.some(at => at.toLowerCase() === ct.name.toLowerCase()));
+                    const isTagDisabled = !isIndividuallyDisabled && !!mutedTagDef;
 
                     return (
                       <div 
@@ -2566,10 +2622,25 @@ export default function UserWorkspace() {
                             </span>
                           </div>
                           
-                          {/* Real Phone Number in Sidebar */}
-                          <div className="text-[11px] font-mono text-emerald-400 flex items-center gap-1.5 mt-0.5 font-semibold">
-                            <Phone size={10} className="text-emerald-500 shrink-0" />
-                            <span>{c.sender_phone || c.jid.split('@')[0]}</span>
+                          {/* Real Phone Number & AI status badge in Sidebar */}
+                          <div className="flex items-center justify-between gap-1 mt-0.5">
+                            <div className="text-[11px] font-mono text-emerald-400 flex items-center gap-1 font-semibold truncate">
+                              <Phone size={10} className="text-emerald-500 shrink-0" />
+                              <span className="truncate">{c.sender_phone || c.jid.split('@')[0]}</span>
+                            </div>
+                            {isIndividuallyDisabled ? (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold shrink-0 flex items-center gap-1" title="IA Pausada para este chat">
+                                <PauseCircle size={10} /> IA Pausa
+                              </span>
+                            ) : isTagDisabled ? (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-300 border border-orange-500/30 font-semibold shrink-0 flex items-center gap-1" title={`IA Silenciada por etiqueta: ${mutedTagDef?.name}`}>
+                                <ShieldAlert size={10} /> {mutedTagDef?.name}
+                              </span>
+                            ) : (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold shrink-0 flex items-center gap-1" title="IA Activa respondiendo automáticamente">
+                                <Bot size={10} /> IA On
+                              </span>
+                            )}
                           </div>
 
                           <p className="text-[11px] text-slate-400 truncate mt-1">
@@ -2622,6 +2693,14 @@ export default function UserWorkspace() {
                     const activeDisplayName = currentLead?.name || activeConv?.lead_name || activeConv?.sender_name || 'Contacto';
                     const activeDisplayPhone = currentLead?.phone || activeConv?.sender_phone || activeChatJid.split('@')[0];
 
+                    const isIndividuallyDisabled = (currentLead && currentLead.ai_disabled !== undefined && currentLead.ai_disabled !== null)
+                      ? currentLead.ai_disabled === 1
+                      : (activeConv?.lead_ai_disabled === 1);
+
+                    const assignedTagsList = (currentLead?.tags || activeConv?.lead_tags || '').split(',').map(t => t.trim()).filter(Boolean);
+                    const mutedTagDef = crmTags.find(ct => (ct.ai_disabled === 1 || ct.ai_disabled === true || ct.ai_disabled === '1') && assignedTagsList.some(at => at.toLowerCase() === ct.name.toLowerCase()));
+                    const isTagDisabled = !isIndividuallyDisabled && !!mutedTagDef;
+
                     return (
                       <div className="p-3.5 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-3 min-w-0">
@@ -2637,14 +2716,62 @@ export default function UserWorkspace() {
                                 <Phone size={10} /> {activeDisplayPhone}
                               </span>
                             </div>
-                            <span className="text-[11px] text-emerald-400 flex items-center gap-1 mt-0.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                              Chat en vivo sincronizado con WhatsApp
-                            </span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                Chat en vivo sincronizado
+                              </span>
+                              {isIndividuallyDisabled ? (
+                                <span className="text-[10px] text-amber-400 font-semibold flex items-center gap-1 bg-amber-500/10 px-2 py-0.2 rounded border border-amber-500/20">
+                                  <PauseCircle size={10} /> IA Pausada en este chat
+                                </span>
+                              ) : isTagDisabled ? (
+                                <span className="text-[10px] text-orange-400 font-semibold flex items-center gap-1 bg-orange-500/10 px-2 py-0.2 rounded border border-orange-500/20">
+                                  <ShieldAlert size={10} /> Silenciada por: {mutedTagDef?.name}
+                                </span>
+                              ) : null}
+                            </div>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-2">
+                          {/* Bot / IA Toggle Quick Action */}
+                          <button 
+                            type="button"
+                            onClick={() => handleToggleChatAi(activeChatJid, isIndividuallyDisabled ? 0 : 1)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all ${
+                              isIndividuallyDisabled
+                                ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40 shadow-sm'
+                                : isTagDisabled
+                                ? 'bg-orange-500/15 hover:bg-orange-500/25 text-orange-300 border-orange-500/40 shadow-sm'
+                                : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/40 shadow-sm'
+                            }`}
+                            title={
+                              isIndividuallyDisabled
+                                ? 'IA Pausada para este chat. Clic para reactivar IA'
+                                : isTagDisabled
+                                ? `IA Silenciada por regla de etiqueta ("${mutedTagDef?.name}"). Clic para pausar individualmente`
+                                : 'IA Activa. Clic para pausar IA y atender manualmente este chat'
+                            }
+                          >
+                            {isIndividuallyDisabled ? (
+                              <>
+                                <PauseCircle size={13} className="text-amber-400" />
+                                <span className="hidden sm:inline">IA Pausada</span>
+                              </>
+                            ) : isTagDisabled ? (
+                              <>
+                                <ShieldAlert size={13} className="text-orange-400" />
+                                <span className="hidden sm:inline">IA Silenciada ({mutedTagDef?.name})</span>
+                              </>
+                            ) : (
+                              <>
+                                <Bot size={13} className="text-emerald-400 animate-pulse" />
+                                <span className="hidden sm:inline">IA Activa</span>
+                              </>
+                            )}
+                          </button>
+
                           <button 
                             type="button"
                             onClick={() => setShowChatCrmPanel(!showChatCrmPanel)}
@@ -2719,6 +2846,12 @@ export default function UserWorkspace() {
                   const displayPhone = currentLead?.phone || activeConv?.sender_phone || activeChatJid.split('@')[0];
                   const displayName = currentLead?.name || activeConv?.lead_name || activeConv?.sender_name || displayPhone;
 
+                  const isIndividuallyDisabled = (currentLead && currentLead.ai_disabled !== undefined && currentLead.ai_disabled !== null)
+                    ? currentLead.ai_disabled === 1
+                    : (activeConv?.lead_ai_disabled === 1);
+                  const mutedTagDef = crmTags.find(ct => (ct.ai_disabled === 1 || ct.ai_disabled === true || ct.ai_disabled === '1') && assignedTagsList.some(at => at.toLowerCase() === ct.name.toLowerCase()));
+                  const isTagDisabled = !isIndividuallyDisabled && !!mutedTagDef;
+
                   return (
                     <div className="w-full md:w-80 border-l border-slate-800 bg-slate-950/90 flex flex-col p-4 overflow-y-auto shrink-0 animate-fade-in divide-y divide-slate-800/80">
                       {/* Contact Info Header */}
@@ -2738,6 +2871,71 @@ export default function UserWorkspace() {
                         <p className="text-xs text-emerald-400 font-mono font-bold mt-1 flex items-center gap-1.5">
                           <Phone size={12} className="text-emerald-500" /> {displayPhone}
                         </p>
+                      </div>
+
+                      {/* AI Control Card for this Lead / Chat */}
+                      <div className="py-3.5">
+                        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2.5 shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+                              <Bot size={14} className={isIndividuallyDisabled ? 'text-amber-400' : isTagDisabled ? 'text-orange-400' : 'text-emerald-400'} />
+                              Asesor Inteligente (IA)
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleChatAi(activeChatJid, isIndividuallyDisabled ? 0 : 1)}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${
+                                isIndividuallyDisabled
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+                                  : isTagDisabled
+                                  ? 'bg-orange-500/20 text-orange-300 border-orange-500/40 hover:bg-orange-500/30'
+                                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                              }`}
+                            >
+                              {isIndividuallyDisabled ? (
+                                <>
+                                  <PauseCircle size={11} /> Pausada
+                                </>
+                              ) : isTagDisabled ? (
+                                <>
+                                  <ShieldAlert size={11} /> Silenciada
+                                </>
+                              ) : (
+                                <>
+                                  <Bot size={11} /> Activa
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          <p className="text-[10px] text-slate-400 leading-relaxed">
+                            {isIndividuallyDisabled
+                              ? '⏸️ IA pausada para este chat. Puedes chatear sin que el bot interfiera.'
+                              : isTagDisabled
+                              ? `🛡️ IA silenciada porque el contacto tiene la etiqueta "${mutedTagDef?.name}".`
+                              : '🤖 La IA está respondiendo automáticamente según tu catálogo y base de datos.'}
+                          </p>
+
+                          <button
+                            type="button"
+                            onClick={() => handleToggleChatAi(activeChatJid, isIndividuallyDisabled ? 0 : 1)}
+                            className={`w-full py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm ${
+                              isIndividuallyDisabled
+                                ? 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white'
+                                : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30'
+                            }`}
+                          >
+                            {isIndividuallyDisabled ? (
+                              <>
+                                <PlayCircle size={14} /> Reactivar Asesor IA
+                              </>
+                            ) : (
+                              <>
+                                <PauseCircle size={14} /> Pausar IA (Atender Manual)
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
 
                       {/* CRM Stage Selector */}
@@ -3623,6 +3821,62 @@ export default function UserWorkspace() {
                           />
                         </div>
                       </div>
+                    </div>
+
+                    {/* Tag-level AI bulk rules */}
+                    <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                          <Tag size={14} className="text-indigo-400" />
+                          Reglas de IA por Etiquetas (CRM)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowCreateTagModal(true)}
+                          className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1"
+                        >
+                          <Plus size={11} /> Gestionar Etiquetas
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        Pausa automáticamente la IA para todos los contactos que contengan etiquetas específicas (ej. <em>Soporte</em>, <em>Cliente VIP</em>, <em>Cerrado / Ganado</em>) para atención 100% humana.
+                      </p>
+                      
+                      {crmTags.length === 0 ? (
+                        <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 text-center text-xs text-slate-500">
+                          No tienes etiquetas personalizadas aún. Crea etiquetas para configurar reglas en bloque.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 max-h-48 overflow-y-auto pr-1">
+                          {crmTags.map(tag => {
+                            const isMuted = tag.ai_disabled === 1 || tag.ai_disabled === true || tag.ai_disabled === '1';
+                            return (
+                              <div 
+                                key={tag.id}
+                                className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800/90 gap-2 shadow-sm"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
+                                  <span className="text-xs font-medium text-slate-200 truncate">{tag.name}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleTagAi(tag.id, tag.ai_disabled)}
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 shrink-0 ${
+                                    isMuted
+                                      ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 hover:bg-amber-500/25'
+                                      : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/25'
+                                  }`}
+                                  title={isMuted ? 'Haz clic para ACTIVAR la IA en contactos con esta etiqueta' : 'Haz clic para PAUSAR la IA en contactos con esta etiqueta'}
+                                >
+                                  {isMuted ? <PauseCircle size={11} /> : <Bot size={11} />}
+                                  <span>{isMuted ? 'Pausada' : 'Activa'}</span>
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     {/* Anti-Hallucination Safe Notice */}
@@ -6513,31 +6767,53 @@ export default function UserWorkspace() {
               {crmTags.length > 0 && (
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-400 mb-1.5">
-                    Etiquetas creadas actualmente ({crmTags.length}):
+                    Etiquetas creadas actualmente ({crmTags.length}) y Regla de IA:
                   </label>
-                  <div className="max-h-28 overflow-y-auto flex flex-wrap gap-1.5 p-2 bg-slate-950/60 rounded-xl border border-slate-800/80">
-                    {crmTags.map(t => (
-                      <span 
-                        key={t.id} 
-                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium border"
-                        style={{
-                          backgroundColor: `${t.color}15`,
-                          borderColor: `${t.color}35`,
-                          color: t.color
-                        }}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: t.color }} />
-                        {t.name}
-                        <button 
-                          type="button" 
-                          onClick={() => handleDeleteCrmTag(t.id)}
-                          className="hover:text-rose-400 ml-0.5 text-xs font-bold"
-                          title="Eliminar etiqueta"
+                  <div className="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-slate-950/60 rounded-xl border border-slate-800/80">
+                    {crmTags.map(t => {
+                      const isMuted = t.ai_disabled === 1 || t.ai_disabled === true || t.ai_disabled === '1';
+                      return (
+                        <div 
+                          key={t.id} 
+                          className="flex items-center justify-between p-1.5 rounded-lg border text-[11px] bg-slate-900/60"
+                          style={{
+                            borderColor: `${t.color}35`
+                          }}
                         >
-                          ×
-                        </button>
-                      </span>
-                    ))}
+                          <span 
+                            className="inline-flex items-center gap-1.5 font-medium truncate min-w-0"
+                            style={{ color: t.color }}
+                          >
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                            <span className="truncate">{t.name}</span>
+                          </span>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleTagAi(t.id, t.ai_disabled)}
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all flex items-center gap-1 ${
+                                isMuted
+                                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 hover:bg-amber-500/25'
+                                  : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/25'
+                              }`}
+                              title={isMuted ? 'IA desactivada para chats con esta etiqueta. Clic para activar' : 'IA activa para chats con esta etiqueta. Clic para desactivar'}
+                            >
+                              {isMuted ? <PauseCircle size={10} /> : <Bot size={10} />}
+                              <span>{isMuted ? 'IA Pausada' : 'IA Activa'}</span>
+                            </button>
+                            <button 
+                              type="button" 
+                              onClick={() => handleDeleteCrmTag(t.id)}
+                              className="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors font-bold text-xs"
+                              title="Eliminar etiqueta"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

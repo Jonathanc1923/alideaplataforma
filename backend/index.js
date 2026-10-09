@@ -572,6 +572,34 @@ app.post('/api/public/simulator-chat', async (req, res) => {
         const code = sim.currency_code || 'PEN';
 
         const textLower = message.toLowerCase().trim();
+
+        // Special handler: If asking for catalog
+        const isCatalogRequest = /(catalogo|cat[aá]logo|pedir cat[aá]logo|enviar cat[aá]logo|ver cat[aá]logo|productos|servicios|lista de precios|precios|menu|menú|carta)/i.test(textLower);
+
+        if (isCatalogRequest) {
+            let itemsToDisplay = parsedCatalog;
+            if (!itemsToDisplay || itemsToDisplay.length === 0) {
+                itemsToDisplay = [
+                    { name: 'Plan Acceso Total Anual (Bot 24/7 + CRM)', price: '350.00', description: 'Sistema WhatsApp automático, CRM Kanban, Retargeting y Curso de Anuncios' },
+                    { name: 'Pack Anuncios Ganadores Meta & TikTok', price: '120.00', description: 'Estrategias y plantillas para captar clientes todos los días' },
+                    { name: 'Módulo de Facturación & Finanzas Pro', price: '99.00', description: 'Libro diario, mayor, balance y control de impuestos' }
+                ];
+            }
+
+            let catMsg = `📁 *CATÁLOGO DE PRODUCTOS & SERVICIOS:*\n\n`;
+            itemsToDisplay.forEach((p, idx) => {
+                catMsg += `*${idx + 1}. ${p.name}* ➔ *${sym} ${Number(p.price || 0).toFixed(2)}*\n${p.description ? `_${p.description}_\n` : ''}\n`;
+            });
+            catMsg += `¿Deseas cotizar o realizar un pedido de alguno de estos productos?`;
+
+            return res.json({
+                sender: 'bot',
+                text: catMsg,
+                stage: 'Negociación',
+                isCatalog: true
+            });
+        }
+
         let matchedKw = null;
 
         for (const kw of parsedKeywords) {
@@ -588,22 +616,6 @@ app.post('/api/public/simulator-chat', async (req, res) => {
                 text: matchedKw.response || '',
                 stage: matchedKw.stage || 'En Conversación',
                 matchedKeyword: true
-            });
-        }
-
-        // Special handler: If asking for catalog and catalog has items
-        if ((textLower.includes('catalogo') || textLower.includes('catálogo') || textLower.includes('productos') || textLower.includes('servicios') || textLower.includes('pedir catálogo')) && parsedCatalog.length > 0) {
-            let catMsg = `📁 *CATÁLOGO DE PRODUCTOS & SERVICIOS:*\n\n`;
-            parsedCatalog.forEach((p, idx) => {
-                catMsg += `*${idx + 1}. ${p.name}* - ${sym} ${p.price}\n${p.description ? `_${p.description}_\n` : ''}\n`;
-            });
-            catMsg += `¿Deseas cotizar o realizar un pedido de alguno de estos productos?`;
-
-            return res.json({
-                sender: 'bot',
-                text: catMsg,
-                stage: 'Negociación',
-                isCatalog: true
             });
         }
 

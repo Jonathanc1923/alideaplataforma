@@ -501,17 +501,144 @@ async function processQueue(queueKey, getDbConnection) {
 
             try {
                 const db = await getDbConnection();
+                const sessionRecord = await db.get('SELECT * FROM sessions WHERE id = ?', [sessionId]);
                 const keywords = await db.all('SELECT * FROM keywords WHERE session_id = ?', [sessionId]);
 
                 const textLower = messageText.toLowerCase();
                 let matched = false;
 
-                for (const kw of keywords) {
-                    const matchKeywords = kw.keyword.toLowerCase().split(',').map(k => k.trim());
-                    const hasMatch = matchKeywords.some(mk => mk !== '' && textLower.includes(mk));
+                // 1. Verificación automática de solicitud de catálogo de productos/servicios
+                const isCatalogIntent = /(catalogo|cat[aá]logo|pedir cat[aá]logo|enviar cat[aá]logo|ver cat[aá]logo|productos|servicios|lista de precios|precios|menu|menú|carta)/i.test(messageText);
+                let userProducts = [];
+                let userRecord = null;
 
-                    if (hasMatch) {
-                        matched = true;
+                if (sessionRecord && sessionRecord.user_id) {
+                    try {
+                        userProducts = await db.all('SELECT * FROM products WHERE user_id = ? AND in_stock = 1 ORDER BY category, name ASC', [sessionRecord.user_id]);
+                        userRecord = await db.get('SELECT business_name, currency_symbol, currency_code FROM users WHERE id = ?', [sessionRecord.user_id]);
+                    } catch(e) {}
+                }
+
+                if (isCatalogIntent && userProducts && userProducts.length > 0) {
+                    const sym = userRecord?.currency_symbol || 'S/';
+                    const bName = userRecord?.business_name ? `*${userRecord.business_name}*\n` : '';
+
+                    let catalogText = `📁 ${bName}*CATÁLOGO DE PRODUCTOS & SERVICIOS*\n\n`;
+                    const categories = {};
+                    for (const p of userProducts) {
+                        const cat = (p.category || 'General').trim();
+                        if (!categories[cat]) categories[cat] = [];
+                        categories[cat].push(p);
+                    }
+
+                    const catKeys = Object.keys(categories);
+                    for (const catName of catKeys) {
+                        if (catKeys.length > 1 || catName.toLowerCase() !== 'general') {
+                            catText += `📂 *${catName.toUpperCase()}*\n`;
+                        }
+                        categories[catName].forEach((p) => {
+                            catText += `• *${p.name}* ➔ *${sym} ${Number(p.price || 0).toFixed(2)}*\n`;
+                            if (p.description && p.description.trim()) {
+                                catText += `  _${p.description.trim()}_\n`;
+                            }
+                        });
+                        catText += `\n`;
+                    }
+                    catalogText += `💬 _¿Deseas cotizar o realizar un pedido de alguno de estos productos? Indícanos con toda confianza._`;
+
+                    // Verificar si existe una palabra clave configurada con archivos adjuntos
+                    let matchedCatalogKw = null;
+                    for (const kw of keywords) {
+                        const matchKeywords = kw.keyword.toLowerCase().split(',').map(k => k.trim());
+                        if (matchKeywords.some(mk => mk !== '' && textLower.includes(mk))) {
+                            matchedCatalogKw = kw;
+                            break;
+                        }
+                    }
+
+                    // Marcar mensajes entrantes como leídos
+                    const waitToReadDelay = (1.0 + Math.random() * 1.0) * 1000;
+                    await delay(waitToReadDelay);
+                    await markAllAsRead();
+                    await delay(300 + Math.random() * 400);
+
+                    // Simular escritura
+                    try { await sock.sendPresenceUpdate('composing', jid); } catch(e) {}
+                    const typingDelay = Math.min(3000, Math.max(800, catalogText.length * 15));
+                    await delay(typingDelay);
+                    try { await sock.sendPresenceUpdate('paused', jid); } catch(e) {}
+
+                    await sock.sendMessage(jid, { text: catalogText }, { quoted: msg });
+                    console.log(`[Alidea Session ${sessionId}] Catálogo automático enviado a ${jid}`);
+
+                    // Registrar en historial de chat
+                    try {
+                        await db.run(
+                            `INSERT INTO chat_messages (id, user_id, session_id, jid, sender_phone, sender_name, from_me, text)
+                             VALUES (?, ?, ?, ?, ?, 'Alidea Bot', 1, ?)`,
+                            [uuidv4(), sessionRecord.user_id, sessionId, jid, '+' + jid.split('@')[0], catalogText]
+                        );
+                    } catch(e) {}
+
+                    // Si la regla de palabra clave tiene archivos multimedia adjuntos (PDF, fotos), enviarlos a continuación
+                    if (matchedCatalogKw) {
+                        let mediaFiles = [];
+                        if (matchedCatalogKw.media_files) {
+                            try { mediaFiles = JSON.parse(matchedCatalogKw.media_files); } catch(e) {}
+                        }
+                        if (mediaFiles.length === 0 && matchedCatalogKw.media_path && fs.existsSync(matchedCatalogKw.media_path)) {
+                            mediaFiles.push({ path: matchedCatalogKw.media_path, type: matchedCatalogKw.media_type, name: path.basename(matchedCatalogKw.media_path) });
+                        }
+                        if (mediaFiles.length > 0) {
+                            for (const file of mediaFiles) {
+                                if (fs.existsSync(file.path)) {
+                                    await delay(2000);
+                                    const mediaUrl = file.path;
+                                    const fileType = file.type || '';
+                                    if (fileType.startsWith('image/')) {
+                                        await sock.sendMessage(jid, { image: { url: mediaUrl } });
+                                    } else if (fileType.startsWith('audio/')) {
+                                        await sock.sendMessage(jid, { audio: { url: mediaUrl }, ptt: true });
+                                    } else if (fileType.startsWith('video/')) {
+                                        await sock.sendMessage(jid, { video: { url: mediaUrl } });
+                                    } else {
+                                        await sock.sendMessage(jid, { document: { url: mediaUrl }, fileName: file.name || path.basename(mediaUrl) });
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Actualizar etapa en el CRM y registrar actividad
+                    try {
+                        const phoneDigits = jid.split('@')[0];
+                        const lead = await db.get(
+                            'SELECT id FROM crm_leads WHERE user_id = ? AND (phone = ? OR phone = ?)',
+                            [sessionRecord.user_id, '+' + phoneDigits, phoneDigits]
+                        );
+                        if (lead) {
+                            await db.run(
+                                `UPDATE crm_leads SET stage = 'propuesta', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND stage IN ('nuevo', 'contactado')`,
+                                [lead.id]
+                            );
+                            await db.run(
+                                `INSERT INTO crm_activities (id, lead_id, user_id, type, content)
+                                 VALUES (?, ?, ?, 'whatsapp_out', 'Catálogo de productos enviado automáticamente')`,
+                                [uuidv4(), lead.id, sessionRecord.user_id]
+                            );
+                        }
+                    } catch(e) {}
+
+                    matched = true;
+                }
+
+                if (!matched) {
+                    for (const kw of keywords) {
+                        const matchKeywords = kw.keyword.toLowerCase().split(',').map(k => k.trim());
+                        const hasMatch = matchKeywords.some(mk => mk !== '' && textLower.includes(mk));
+
+                        if (hasMatch) {
+                            matched = true;
                         // Extract all text messages (multi-message support)
                         let textMessages = [];
                         if (kw.response_messages) {
@@ -692,11 +819,18 @@ async function processQueue(queueKey, getDbConnection) {
                             }
 
                             // IMPORTANTE: NO mostrar 'escribiendo...' antes de evaluar ni marcar como leído.
-                            // La IA evalúa en segundo plano con su historial completo.
+                            // La IA evalúa en segundo plano con su historial completo y catálogo actualizado de productos.
+                            let effectiveSystemPrompt = sessionRecord.ai_system_prompt;
+                            if (userProducts && userProducts.length > 0 && !effectiveSystemPrompt.includes('[CATÁLOGO DE PRODUCTOS')) {
+                                const sym = userRecord?.currency_symbol || 'S/';
+                                const code = userRecord?.currency_code || 'PEN';
+                                effectiveSystemPrompt += `\n\n[CATÁLOGO DE PRODUCTOS DISPONIBLES (Moneda: ${code}, Símbolo: ${sym})]:\n` + userProducts.map(p => `- ${p.name}: ${sym} ${Number(p.price || 0).toFixed(2)} (${p.description || ''})`).join('\n');
+                            }
+
                             const aiRes = await generateLocalAIResponse({
                                 sessionId: sessionId,
                                 prompt: messageText,
-                                systemPrompt: sessionRecord.ai_system_prompt,
+                                systemPrompt: effectiveSystemPrompt,
                                 conversationHistory: conversationHistory,
                                 endpoint: sessionRecord.ai_endpoint || 'http://127.0.0.1:11434',
                                 temperature: sessionRecord.ai_temperature || 0.35,

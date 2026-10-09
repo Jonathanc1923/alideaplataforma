@@ -121,8 +121,8 @@ export default function Landing() {
         if (lower.includes('precio') || lower.includes('costo') || lower.includes('plan')) {
           reply = '💳 Contamos con el Plan Acceso Total Anual por solo S/ 350 que incluye Bot 24/7, CRM Kanban, Retargeting Masivo y Curso de Anuncios en Meta y TikTok.';
           newStage = 'Propuesta Enviada';
-        } else if (lower.includes('catalogo') || lower.includes('demo') || lower.includes('fotos') || lower.includes('producto')) {
-          reply = '📁 Te compartimos nuestro catálogo de productos interactivo y casos de éxito de Alidea.';
+        } else if (lower.includes('catalogo') || lower.includes('catálogo') || lower.includes('demo') || lower.includes('fotos') || lower.includes('producto') || lower.includes('servicio')) {
+          reply = `📁 *CATÁLOGO DE PRODUCTOS & SERVICIOS:*\n\n*1. Plan Acceso Total Anual (Bot 24/7 + CRM)* ➔ *S/ 350.00*\n_Sistema WhatsApp automático, CRM Kanban, Retargeting y Curso de Anuncios_\n\n*2. Pack Anuncios Ganadores Meta & TikTok* ➔ *S/ 120.00*\n_Estrategias y plantillas para captar clientes todos los días_\n\n*3. Módulo de Facturación & Finanzas Pro* ➔ *S/ 99.00*\n_Libro diario, mayor, balance y control de impuestos_\n\n¿Deseas cotizar o realizar un pedido de alguno de estos productos?`;
           newStage = 'Negociación';
         } else if (lower.includes('comprar') || lower.includes('cerrar') || lower.includes('asesor') || lower.includes('pedido')) {
           reply = '🎉 ¡Excelente decisión! Tu asesor asignado se pondrá en contacto contigo de inmediato al WhatsApp 907318642.';

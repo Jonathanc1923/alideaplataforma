@@ -772,6 +772,7 @@ async function processQueue(queueKey, getDbConnection) {
                         break;
                     }
                 }
+            }
 
                 if (!matched) {
                     try {

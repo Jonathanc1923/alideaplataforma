@@ -208,10 +208,42 @@ async function getDbConnection() {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS accounting_entries (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      entry_date DATE NOT NULL,
+      entry_type TEXT NOT NULL, -- 'ingreso' | 'egreso'
+      classification TEXT NOT NULL, -- 'activo' | 'pasivo' | 'patrimonio' | 'nota_credito' | 'nota_debito'
+      account_name TEXT NOT NULL, -- ej: 'Caja / Banco', 'Ventas', 'Servicios', 'Proveedores', 'Sueldos', 'Alquiler', etc.
+      description TEXT NOT NULL,
+      amount REAL NOT NULL, -- Monto neto / base
+      tax_percentage REAL DEFAULT 0, -- Porcentaje de impuesto (ej: 18)
+      tax_amount REAL DEFAULT 0, -- Monto calculado del impuesto
+      total_amount REAL NOT NULL, -- Monto total (amount + tax_amount)
+      reference_doc TEXT, -- 'Factura F001-123', 'Boleta B002-456', etc.
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS accounting_tax_settings (
+      user_id TEXT PRIMARY KEY,
+      default_tax_percentage REAL DEFAULT 18,
+      income_tax_percentage REAL DEFAULT 29.5,
+      income_tax_manual_amount REAL DEFAULT 0,
+      income_tax_mode TEXT DEFAULT 'percentage', -- 'percentage' | 'manual'
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_crm_tasks_user_id ON crm_tasks(user_id);
     CREATE INDEX IF NOT EXISTS idx_products_user_id ON products(user_id);
     CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
     CREATE INDEX IF NOT EXISTS idx_crm_tags_user_id ON crm_tags(user_id);
+    CREATE INDEX IF NOT EXISTS idx_accounting_user_date ON accounting_entries(user_id, entry_date);
+    CREATE INDEX IF NOT EXISTS idx_accounting_user_type ON accounting_entries(user_id, entry_type);
+    CREATE INDEX IF NOT EXISTS idx_accounting_user_class ON accounting_entries(user_id, classification);
   `);
 
   // Seed default simulator configuration if not present

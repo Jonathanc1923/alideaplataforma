@@ -2169,19 +2169,530 @@ app.post('/api/retargeting/stop/:campaignId', async (req, res) => {
     }
 });
 
-// Get Campaign History for User
-app.get('/api/retargeting/history', async (req, res) => {
+// ==========================================
+// 12. CONTABILIDAD & LIBROS FINANCIEROS (Libro Diario, Libro Mayor, Balance Anual e Impuestos)
+// ==========================================
+
+// Get Accounting Entries (Libro Diario)
+app.get('/api/accounting/entries', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+
+        const { year, month, classification, type, search } = req.query;
+        const db = await getDbConnection();
+
+        let query = 'SELECT * FROM accounting_entries WHERE user_id = ?';
+        const params = [userId];
+
+        if (year) {
+            query += " AND strftime('%Y', entry_date) = ?";
+            params.push(String(year));
+        }
+        if (month) {
+            const formattedMonth = String(month).padStart(2, '0');
+            query += " AND strftime('%m', entry_date) = ?";
+            params.push(formattedMonth);
+        }
+        if (classification && classification !== 'all') {
+            query += ' AND classification = ?';
+            params.push(classification);
+        }
+        if (type && type !== 'all') {
+            query += ' AND entry_type = ?';
+            params.push(type);
+        }
+        if (search && search.trim()) {
+            query += ' AND (description LIKE ? OR account_name LIKE ? OR reference_doc LIKE ? OR notes LIKE ?)';
+            const s = `%${search.trim()}%`;
+            params.push(s, s, s, s);
+        }
+
+        query += ' ORDER BY entry_date DESC, created_at DESC';
+
+        const entries = await db.all(query, params);
+
+        // Calculate summary totals
+        let totalIngresos = 0;
+        let totalEgresos = 0;
+        let totalImpuestos = 0;
+        let totalNotasCredito = 0;
+        let totalNotasDebito = 0;
+
+        for (const e of entries) {
+            if (e.entry_type === 'ingreso') totalIngresos += (e.amount || 0);
+            if (e.entry_type === 'egreso') totalEgresos += (e.amount || 0);
+            if (e.classification === 'nota_credito') totalNotasCredito += (e.amount || 0);
+            if (e.classification === 'nota_debito') totalNotasDebito += (e.amount || 0);
+            totalImpuestos += (e.tax_amount || 0);
+        }
+
+        const saldoNeto = totalIngresos - totalEgresos - totalNotasCredito + totalNotasDebito;
+
+        res.json({
+            entries,
+            summary: {
+                totalIngresos,
+                totalEgresos,
+                totalNotasCredito,
+                totalNotasDebito,
+                totalImpuestos,
+                saldoNeto,
+                count: entries.length
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching accounting entries:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Create Accounting Entry
+app.post('/api/accounting/entries', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+
+        const {
+            entry_date,
+            entry_type,
+            classification,
+            account_name,
+            description,
+            amount,
+            tax_percentage,
+            reference_doc,
+            notes
+        } = req.body;
+
+        if (!entry_date || !entry_type || !classification || !description || amount === undefined || amount === null) {
+            return res.status(400).json({ error: 'Todos los campos obligatorios deben ser completados' });
+        }
+
+        const numAmount = parseFloat(amount) || 0;
+        const numTaxPercent = parseFloat(tax_percentage) || 0;
+        const taxAmount = (numAmount * numTaxPercent) / 100;
+        const totalAmount = numAmount + taxAmount;
+
+        const id = uuidv4();
+        const db = await getDbConnection();
+
+        await db.run(
+            `INSERT INTO accounting_entries 
+             (id, user_id, entry_date, entry_type, classification, account_name, description, amount, tax_percentage, tax_amount, total_amount, reference_doc, notes)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                id,
+                userId,
+                entry_date,
+                entry_type,
+                classification,
+                account_name || 'General',
+                description.trim(),
+                numAmount,
+                numTaxPercent,
+                taxAmount,
+                totalAmount,
+                reference_doc ? reference_doc.trim() : null,
+                notes ? notes.trim() : null
+            ]
+        );
+
+        res.json({
+            success: true,
+            id,
+            entry: {
+                id,
+                user_id: userId,
+                entry_date,
+                entry_type,
+                classification,
+                account_name: account_name || 'General',
+                description: description.trim(),
+                amount: numAmount,
+                tax_percentage: numTaxPercent,
+                tax_amount: taxAmount,
+                total_amount: totalAmount,
+                reference_doc,
+                notes
+            }
+        });
+    } catch (err) {
+        console.error('Error creating accounting entry:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Update Accounting Entry
+app.put('/api/accounting/entries/:id', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+        const { id } = req.params;
+
+        const {
+            entry_date,
+            entry_type,
+            classification,
+            account_name,
+            description,
+            amount,
+            tax_percentage,
+            reference_doc,
+            notes
+        } = req.body;
+
+        const numAmount = parseFloat(amount) || 0;
+        const numTaxPercent = parseFloat(tax_percentage) || 0;
+        const taxAmount = (numAmount * numTaxPercent) / 100;
+        const totalAmount = numAmount + taxAmount;
+
+        const db = await getDbConnection();
+        await db.run(
+            `UPDATE accounting_entries 
+             SET entry_date = ?, entry_type = ?, classification = ?, account_name = ?, description = ?, 
+                 amount = ?, tax_percentage = ?, tax_amount = ?, total_amount = ?, reference_doc = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE id = ? AND user_id = ?`,
+            [
+                entry_date,
+                entry_type,
+                classification,
+                account_name || 'General',
+                description.trim(),
+                numAmount,
+                numTaxPercent,
+                taxAmount,
+                totalAmount,
+                reference_doc ? reference_doc.trim() : null,
+                notes ? notes.trim() : null,
+                id,
+                userId
+            ]
+        );
+
+        res.json({ success: true, message: 'Asiento contable actualizado' });
+    } catch (err) {
+        console.error('Error updating accounting entry:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete Accounting Entry
+app.delete('/api/accounting/entries/:id', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+        const { id } = req.params;
+
+        const db = await getDbConnection();
+        await db.run('DELETE FROM accounting_entries WHERE id = ? AND user_id = ?', [id, userId]);
+
+        res.json({ success: true, message: 'Asiento contable eliminado' });
+    } catch (err) {
+        console.error('Error deleting accounting entry:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get General Ledger (Libro Mayor agrupado por cuenta)
+app.get('/api/accounting/ledger', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+
+        const { year } = req.query;
+        const db = await getDbConnection();
+
+        let query = 'SELECT * FROM accounting_entries WHERE user_id = ?';
+        const params = [userId];
+
+        if (year) {
+            query += " AND strftime('%Y', entry_date) = ?";
+            params.push(String(year));
+        }
+
+        query += ' ORDER BY entry_date ASC, created_at ASC';
+
+        const entries = await db.all(query, params);
+
+        // Group by Account / Classification
+        const accountsMap = new Map();
+
+        for (const e of entries) {
+            const accKey = `${e.classification}_${e.account_name || 'General'}`;
+            if (!accountsMap.has(accKey)) {
+                accountsMap.set(accKey, {
+                    account_key: accKey,
+                    account_name: e.account_name || 'General',
+                    classification: e.classification,
+                    total_debe: 0,
+                    total_haber: 0,
+                    saldo_deudor: 0,
+                    saldo_acreedor: 0,
+                    entries: []
+                });
+            }
+
+            const acc = accountsMap.get(accKey);
+            acc.entries.push(e);
+
+            // Reglas contables estándar de partida doble:
+            // Activo / Gastos / Nota de Crédito -> Aumentan en el DEBE (ingreso/cargo)
+            // Pasivo / Patrimonio / Ingresos / Ventas -> Aumentan en el HABER (egreso/abono)
+            if (e.classification === 'activo') {
+                if (e.entry_type === 'ingreso') acc.total_debe += e.amount;
+                else acc.total_haber += e.amount;
+            } else if (e.classification === 'pasivo' || e.classification === 'patrimonio') {
+                if (e.entry_type === 'egreso') acc.total_debe += e.amount;
+                else acc.total_haber += e.amount;
+            } else if (e.classification === 'nota_credito') {
+                acc.total_haber += e.amount;
+            } else if (e.classification === 'nota_debito') {
+                acc.total_debe += e.amount;
+            } else {
+                if (e.entry_type === 'ingreso') acc.total_haber += e.amount;
+                else acc.total_debe += e.amount;
+            }
+        }
+
+        const ledgerAccounts = Array.from(accountsMap.values()).map(acc => {
+            const diff = acc.total_debe - acc.total_haber;
+            if (diff >= 0) {
+                acc.saldo_deudor = diff;
+                acc.saldo_acreedor = 0;
+            } else {
+                acc.saldo_deudor = 0;
+                acc.saldo_acreedor = Math.abs(diff);
+            }
+            return acc;
+        });
+
+        // Totales globales del Mayor
+        const totalGlobalDebe = ledgerAccounts.reduce((sum, a) => sum + a.total_debe, 0);
+        const totalGlobalHaber = ledgerAccounts.reduce((sum, a) => sum + a.total_haber, 0);
+
+        res.json({
+            accounts: ledgerAccounts,
+            totals: {
+                totalDebe: totalGlobalDebe,
+                totalHaber: totalGlobalHaber,
+                isBalanced: Math.abs(totalGlobalDebe - totalGlobalHaber) < 0.01
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching general ledger:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get Annual Balance & Income Statement (Balance Anual & Estado de Resultados)
+app.get('/api/accounting/annual-balance', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+
+        const currentYear = new Date().getFullYear();
+        const year = req.query.year ? parseInt(req.query.year) : currentYear;
+
+        const db = await getDbConnection();
+
+        // 1. Get entries for the year
+        const entries = await db.all(
+            "SELECT * FROM accounting_entries WHERE user_id = ? AND strftime('%Y', entry_date) = ?",
+            [userId, String(year)]
+        );
+
+        // 2. Get user tax settings
+        let taxSettings = await db.get('SELECT * FROM accounting_tax_settings WHERE user_id = ?', [userId]);
+        if (!taxSettings) {
+            taxSettings = {
+                user_id: userId,
+                default_tax_percentage: 18,
+                income_tax_percentage: 29.5,
+                income_tax_manual_amount: 0,
+                income_tax_mode: 'percentage'
+            };
+        }
+
+        // 3. Compute Income Statement (Estado de Resultados)
+        let ventasBrutas = 0;
+        let notasCreditoVentas = 0;
+        let notasDebitoVentas = 0;
+        let egresosOperativos = 0;
+        let totalIvaDebitoFiscal = 0; // Impuestos cobrados en ventas
+        let totalIvaCreditoFiscal = 0; // Impuestos pagados en compras
+
+        // 4. Compute Balance Sheet (Activo / Pasivo / Patrimonio)
+        let totalActivos = 0;
+        let totalPasivos = 0;
+        let totalPatrimonio = 0;
+
+        // Monthly breakdown (12 months)
+        const monthlyData = Array.from({ length: 12 }, (_, i) => ({
+            month: i + 1,
+            monthName: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Dic'][i],
+            ingresos: 0,
+            egresos: 0,
+            utilidad: 0,
+            impuestos: 0
+        }));
+
+        for (const e of entries) {
+            const monthIdx = new Date(e.entry_date).getMonth(); // 0-11
+            const amt = e.amount || 0;
+            const taxAmt = e.tax_amount || 0;
+
+            if (e.entry_type === 'ingreso') {
+                ventasBrutas += amt;
+                totalIvaDebitoFiscal += taxAmt;
+                if (monthIdx >= 0 && monthIdx < 12) {
+                    monthlyData[monthIdx].ingresos += amt;
+                    monthlyData[monthIdx].impuestos += taxAmt;
+                }
+            } else if (e.entry_type === 'egreso') {
+                egresosOperativos += amt;
+                totalIvaCreditoFiscal += taxAmt;
+                if (monthIdx >= 0 && monthIdx < 12) {
+                    monthlyData[monthIdx].egresos += amt;
+                }
+            }
+
+            if (e.classification === 'nota_credito') {
+                notasCreditoVentas += amt;
+            } else if (e.classification === 'nota_debito') {
+                notasDebitoVentas += amt;
+            } else if (e.classification === 'activo') {
+                if (e.entry_type === 'ingreso') totalActivos += amt;
+                else totalActivos -= amt;
+            } else if (e.classification === 'pasivo') {
+                if (e.entry_type === 'ingreso') totalPasivos += amt;
+                else totalPasivos -= amt;
+            } else if (e.classification === 'patrimonio') {
+                totalPatrimonio += amt;
+            }
+        }
+
+        // Monthly profits
+        monthlyData.forEach(m => {
+            m.utilidad = m.ingresos - m.egresos;
+        });
+
+        // Income Statement calculations
+        const ventasNetas = ventasBrutas - notasCreditoVentas + notasDebitoVentas;
+        const utilidadAntesImpuestos = ventasNetas - egresosOperativos;
+
+        // Impuesto a la Renta calculation
+        let impuestoRentaCalculado = 0;
+        if (utilidadAntesImpuestos > 0) {
+            if (taxSettings.income_tax_mode === 'manual') {
+                impuestoRentaCalculado = parseFloat(taxSettings.income_tax_manual_amount) || 0;
+            } else {
+                const taxRate = parseFloat(taxSettings.income_tax_percentage) || 0;
+                impuestoRentaCalculado = (utilidadAntesImpuestos * taxRate) / 100;
+            }
+        }
+
+        const utilidadNetaFinal = utilidadAntesImpuestos - impuestoRentaCalculado;
+        const saldoNetoIva = totalIvaDebitoFiscal - totalIvaCreditoFiscal;
+
+        // Balance General ajustado
+        const patrimonioTotalAjustado = totalPatrimonio + utilidadNetaFinal;
+
+        res.json({
+            year,
+            incomeStatement: {
+                ventasBrutas,
+                notasCreditoVentas,
+                notasDebitoVentas,
+                ventasNetas,
+                egresosOperativos,
+                utilidadAntesImpuestos,
+                impuestoRenta: impuestoRentaCalculado,
+                impuestoRentaMode: taxSettings.income_tax_mode,
+                impuestoRentaPercentage: taxSettings.income_tax_percentage,
+                impuestoRentaManual: taxSettings.income_tax_manual_amount,
+                utilidadNetaFinal,
+                margenNetoPorcentaje: ventasNetas > 0 ? ((utilidadNetaFinal / ventasNetas) * 100).toFixed(1) : 0
+            },
+            balanceSheet: {
+                totalActivos: Math.max(0, totalActivos + (utilidadAntesImpuestos > 0 ? utilidadAntesImpuestos : 0)),
+                totalPasivos: Math.max(0, totalPasivos),
+                totalPatrimonio: Math.max(0, patrimonioTotalAjustado),
+                diferenciaCuadre: Math.abs((totalActivos + utilidadAntesImpuestos) - (totalPasivos + patrimonioTotalAjustado))
+            },
+            taxSummary: {
+                ivaDebitoFiscal: totalIvaDebitoFiscal,
+                ivaCreditoFiscal: totalIvaCreditoFiscal,
+                saldoNetoIva: saldoNetoIva,
+                impuestoRenta: impuestoRentaCalculado
+            },
+            monthlyData
+        });
+
+    } catch (err) {
+        console.error('Error fetching annual balance:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get Tax Settings
+app.get('/api/accounting/tax-settings', async (req, res) => {
     try {
         const userId = getUserId(req);
         if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
 
         const db = await getDbConnection();
-        const campaigns = await db.all(
-            'SELECT * FROM retargeting_campaigns WHERE user_id = ? ORDER BY started_at DESC LIMIT 50',
-            [userId]
+        let settings = await db.get('SELECT * FROM accounting_tax_settings WHERE user_id = ?', [userId]);
+        if (!settings) {
+            settings = {
+                user_id: userId,
+                default_tax_percentage: 18,
+                income_tax_percentage: 29.5,
+                income_tax_manual_amount: 0,
+                income_tax_mode: 'percentage'
+            };
+        }
+
+        res.json(settings);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Update Tax Settings
+app.put('/api/accounting/tax-settings', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+
+        const {
+            default_tax_percentage,
+            income_tax_percentage,
+            income_tax_manual_amount,
+            income_tax_mode
+        } = req.body;
+
+        const db = await getDbConnection();
+        await db.run(
+            `INSERT INTO accounting_tax_settings 
+             (user_id, default_tax_percentage, income_tax_percentage, income_tax_manual_amount, income_tax_mode, updated_at)
+             VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+             ON CONFLICT(user_id) DO UPDATE SET
+               default_tax_percentage = excluded.default_tax_percentage,
+               income_tax_percentage = excluded.income_tax_percentage,
+               income_tax_manual_amount = excluded.income_tax_manual_amount,
+               income_tax_mode = excluded.income_tax_mode,
+               updated_at = CURRENT_TIMESTAMP`,
+            [
+                userId,
+                parseFloat(default_tax_percentage) || 18,
+                parseFloat(income_tax_percentage) || 29.5,
+                parseFloat(income_tax_manual_amount) || 0,
+                income_tax_mode || 'percentage'
+            ]
         );
 
-        res.json(campaigns);
+        res.json({ success: true, message: 'Configuración tributaria guardada' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

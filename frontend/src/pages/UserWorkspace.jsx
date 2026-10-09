@@ -51,7 +51,14 @@ import {
   Sliders,
   Brain,
   Cpu,
-  AlertTriangle
+  AlertTriangle,
+  Receipt,
+  Calculator,
+  Landmark,
+  ArrowUpRight,
+  ArrowDownRight,
+  Scale,
+  Percent
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
@@ -264,6 +271,55 @@ export default function UserWorkspace() {
     if (!aiSystemPrompt) return 0;
     return aiSystemPrompt.trim().split(/\s+/).filter(Boolean).length;
   }, [aiSystemPrompt]);
+
+  // ==========================================
+  // NEW: 7. CONTABILIDAD & FINANZAS STATE
+  // ==========================================
+  const [accountingSubTab, setAccountingSubTab] = useState('diario'); // 'diario' | 'mayor' | 'balance'
+  const [accountingEntries, setAccountingEntries] = useState([]);
+  const [accountingSummary, setAccountingSummary] = useState({
+    totalIngresos: 0,
+    totalEgresos: 0,
+    saldoNeto: 0,
+    totalNotasCredito: 0,
+    totalNotasDebito: 0,
+    totalImpuestos: 0,
+    count: 0
+  });
+  const [accountingLedger, setAccountingLedger] = useState({ accounts: [], totalDebe: 0, totalHaber: 0, diferencia: 0, estaCuadrado: true });
+  const [annualBalance, setAnnualBalance] = useState(null);
+  const [taxSettings, setTaxSettings] = useState({
+    default_tax_percentage: 18,
+    income_tax_percentage: 29.5,
+    income_tax_manual_amount: 0,
+    income_tax_mode: 'percentage'
+  });
+  const [loadingAccounting, setLoadingAccounting] = useState(false);
+  const [accYear, setAccYear] = useState(new Date().getFullYear());
+  const [accMonth, setAccMonth] = useState('');
+  const [accClassification, setAccClassification] = useState('all');
+  const [accType, setAccType] = useState('all');
+  const [accSearch, setAccSearch] = useState('');
+
+  // Asientos Modals & Form
+  const [showEntryModal, setShowEntryModal] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState(null);
+  const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [entryDescription, setEntryDescription] = useState('');
+  const [entryReferenceDoc, setEntryReferenceDoc] = useState('');
+  const [entryType, setEntryType] = useState('ingreso');
+  const [entryClassification, setEntryClassification] = useState('activo');
+  const [entryAmount, setEntryAmount] = useState('');
+  const [entryTaxPercentage, setEntryTaxPercentage] = useState(18);
+  const [entryNotes, setEntryNotes] = useState('');
+
+  // Tax Settings Modal & Form
+  const [showTaxModal, setShowTaxModal] = useState(false);
+  const [taxFormDefault, setTaxFormDefault] = useState(18);
+  const [taxFormIncomePercent, setTaxFormIncomePercent] = useState(29.5);
+  const [taxFormIncomeManual, setTaxFormIncomeManual] = useState(0);
+  const [taxFormIncomeMode, setTaxFormIncomeMode] = useState('percentage');
+  const [isSavingTax, setIsSavingTax] = useState(false);
 
   // 1. Initial Load & Auth Check
   useEffect(() => {
@@ -1005,6 +1061,237 @@ export default function UserWorkspace() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
+  // ==========================================
+  // CONTABILIDAD & FINANZAS HANDLERS
+  // ==========================================
+  const fetchAccountingEntries = async () => {
+    if (!auth) return;
+    setLoadingAccounting(true);
+    try {
+      const res = await axios.get(`${API_BASE}/accounting/entries`, {
+        headers: { 'x-user-id': auth.user.id },
+        params: {
+          year: accYear,
+          month: accMonth || undefined,
+          classification: accClassification !== 'all' ? accClassification : undefined,
+          entry_type: accType !== 'all' ? accType : undefined,
+          search: accSearch.trim() || undefined
+        }
+      });
+      setAccountingEntries(res.data.entries || []);
+      setAccountingSummary(res.data.summary || {
+        totalIngresos: 0,
+        totalEgresos: 0,
+        saldoNeto: 0,
+        totalNotasCredito: 0,
+        totalNotasDebito: 0,
+        totalImpuestos: 0,
+        count: 0
+      });
+    } catch (err) {
+      console.error('Error fetching accounting entries:', err);
+    } finally {
+      setLoadingAccounting(false);
+    }
+  };
+
+  const fetchAccountingLedger = async () => {
+    if (!auth) return;
+    setLoadingAccounting(true);
+    try {
+      const res = await axios.get(`${API_BASE}/accounting/ledger`, {
+        headers: { 'x-user-id': auth.user.id },
+        params: { year: accYear }
+      });
+      setAccountingLedger(res.data || { accounts: [], totalDebe: 0, totalHaber: 0, diferencia: 0, estaCuadrado: true });
+    } catch (err) {
+      console.error('Error fetching accounting ledger:', err);
+    } finally {
+      setLoadingAccounting(false);
+    }
+  };
+
+  const fetchAnnualBalance = async () => {
+    if (!auth) return;
+    setLoadingAccounting(true);
+    try {
+      const res = await axios.get(`${API_BASE}/accounting/annual-balance`, {
+        headers: { 'x-user-id': auth.user.id },
+        params: { year: accYear }
+      });
+      setAnnualBalance(res.data || null);
+    } catch (err) {
+      console.error('Error fetching annual balance:', err);
+    } finally {
+      setLoadingAccounting(false);
+    }
+  };
+
+  const fetchTaxSettings = async () => {
+    if (!auth) return;
+    try {
+      const res = await axios.get(`${API_BASE}/accounting/tax-settings`, {
+        headers: { 'x-user-id': auth.user.id }
+      });
+      if (res.data) {
+        setTaxSettings(res.data);
+        setTaxFormDefault(res.data.default_tax_percentage ?? 18);
+        setTaxFormIncomePercent(res.data.income_tax_percentage ?? 29.5);
+        setTaxFormIncomeManual(res.data.income_tax_manual_amount ?? 0);
+        setTaxFormIncomeMode(res.data.income_tax_mode ?? 'percentage');
+      }
+    } catch (err) {
+      console.error('Error fetching tax settings:', err);
+    }
+  };
+
+  // Sync accounting queries
+  useEffect(() => {
+    if (activeTab === 'accounting' && auth) {
+      if (accountingSubTab === 'diario') {
+        fetchAccountingEntries();
+      } else if (accountingSubTab === 'mayor') {
+        fetchAccountingLedger();
+      } else if (accountingSubTab === 'balance') {
+        fetchAnnualBalance();
+      }
+      fetchTaxSettings();
+    }
+  }, [activeTab, accountingSubTab, accYear, accMonth, accClassification, accType, accSearch, auth]);
+
+  const handleOpenNewEntryModal = () => {
+    setEditingEntryId(null);
+    setEntryDate(new Date().toISOString().split('T')[0]);
+    setEntryDescription('');
+    setEntryReferenceDoc('');
+    setEntryType('ingreso');
+    setEntryClassification('activo');
+    setEntryAmount('');
+    setEntryTaxPercentage(taxSettings.default_tax_percentage ?? 18);
+    setEntryNotes('');
+    setShowEntryModal(true);
+  };
+
+  const handleOpenEditEntryModal = (entry) => {
+    setEditingEntryId(entry.id);
+    setEntryDate(entry.entry_date ? entry.entry_date.split('T')[0] : new Date().toISOString().split('T')[0]);
+    setEntryDescription(entry.description || '');
+    setEntryReferenceDoc(entry.reference_doc || '');
+    setEntryType(entry.entry_type || 'ingreso');
+    setEntryClassification(entry.classification || 'activo');
+    setEntryAmount(entry.amount || '');
+    setEntryTaxPercentage(entry.tax_percentage ?? 18);
+    setEntryNotes(entry.notes || '');
+    setShowEntryModal(true);
+  };
+
+  const handleSaveEntry = async (e) => {
+    e.preventDefault();
+    if (!entryDescription.trim() || !entryAmount || isNaN(parseFloat(entryAmount))) {
+      alert('Por favor completa una descripción y un monto numérico válido.');
+      return;
+    }
+
+    try {
+      const payload = {
+        entry_date: entryDate,
+        description: entryDescription.trim(),
+        reference_doc: entryReferenceDoc.trim(),
+        entry_type: entryType,
+        classification: entryClassification,
+        amount: parseFloat(entryAmount),
+        tax_percentage: parseFloat(entryTaxPercentage) || 0,
+        notes: entryNotes.trim()
+      };
+
+      if (editingEntryId) {
+        await axios.put(`${API_BASE}/accounting/entries/${editingEntryId}`, payload, {
+          headers: { 'x-user-id': auth.user.id }
+        });
+      } else {
+        await axios.post(`${API_BASE}/accounting/entries`, payload, {
+          headers: { 'x-user-id': auth.user.id }
+        });
+      }
+
+      setShowEntryModal(false);
+      fetchAccountingEntries();
+      if (accountingSubTab === 'mayor') fetchAccountingLedger();
+      if (accountingSubTab === 'balance') fetchAnnualBalance();
+    } catch (err) {
+      console.error('Error saving entry:', err);
+      alert('Error al guardar el asiento contable: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const handleDeleteEntry = async (id) => {
+    if (!window.confirm('¿Estás seguro de eliminar este asiento del Libro Diario?')) return;
+    try {
+      await axios.delete(`${API_BASE}/accounting/entries/${id}`, {
+        headers: { 'x-user-id': auth.user.id }
+      });
+      fetchAccountingEntries();
+      if (accountingSubTab === 'mayor') fetchAccountingLedger();
+      if (accountingSubTab === 'balance') fetchAnnualBalance();
+    } catch (err) {
+      console.error('Error deleting entry:', err);
+      alert('Error al eliminar asiento');
+    }
+  };
+
+  const handleSaveTaxSettings = async (e) => {
+    if (e) e.preventDefault();
+    setIsSavingTax(true);
+    try {
+      await axios.put(`${API_BASE}/accounting/tax-settings`, {
+        default_tax_percentage: parseFloat(taxFormDefault) || 0,
+        income_tax_percentage: parseFloat(taxFormIncomePercent) || 0,
+        income_tax_manual_amount: parseFloat(taxFormIncomeManual) || 0,
+        income_tax_mode: taxFormIncomeMode
+      }, {
+        headers: { 'x-user-id': auth.user.id }
+      });
+      await fetchTaxSettings();
+      setShowTaxModal(false);
+      if (accountingSubTab === 'balance') fetchAnnualBalance();
+    } catch (err) {
+      console.error('Error saving tax settings:', err);
+      alert('Error al guardar configuración tributaria');
+    } finally {
+      setIsSavingTax(false);
+    }
+  };
+
+  const exportAccountingCSV = () => {
+    if (!accountingEntries || accountingEntries.length === 0) {
+      alert('No hay asientos contables para exportar en este filtro.');
+      return;
+    }
+    const headers = ['ID', 'Fecha', 'Documento/Ref', 'Descripcion', 'Tipo', 'Clasificacion', 'Base_Imponible', 'Pct_Impuesto', 'Monto_Impuesto', 'Total', 'Notas'];
+    const rows = accountingEntries.map(e => [
+      e.id,
+      e.entry_date,
+      `"${(e.reference_doc || '').replace(/"/g, '""')}"`,
+      `"${(e.description || '').replace(/"/g, '""')}"`,
+      e.entry_type,
+      e.classification,
+      (e.amount || 0).toFixed(2),
+      (e.tax_percentage || 0) + '%',
+      (e.tax_amount || 0).toFixed(2),
+      (e.total_amount || 0).toFixed(2),
+      `"${(e.notes || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Libro_Diario_${accYear}_${accMonth || 'Todos'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Bot Actions
   const handleStartBot = async () => {
     setLoadingBot(true);
@@ -1485,6 +1772,16 @@ export default function UserWorkspace() {
               <Bot size={14} /> Bot WhatsApp
             </button>
             <button 
+              onClick={() => setActiveTab('accounting')} 
+              className={`px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all ${
+                activeTab === 'accounting' 
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-md' 
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Landmark size={14} /> Contabilidad
+            </button>
+            <button 
               onClick={() => setActiveTab('dashboard')} 
               className={`px-3 py-2 rounded-lg flex items-center gap-1.5 transition-all ${
                 activeTab === 'dashboard' 
@@ -1514,6 +1811,7 @@ export default function UserWorkspace() {
           <button onClick={() => { setActiveTab('retargeting'); fetchCampaignHistory(); }} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'retargeting' ? 'border-purple-400 text-purple-400' : 'border-transparent text-slate-400'}`}>Retargeting</button>
           <button onClick={() => setActiveTab('tasks')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'tasks' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Tareas</button>
           <button onClick={() => setActiveTab('catalog')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'catalog' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Catálogo & Pedidos</button>
+          <button onClick={() => setActiveTab('accounting')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'accounting' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Contabilidad</button>
           <button onClick={() => setActiveTab('bot')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'bot' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Bot WhatsApp</button>
           <button onClick={() => setActiveTab('dashboard')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'dashboard' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Métricas</button>
         </div>
@@ -3728,6 +4026,923 @@ export default function UserWorkspace() {
           </div>
         )}
 
+        {/* ==================================================== */}
+        {/* TAB 7: CONTABILIDAD & LIBROS FINANCIEROS */}
+        {/* ==================================================== */}
+        {activeTab === 'accounting' && (
+          <div className="space-y-6 animate-fade-in">
+            
+            {/* Top Accounting Banner & Subtab Switcher */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-panel p-6 rounded-3xl border border-slate-800">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 p-0.5 flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
+                  <div className="w-full h-full bg-[#070c18] rounded-[14px] flex items-center justify-center">
+                    <Landmark className="text-emerald-400" size={24} />
+                  </div>
+                </div>
+                <div>
+                  <h2 className="text-2xl font-extrabold text-white font-heading flex items-center gap-2">
+                    Contabilidad & Libros Financieros
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-sans font-semibold">
+                      Partida Doble & Tributos
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+                    Registro de Libro Diario con discriminación de impuestos, Libro Mayor con Cuentas T, y Balance Anual con cálculo de Impuesto a la Renta configurable.
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowTaxModal(true)}
+                  className="px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all"
+                  title="Configurar tasa de IVA/IGV e Impuesto a la Renta"
+                >
+                  <Percent size={14} className="text-amber-400" />
+                  <span>Config. Impuestos</span>
+                </button>
+
+                {accountingSubTab === 'diario' && (
+                  <button
+                    type="button"
+                    onClick={exportAccountingCSV}
+                    className="px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all"
+                  >
+                    <Download size={14} className="text-cyan-400" />
+                    <span>Exportar CSV</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleOpenNewEntryModal}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-1.5"
+                >
+                  <Plus size={15} />
+                  <span>+ Nuevo Asiento</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Subtabs Selector */}
+            <div className="flex items-center gap-2 p-1.5 bg-slate-950/90 rounded-2xl border border-slate-800 text-xs font-semibold w-full sm:w-auto overflow-x-auto">
+              <button
+                onClick={() => setAccountingSubTab('diario')}
+                className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all whitespace-nowrap ${
+                  accountingSubTab === 'diario'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                }`}
+              >
+                <Receipt size={14} />
+                <span>1. Libro Diario</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/30 font-mono">
+                  {accountingEntries.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setAccountingSubTab('mayor')}
+                className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all whitespace-nowrap ${
+                  accountingSubTab === 'mayor'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                }`}
+              >
+                <Scale size={14} />
+                <span>2. Libro Mayor (Cuentas T)</span>
+              </button>
+
+              <button
+                onClick={() => setAccountingSubTab('balance')}
+                className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all whitespace-nowrap ${
+                  accountingSubTab === 'balance'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                }`}
+              >
+                <TrendingUp size={14} />
+                <span>3. Balance Anual & Estado de Resultados</span>
+              </button>
+            </div>
+
+            {/* ========================================================= */}
+            {/* SUBTAB 1: LIBRO DIARIO                                    */}
+            {/* ========================================================= */}
+            {accountingSubTab === 'diario' && (
+              <div className="space-y-6">
+                
+                {/* KPI Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-800">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                      <span>Total Ingresos</span>
+                      <ArrowUpRight size={16} className="text-emerald-400" />
+                    </div>
+                    <div className="text-2xl font-black text-emerald-400 mt-2 font-heading">
+                      ${(accountingSummary.totalIngresos || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1">Ventas brutas y cobros</div>
+                  </div>
+
+                  <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-800">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                      <span>Total Egresos</span>
+                      <ArrowDownRight size={16} className="text-rose-400" />
+                    </div>
+                    <div className="text-2xl font-black text-rose-400 mt-2 font-heading">
+                      ${(accountingSummary.totalEgresos || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1">Compras y gastos operativos</div>
+                  </div>
+
+                  <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-800">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                      <span>Notas de Crédito</span>
+                      <FileText size={16} className="text-amber-400" />
+                    </div>
+                    <div className="text-2xl font-black text-amber-400 mt-2 font-heading">
+                      ${(accountingSummary.totalNotasCredito || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1">Deducciones a ventas</div>
+                  </div>
+
+                  <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-800">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                      <span>Total Impuestos</span>
+                      <Percent size={16} className="text-cyan-400" />
+                    </div>
+                    <div className="text-2xl font-black text-cyan-400 mt-2 font-heading">
+                      ${(accountingSummary.totalImpuestos || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1">IGV / IVA discriminado</div>
+                  </div>
+
+                  <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-800">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                      <span>Saldo Operativo</span>
+                      <Scale size={16} className={accountingSummary.saldoNeto >= 0 ? 'text-indigo-400' : 'text-rose-400'} />
+                    </div>
+                    <div className={`text-2xl font-black mt-2 font-heading ${
+                      accountingSummary.saldoNeto >= 0 ? 'text-indigo-400' : 'text-rose-400'
+                    }`}>
+                      ${(accountingSummary.saldoNeto || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1">Ingresos - Egresos</div>
+                  </div>
+                </div>
+
+                {/* Filters Row */}
+                <div className="glass-panel p-4 rounded-2xl border border-slate-800 flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-400">Año:</span>
+                    <select
+                      value={accYear}
+                      onChange={(e) => setAccYear(parseInt(e.target.value))}
+                      className="glass-input px-3 py-1.5 rounded-xl text-xs bg-slate-900 font-semibold"
+                    >
+                      {[2024, 2025, 2026, 2027, 2028].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-400">Mes:</span>
+                    <select
+                      value={accMonth}
+                      onChange={(e) => setAccMonth(e.target.value)}
+                      className="glass-input px-3 py-1.5 rounded-xl text-xs bg-slate-900"
+                    >
+                      <option value="">Todos los meses</option>
+                      <option value="01">Enero</option>
+                      <option value="02">Febrero</option>
+                      <option value="03">Marzo</option>
+                      <option value="04">Abril</option>
+                      <option value="05">Mayo</option>
+                      <option value="06">Junio</option>
+                      <option value="07">Julio</option>
+                      <option value="08">Agosto</option>
+                      <option value="09">Setiembre</option>
+                      <option value="10">Octubre</option>
+                      <option value="11">Noviembre</option>
+                      <option value="12">Diciembre</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-400">Tipo:</span>
+                    <select
+                      value={accType}
+                      onChange={(e) => setAccType(e.target.value)}
+                      className="glass-input px-3 py-1.5 rounded-xl text-xs bg-slate-900"
+                    >
+                      <option value="all">Todos los tipos</option>
+                      <option value="ingreso">Ingresos (+)</option>
+                      <option value="egreso">Egresos (-)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-400">Clasificación:</span>
+                    <select
+                      value={accClassification}
+                      onChange={(e) => setAccClassification(e.target.value)}
+                      className="glass-input px-3 py-1.5 rounded-xl text-xs bg-slate-900"
+                    >
+                      <option value="all">Todas las clasificaciones</option>
+                      <option value="activo">Activo (Cuentas, Cobros, Inventario)</option>
+                      <option value="pasivo">Pasivo (Deudas, Proveedores)</option>
+                      <option value="patrimonio">Patrimonio (Capital, Aportes)</option>
+                      <option value="nota_credito">Nota de Crédito (Devolución/Descuento)</option>
+                      <option value="nota_debito">Nota de Débito (Recargo/Ajuste)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex-1 min-w-[200px] relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                    <input
+                      type="text"
+                      value={accSearch}
+                      onChange={(e) => setAccSearch(e.target.value)}
+                      placeholder="Buscar por concepto o documento..."
+                      className="w-full glass-input pl-9 pr-3 py-1.5 rounded-xl text-xs"
+                    />
+                  </div>
+
+                  {(accMonth || accType !== 'all' || accClassification !== 'all' || accSearch) && (
+                    <button
+                      onClick={() => {
+                        setAccMonth('');
+                        setAccType('all');
+                        setAccClassification('all');
+                        setAccSearch('');
+                      }}
+                      className="text-xs text-rose-400 hover:underline px-2"
+                    >
+                      Limpiar filtros
+                    </button>
+                  )}
+                </div>
+
+                {/* Entries Table */}
+                <div className="glass-panel rounded-3xl border border-slate-800 overflow-hidden">
+                  <div className="p-4 sm:p-6 border-b border-slate-800/80 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-white font-heading flex items-center gap-2">
+                        <Receipt className="text-emerald-400" size={18} />
+                        Asientos Registrados en Libro Diario
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Registro cronológico de partida doble con desglose de base imponible e impuestos.
+                      </p>
+                    </div>
+                    <span className="text-xs font-mono text-slate-400 font-semibold">
+                      {accountingEntries.length} asiento{accountingEntries.length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+
+                  {loadingAccounting ? (
+                    <div className="p-12 text-center text-slate-400 flex items-center justify-center gap-2">
+                      <div className="w-5 h-5 rounded-full border-r-2 border-emerald-400 animate-spin"></div>
+                      Cargando asientos contables...
+                    </div>
+                  ) : accountingEntries.length === 0 ? (
+                    <div className="p-12 text-center">
+                      <Receipt className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                      <h4 className="text-sm font-bold text-slate-300">No hay asientos contables registrados</h4>
+                      <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                        Comienza registrando tus ventas, gastos, compras, notas de crédito o de débito para generar tus libros contables automáticamente.
+                      </p>
+                      <button
+                        onClick={handleOpenNewEntryModal}
+                        className="mt-4 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md"
+                      >
+                        + Registrar Primer Asiento
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs text-slate-300">
+                        <thead className="bg-slate-950/70 text-slate-400 uppercase text-[10px] font-bold border-b border-slate-800">
+                          <tr>
+                            <th className="py-3 px-4">Fecha</th>
+                            <th className="py-3 px-4">Doc / Ref</th>
+                            <th className="py-3 px-4">Concepto / Descripción</th>
+                            <th className="py-3 px-4">Tipo</th>
+                            <th className="py-3 px-4">Clasificación</th>
+                            <th className="py-3 px-4 text-right">Base Imponible</th>
+                            <th className="py-3 px-4 text-center">% Imp.</th>
+                            <th className="py-3 px-4 text-right">Impuesto</th>
+                            <th className="py-3 px-4 text-right">Total</th>
+                            <th className="py-3 px-4 text-center">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 font-sans">
+                          {accountingEntries.map((e) => {
+                            const isIngreso = e.entry_type === 'ingreso';
+                            const classBadge = {
+                              activo: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+                              pasivo: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                              patrimonio: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+                              nota_credito: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+                              nota_debito: 'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                            }[e.classification] || 'bg-slate-800 text-slate-300 border-slate-700';
+
+                            const classLabel = {
+                              activo: 'Activo',
+                              pasivo: 'Pasivo',
+                              patrimonio: 'Patrimonio',
+                              nota_credito: 'Nota de Crédito',
+                              nota_debito: 'Nota de Débito'
+                            }[e.classification] || e.classification;
+
+                            return (
+                              <tr key={e.id} className="hover:bg-slate-900/40 transition-colors">
+                                <td className="py-3 px-4 whitespace-nowrap font-mono text-slate-300">
+                                  {e.entry_date}
+                                </td>
+                                <td className="py-3 px-4 whitespace-nowrap">
+                                  {e.reference_doc ? (
+                                    <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono text-[11px] text-slate-200">
+                                      {e.reference_doc}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-600 italic">-</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4">
+                                  <div className="font-semibold text-white">{e.description}</div>
+                                  {e.notes && <div className="text-[11px] text-slate-500 mt-0.5">{e.notes}</div>}
+                                </td>
+                                <td className="py-3 px-4 whitespace-nowrap">
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                    isIngreso
+                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                  }`}>
+                                    {isIngreso ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                                    {isIngreso ? 'Ingreso' : 'Egreso'}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 whitespace-nowrap">
+                                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${classBadge}`}>
+                                    {classLabel}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 whitespace-nowrap text-right font-mono text-slate-300">
+                                  ${(e.amount || 0).toFixed(2)}
+                                </td>
+                                <td className="py-3 px-4 whitespace-nowrap text-center font-mono text-slate-400">
+                                  {e.tax_percentage || 0}%
+                                </td>
+                                <td className="py-3 px-4 whitespace-nowrap text-right font-mono text-cyan-400">
+                                  ${(e.tax_amount || 0).toFixed(2)}
+                                </td>
+                                <td className={`py-3 px-4 whitespace-nowrap text-right font-mono font-bold ${
+                                  isIngreso ? 'text-emerald-400' : 'text-rose-400'
+                                }`}>
+                                  ${(e.total_amount || 0).toFixed(2)}
+                                </td>
+                                <td className="py-3 px-4 whitespace-nowrap text-center">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <button
+                                      onClick={() => handleOpenEditEntryModal(e)}
+                                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                                      title="Editar asiento"
+                                    >
+                                      <Edit2 size={13} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteEntry(e.id)}
+                                      className="p-1.5 rounded-lg text-rose-400/80 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                                      title="Eliminar asiento"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* SUBTAB 2: LIBRO MAYOR (CUENTAS T)                         */}
+            {/* ========================================================= */}
+            {accountingSubTab === 'mayor' && (
+              <div className="space-y-6">
+                
+                {/* Balance & Year Selector Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel p-5 rounded-2xl border border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-400">Año contable:</span>
+                      <select
+                        value={accYear}
+                        onChange={(e) => setAccYear(parseInt(e.target.value))}
+                        className="glass-input px-3 py-1.5 rounded-xl text-xs bg-slate-900 font-bold"
+                      >
+                        {[2024, 2025, 2026, 2027, 2028].map(y => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="h-4 w-px bg-slate-700 hidden sm:block"></div>
+
+                    <span className="text-xs text-slate-400">
+                      Total Cuentas T generadas: <strong>{accountingLedger.accounts?.length || 0}</strong>
+                    </span>
+                  </div>
+
+                  {/* Cuadre Status Badge */}
+                  <div>
+                    {accountingLedger.estaCuadrado ? (
+                      <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
+                        <CheckCircle2 size={15} />
+                        <span>Partida Doble Cuadrada (Debe = Haber)</span>
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-bold">
+                        <AlertTriangle size={15} />
+                        <span>Diferencia de Cuadre: ${(accountingLedger.diferencia || 0).toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Ledger Totals Overview */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="glass-panel p-5 rounded-2xl border border-blue-500/30 bg-blue-950/20">
+                    <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider">Total Sumas DEBE (Cargos)</span>
+                    <div className="text-3xl font-black text-blue-400 mt-2 font-heading">
+                      ${(accountingLedger.totalDebe || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">Incrementos de activo, gastos y notas de débito</div>
+                  </div>
+
+                  <div className="glass-panel p-5 rounded-2xl border border-purple-500/30 bg-purple-950/20">
+                    <span className="text-xs font-semibold text-purple-300 uppercase tracking-wider">Total Sumas HABER (Abonos)</span>
+                    <div className="text-3xl font-black text-purple-400 mt-2 font-heading">
+                      ${(accountingLedger.totalHaber || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">Incrementos de pasivo, ventas y notas de crédito</div>
+                  </div>
+
+                  <div className="glass-panel p-5 rounded-2xl border border-emerald-500/30 bg-emerald-950/20">
+                    <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Diferencia Neta de Balance</span>
+                    <div className="text-3xl font-black text-emerald-400 mt-2 font-heading">
+                      ${(accountingLedger.diferencia || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">
+                      {accountingLedger.estaCuadrado ? 'Balance perfecto en cero' : 'Ajustes requeridos'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cuentas T Grid */}
+                {loadingAccounting ? (
+                  <div className="p-12 text-center text-slate-400 flex items-center justify-center gap-2">
+                    <div className="w-5 h-5 rounded-full border-r-2 border-emerald-400 animate-spin"></div>
+                    Calculando Libro Mayor...
+                  </div>
+                ) : !accountingLedger.accounts || accountingLedger.accounts.length === 0 ? (
+                  <div className="glass-panel p-12 text-center rounded-3xl border border-slate-800">
+                    <Scale className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                    <h4 className="text-sm font-bold text-slate-300">No hay movimientos para el año {accYear}</h4>
+                    <p className="text-xs text-slate-500 mt-1">Registra asientos en el Libro Diario para ver tus Cuentas T agrupadas.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {accountingLedger.accounts.map((acc, idx) => {
+                      const isDeudor = acc.saldoTipo === 'DEUDOR';
+                      const isAcreedor = acc.saldoTipo === 'ACREEDOR';
+
+                      return (
+                        <div key={idx} className="glass-panel rounded-3xl border border-slate-800 overflow-hidden flex flex-col">
+                          {/* Account Header */}
+                          <div className="p-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between">
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                {acc.group}
+                              </span>
+                              <h4 className="text-base font-bold text-white font-heading mt-0.5">
+                                {acc.name}
+                              </h4>
+                            </div>
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                              isDeudor
+                                ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                                : isAcreedor
+                                ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+                                : 'bg-slate-800 text-slate-400 border border-slate-700'
+                            }`}>
+                              Saldo {acc.saldoTipo}
+                            </span>
+                          </div>
+
+                          {/* Classic "T" Table */}
+                          <div className="grid grid-cols-2 divide-x divide-slate-800 flex-1 min-h-[160px] text-xs">
+                            {/* DEBE (Izquierda) */}
+                            <div className="p-3 bg-blue-950/10 flex flex-col justify-between">
+                              <div>
+                                <div className="text-center font-bold uppercase text-[10px] text-blue-300 pb-2 border-b border-slate-800/80 mb-2">
+                                  DEBE (Cargos)
+                                </div>
+                                <div className="space-y-1.5">
+                                  {acc.debe.length === 0 ? (
+                                    <div className="text-[11px] text-slate-600 text-center italic py-2">Sin cargos</div>
+                                  ) : (
+                                    acc.debe.map((item, dIdx) => (
+                                      <div key={dIdx} className="flex justify-between items-center text-[11px]">
+                                        <span className="text-slate-400 truncate max-w-[120px]" title={item.concept}>
+                                          {item.concept}
+                                        </span>
+                                        <span className="font-mono font-semibold text-blue-300">${item.amount.toFixed(2)}</span>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </div>
+                              <div className="pt-3 border-t border-slate-800 mt-3 flex justify-between items-center font-bold">
+                                <span className="text-slate-400 text-[11px]">Total Debe:</span>
+                                <span className="font-mono text-blue-400">${(acc.totalDebe || 0).toFixed(2)}</span>
+                              </div>
+                            </div>
+
+                            {/* HABER (Derecha) */}
+                            <div className="p-3 bg-purple-950/10 flex flex-col justify-between">
+                              <div>
+                                <div className="text-center font-bold uppercase text-[10px] text-purple-300 pb-2 border-b border-slate-800/80 mb-2">
+                                  HABER (Abonos)
+                                </div>
+                                <div className="space-y-1.5">
+                                  {acc.haber.length === 0 ? (
+                                    <div className="text-[11px] text-slate-600 text-center italic py-2">Sin abonos</div>
+                                  ) : (
+                                    acc.haber.map((item, hIdx) => (
+                                      <div key={hIdx} className="flex justify-between items-center text-[11px]">
+                                        <span className="text-slate-400 truncate max-w-[120px]" title={item.concept}>
+                                          {item.concept}
+                                        </span>
+                                        <span className="font-mono font-semibold text-purple-300">${item.amount.toFixed(2)}</span>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </div>
+                              <div className="pt-3 border-t border-slate-800 mt-3 flex justify-between items-center font-bold">
+                                <span className="text-slate-400 text-[11px]">Total Haber:</span>
+                                <span className="font-mono text-purple-400">${(acc.totalHaber || 0).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Footer: Saldo Final de la Cuenta */}
+                          <div className="p-3 bg-slate-950/95 border-t border-slate-800 flex justify-between items-center text-xs font-bold">
+                            <span className="text-slate-400">Saldo Final de Cuenta:</span>
+                            <span className={`font-mono text-sm ${
+                              isDeudor ? 'text-blue-400' : isAcreedor ? 'text-purple-400' : 'text-slate-400'
+                            }`}>
+                              ${(acc.saldo || 0).toFixed(2)} ({acc.saldoTipo})
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+              </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* SUBTAB 3: BALANCE ANUAL & ESTADO DE RESULTADOS            */}
+            {/* ========================================================= */}
+            {accountingSubTab === 'balance' && (
+              <div className="space-y-6">
+                
+                {/* Year Selector Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel p-5 rounded-2xl border border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-400">Año fiscal de balance:</span>
+                      <select
+                        value={accYear}
+                        onChange={(e) => setAccYear(parseInt(e.target.value))}
+                        className="glass-input px-3 py-1.5 rounded-xl text-xs bg-slate-900 font-bold"
+                      >
+                        {[2024, 2025, 2026, 2027, 2028].map(y => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setShowTaxModal(true)}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all self-start sm:self-auto"
+                  >
+                    <Percent size={14} />
+                    <span>Modificar Impuesto a la Renta</span>
+                  </button>
+                </div>
+
+                {loadingAccounting || !annualBalance ? (
+                  <div className="p-12 text-center text-slate-400 flex items-center justify-center gap-2">
+                    <div className="w-5 h-5 rounded-full border-r-2 border-emerald-400 animate-spin"></div>
+                    Generando balance general anual...
+                  </div>
+                ) : (
+                  <>
+                    {/* Top 5 KPI Metrics */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                      <div className="glass-panel p-4 rounded-2xl border border-slate-800">
+                        <span className="text-[11px] font-semibold text-slate-400 uppercase">Ventas Brutas</span>
+                        <div className="text-2xl font-black text-white mt-1.5 font-heading">
+                          ${(annualBalance.incomeStatement.ventasBrutas || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-1">Facturado en el año</div>
+                      </div>
+
+                      <div className="glass-panel p-4 rounded-2xl border border-slate-800">
+                        <span className="text-[11px] font-semibold text-emerald-400 uppercase">Ventas Netas</span>
+                        <div className="text-2xl font-black text-emerald-400 mt-1.5 font-heading">
+                          ${(annualBalance.incomeStatement.ventasNetas || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-1">Brutas - NC + ND</div>
+                      </div>
+
+                      <div className="glass-panel p-4 rounded-2xl border border-slate-800">
+                        <span className="text-[11px] font-semibold text-indigo-400 uppercase">Utilidad Operativa</span>
+                        <div className="text-2xl font-black text-indigo-400 mt-1.5 font-heading">
+                          ${(annualBalance.incomeStatement.utilidadAntesImpuestos || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-1">Antes de impuestos (UAI)</div>
+                      </div>
+
+                      <div className="glass-panel p-4 rounded-2xl border border-amber-500/30 bg-amber-950/10">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-amber-400 uppercase">Imp. a la Renta</span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
+                            {annualBalance.incomeStatement.impuestoRentaMode === 'manual' ? 'Manual' : `${annualBalance.incomeStatement.impuestoRentaPercentage}%`}
+                          </span>
+                        </div>
+                        <div className="text-2xl font-black text-amber-400 mt-1.5 font-heading">
+                          ${(annualBalance.incomeStatement.impuestoRenta || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-1">Deducción fiscal</div>
+                      </div>
+
+                      <div className="glass-panel p-4 rounded-2xl border border-emerald-500/40 bg-emerald-950/20">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-emerald-300 uppercase">Utilidad Neta</span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/30 text-emerald-200">
+                            {annualBalance.incomeStatement.margenNetoPorcentaje}% Margen
+                          </span>
+                        </div>
+                        <div className="text-2xl font-black text-emerald-300 mt-1.5 font-heading">
+                          ${(annualBalance.incomeStatement.utilidadNetaFinal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-1">Ganancia neta final</div>
+                      </div>
+                    </div>
+
+                    {/* 3 Deep Breakdown Cards */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      
+                      {/* 1. Estado de Resultados (P&L) */}
+                      <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                          <h3 className="font-bold text-white text-sm font-heading flex items-center gap-2">
+                            <TrendingUp className="text-emerald-400" size={16} />
+                            Estado de Resultados (P&L)
+                          </h3>
+                          <span className="text-[11px] font-mono text-slate-400 font-bold">Año {accYear}</span>
+                        </div>
+
+                        <div className="space-y-2.5 text-xs">
+                          <div className="flex justify-between items-center text-slate-300">
+                            <span>(+) Ventas Brutas Totales</span>
+                            <span className="font-mono font-semibold">${(annualBalance.incomeStatement.ventasBrutas || 0).toFixed(2)}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-rose-400">
+                            <span>(-) Notas de Crédito emitidas</span>
+                            <span className="font-mono font-semibold">-${(annualBalance.incomeStatement.notasCreditoVentas || 0).toFixed(2)}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-emerald-400">
+                            <span>(+) Notas de Débito aplicadas</span>
+                            <span className="font-mono font-semibold">+${(annualBalance.incomeStatement.notasDebitoVentas || 0).toFixed(2)}</span>
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-800 flex justify-between items-center font-bold text-white">
+                            <span>(=) Ventas Netas Totales</span>
+                            <span className="font-mono text-emerald-400">${(annualBalance.incomeStatement.ventasNetas || 0).toFixed(2)}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-rose-400">
+                            <span>(-) Gastos y Costos Operativos</span>
+                            <span className="font-mono font-semibold">-${(annualBalance.incomeStatement.egresosOperativos || 0).toFixed(2)}</span>
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-800 flex justify-between items-center font-bold text-indigo-300">
+                            <span>(=) Utilidad Antes de Impuestos</span>
+                            <span className="font-mono">${(annualBalance.incomeStatement.utilidadAntesImpuestos || 0).toFixed(2)}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-amber-400">
+                            <div className="flex items-center gap-1.5">
+                              <span>(-) Impuesto a la Renta</span>
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
+                                {annualBalance.incomeStatement.impuestoRentaMode === 'manual' ? 'Manual' : `${annualBalance.incomeStatement.impuestoRentaPercentage}%`}
+                              </span>
+                            </div>
+                            <span className="font-mono font-semibold">-${(annualBalance.incomeStatement.impuestoRenta || 0).toFixed(2)}</span>
+                          </div>
+
+                          <div className="pt-3 border-t-2 border-emerald-500/50 flex justify-between items-center font-extrabold text-sm text-emerald-300 bg-emerald-950/30 p-3 rounded-2xl">
+                            <span>(=) UTILIDAD NETA DEL EJERCICIO</span>
+                            <span className="font-mono text-base">${(annualBalance.incomeStatement.utilidadNetaFinal || 0).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 2. Balance General (Activo / Pasivo / Patrimonio) */}
+                      <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                          <h3 className="font-bold text-white text-sm font-heading flex items-center gap-2">
+                            <Scale className="text-blue-400" size={16} />
+                            Balance General Simplificado
+                          </h3>
+                          <span className="text-[11px] font-mono text-emerald-400 font-bold">Activo = Pasivo + Patrim.</span>
+                        </div>
+
+                        <div className="space-y-3 text-xs">
+                          <div className="p-3.5 rounded-2xl bg-blue-950/20 border border-blue-500/20">
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold text-blue-300">TOTAL ACTIVOS</span>
+                              <span className="font-mono font-black text-blue-400 text-sm">
+                                ${(annualBalance.balanceSheet.totalActivos || 0).toFixed(2)}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1">Caja, bancos, cuentas por cobrar e inventarios</p>
+                          </div>
+
+                          <div className="p-3.5 rounded-2xl bg-amber-950/20 border border-amber-500/20">
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold text-amber-300">TOTAL PASIVOS</span>
+                              <span className="font-mono font-black text-amber-400 text-sm">
+                                ${(annualBalance.balanceSheet.totalPasivos || 0).toFixed(2)}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1">Obligaciones, proveedores y tributos por pagar</p>
+                          </div>
+
+                          <div className="p-3.5 rounded-2xl bg-purple-950/20 border border-purple-500/20">
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold text-purple-300">PATRIMONIO TOTAL AJUSTADO</span>
+                              <span className="font-mono font-black text-purple-400 text-sm">
+                                ${(annualBalance.balanceSheet.totalPatrimonio || 0).toFixed(2)}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1">Capital inicial aportado + Utilidad neta del ejercicio</p>
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-xs font-bold text-slate-300">
+                            <span>Pasivo + Patrimonio Total:</span>
+                            <span className="font-mono text-white">
+                              ${((annualBalance.balanceSheet.totalPasivos || 0) + (annualBalance.balanceSheet.totalPatrimonio || 0)).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 3. Liquidación Tributaria Anual (IVA / IGV & Renta) */}
+                      <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                          <h3 className="font-bold text-white text-sm font-heading flex items-center gap-2">
+                            <Percent className="text-cyan-400" size={16} />
+                            Resumen Tributario Anual
+                          </h3>
+                          <span className="text-[11px] font-mono text-cyan-400 font-bold">IVA / IGV</span>
+                        </div>
+
+                        <div className="space-y-3 text-xs">
+                          <div className="flex justify-between items-center text-slate-300">
+                            <span>Débito Fiscal (IVA cobrado en ventas)</span>
+                            <span className="font-mono font-semibold text-cyan-300">${(annualBalance.taxSummary.ivaDebitoFiscal || 0).toFixed(2)}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-slate-300">
+                            <span>Crédito Fiscal (IVA pagado en compras)</span>
+                            <span className="font-mono font-semibold text-cyan-300">${(annualBalance.taxSummary.ivaCreditoFiscal || 0).toFixed(2)}</span>
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-800 flex justify-between items-center font-bold">
+                            <span className="text-white">Saldo Neto de IVA / IGV:</span>
+                            <span className={`font-mono ${
+                              annualBalance.taxSummary.saldoNetoIva >= 0 ? 'text-amber-400' : 'text-emerald-400'
+                            }`}>
+                              ${(annualBalance.taxSummary.saldoNetoIva || 0).toFixed(2)}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500">
+                            {annualBalance.taxSummary.saldoNetoIva >= 0
+                              ? 'Monto acumulado a favor de la administración tributaria.'
+                              : 'Saldo acumulado a favor de la empresa para compensar periodos siguientes.'}
+                          </p>
+
+                          <div className="pt-3 border-t border-slate-800 flex justify-between items-center text-xs">
+                            <span className="text-slate-400">Provisión Anual Impuesto a la Renta:</span>
+                            <span className="font-mono font-bold text-amber-400">
+                              ${(annualBalance.taxSummary.impuestoRenta || 0).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Monthly Performance Table */}
+                    <div className="glass-panel p-6 rounded-3xl border border-slate-800">
+                      <h3 className="font-bold text-white text-base mb-4 font-heading">
+                        Evolución Mensual del Ejercicio Fiscal {accYear}
+                      </h3>
+                      
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs text-slate-300">
+                          <thead className="bg-slate-950/70 text-slate-400 uppercase text-[10px] font-bold border-b border-slate-800">
+                            <tr>
+                              <th className="py-3 px-4">Mes</th>
+                              <th className="py-3 px-4 text-right">Ingresos ($)</th>
+                              <th className="py-3 px-4 text-right">Egresos ($)</th>
+                              <th className="py-3 px-4 text-right">Utilidad Mensual ($)</th>
+                              <th className="py-3 px-4 text-right">Impuestos Generados ($)</th>
+                              <th className="py-3 px-4 text-center">Rendimiento</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/60 font-sans">
+                            {annualBalance.monthlyData.map((m) => {
+                              const isPositive = m.utilidad >= 0;
+                              return (
+                                <tr key={m.month} className="hover:bg-slate-900/40 transition-colors">
+                                  <td className="py-3 px-4 font-bold text-white">
+                                    {m.monthName} ({String(m.month).padStart(2, '0')})
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-mono text-emerald-400">
+                                    ${m.ingresos.toFixed(2)}
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-mono text-rose-400">
+                                    ${m.egresos.toFixed(2)}
+                                  </td>
+                                  <td className={`py-3 px-4 text-right font-mono font-bold ${
+                                    isPositive ? 'text-indigo-300' : 'text-rose-400'
+                                  }`}>
+                                    ${m.utilidad.toFixed(2)}
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-mono text-cyan-400">
+                                    ${m.impuestos.toFixed(2)}
+                                  </td>
+                                  <td className="py-3 px-4 text-center">
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                      m.ingresos === 0 && m.egresos === 0
+                                        ? 'bg-slate-800 text-slate-500'
+                                        : isPositive
+                                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                                        : 'bg-rose-500/15 text-rose-400 border border-rose-500/20'
+                                    }`}>
+                                      {m.ingresos === 0 && m.egresos === 0 ? 'Sin movimientos' : isPositive ? 'Superávit' : 'Déficit'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+              </div>
+            )}
+
+          </div>
+        )}
+
       </main>
 
       {/* ==================================================== */}
@@ -4740,6 +5955,370 @@ export default function UserWorkspace() {
                 Cerrar Monitor
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* MODAL: NUEVO / EDITAR ASIENTO CONTABLE              */}
+      {/* ==================================================== */}
+      {showEntryModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg glass-panel p-6 sm:p-8 rounded-3xl border border-slate-700 shadow-2xl relative animate-fade-in max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowEntryModal(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+
+            <h3 className="text-xl font-bold text-white font-heading mb-1 flex items-center gap-2">
+              <Receipt className="text-emerald-400" size={22} />
+              {editingEntryId ? 'Editar Asiento Contable' : 'Nuevo Asiento en Libro Diario'}
+            </h3>
+            <p className="text-xs text-slate-400 mb-5">
+              Registra una operación financiera con partida doble y cálculo de impuestos.
+            </p>
+
+            <form onSubmit={handleSaveEntry} className="space-y-4">
+              
+              {/* Row 1: Fecha y Tipo */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Fecha del Asiento *</label>
+                  <input
+                    type="date"
+                    value={entryDate}
+                    onChange={(e) => setEntryDate(e.target.value)}
+                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs bg-slate-900"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Tipo de Movimiento *</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEntryType('ingreso')}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${
+                        entryType === 'ingreso'
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-sm'
+                          : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white'
+                      }`}
+                    >
+                      <ArrowUpRight size={14} /> Ingreso (+)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEntryType('egreso')}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${
+                        entryType === 'egreso'
+                          ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 shadow-sm'
+                          : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white'
+                      }`}
+                    >
+                      <ArrowDownRight size={14} /> Egreso (-)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Clasificación Contable */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Clasificación Contable *</label>
+                <select
+                  value={entryClassification}
+                  onChange={(e) => setEntryClassification(e.target.value)}
+                  className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs bg-slate-900 font-semibold"
+                  required
+                >
+                  <option value="activo">Activo (Caja, Banco, Cuentas por Cobrar, Inventarios, Equipos)</option>
+                  <option value="pasivo">Pasivo (Cuentas por Pagar, Proveedores, Préstamos, Deudas)</option>
+                  <option value="patrimonio">Patrimonio (Capital Social, Aportes, Reservas)</option>
+                  <option value="nota_credito">Nota de Crédito (Devolución, Descuento sobre Venta/Compra)</option>
+                  <option value="nota_debito">Nota de Débito (Recargo de precio, Intereses, Ajuste)</option>
+                </select>
+              </div>
+
+              {/* Row 3: Referencia / Doc */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Documento de Referencia / Comprobante
+                </label>
+                <input
+                  type="text"
+                  value={entryReferenceDoc}
+                  onChange={(e) => setEntryReferenceDoc(e.target.value)}
+                  placeholder="ej. Factura F001-00342, Boleta B002-1200, Recibo 45"
+                  className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs"
+                />
+              </div>
+
+              {/* Row 4: Descripción */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Concepto / Descripción del Asiento *
+                </label>
+                <input
+                  type="text"
+                  value={entryDescription}
+                  onChange={(e) => setEntryDescription(e.target.value)}
+                  placeholder="ej. Cobro de servicios de marketing, Compra de computadoras, etc."
+                  className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs font-medium"
+                  required
+                />
+              </div>
+
+              {/* Row 5: Monto Base e Impuestos */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Monto Base Imponible ($) *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={entryAmount}
+                      onChange={(e) => setEntryAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full glass-input pl-7 pr-3 py-2.5 rounded-xl text-xs font-mono font-bold"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    % Impuesto (IGV / IVA)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      value={entryTaxPercentage}
+                      onChange={(e) => setEntryTaxPercentage(e.target.value)}
+                      placeholder="18"
+                      className="w-full glass-input pr-7 pl-3 py-2.5 rounded-xl text-xs font-mono"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Preview calculation */}
+              {entryAmount && !isNaN(parseFloat(entryAmount)) && parseFloat(entryAmount) > 0 && (
+                <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1 text-xs font-mono">
+                  <div className="flex justify-between text-slate-400">
+                    <span>Base Imponible:</span>
+                    <span>${parseFloat(entryAmount).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-cyan-400">
+                    <span>Impuesto ({parseFloat(entryTaxPercentage || 0)}%):</span>
+                    <span>${((parseFloat(entryAmount) * parseFloat(entryTaxPercentage || 0)) / 100).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-white pt-1 border-t border-slate-800 text-sm">
+                    <span>Total del Asiento:</span>
+                    <span className={entryType === 'ingreso' ? 'text-emerald-400' : 'text-rose-400'}>
+                      ${(parseFloat(entryAmount) + ((parseFloat(entryAmount) * parseFloat(entryTaxPercentage || 0)) / 100)).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Row 6: Notas */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Notas u Observaciones Adicionales
+                </label>
+                <textarea
+                  rows="2"
+                  value={entryNotes}
+                  onChange={(e) => setEntryNotes(e.target.value)}
+                  placeholder="Detalles sobre forma de pago, banco de transferencia, etc."
+                  className="w-full glass-input px-3.5 py-2 rounded-xl text-xs"
+                />
+              </div>
+
+              {/* Form Buttons */}
+              <div className="pt-2 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEntryModal(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-1.5"
+                >
+                  <Check size={14} />
+                  <span>{editingEntryId ? 'Actualizar Asiento' : 'Guardar en Libro Diario'}</span>
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* MODAL: CONFIGURACIÓN TRIBUTARIA & RENTA             */}
+      {/* ==================================================== */}
+      {showTaxModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md glass-panel p-6 sm:p-8 rounded-3xl border border-slate-700 shadow-2xl relative animate-fade-in max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowTaxModal(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+
+            <h3 className="text-xl font-bold text-white font-heading mb-1 flex items-center gap-2">
+              <Percent className="text-amber-400" size={22} />
+              Configuración Tributaria
+            </h3>
+            <p className="text-xs text-slate-400 mb-5">
+              Configura tus tasas de impuestos para el Libro Diario y el cálculo de Impuesto a la Renta en el Balance Anual.
+            </p>
+
+            <form onSubmit={handleSaveTaxSettings} className="space-y-5">
+              
+              {/* 1. Tasa Default IVA / IGV */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-200 mb-1">
+                  Tasa por Defecto de IVA / IGV (%)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    value={taxFormDefault}
+                    onChange={(e) => setTaxFormDefault(e.target.value)}
+                    placeholder="18"
+                    className="w-full glass-input pr-7 pl-3 py-2.5 rounded-xl text-xs font-mono font-bold"
+                    required
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">%</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Se autocompletará en los nuevos asientos contables (ej. 18% Perú, 19% Chile/Colombia, 16% México).
+                </p>
+              </div>
+
+              {/* 2. Régimen de Impuesto a la Renta */}
+              <div className="pt-2 border-t border-slate-800 space-y-3">
+                <label className="block text-xs font-semibold text-amber-300">
+                  Impuesto a la Renta en Balance Anual
+                </label>
+                
+                {/* Selector de modo */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTaxFormIncomeMode('percentage')}
+                    className={`p-3 rounded-xl text-xs font-bold border transition-all text-left flex flex-col gap-1 ${
+                      taxFormIncomeMode === 'percentage'
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
+                        : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-[11px] uppercase tracking-wider">Modo Porcentaje (%)</span>
+                    <span className="text-[10px] font-normal text-slate-300">Tasa fija calculada sobre utilidad</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTaxFormIncomeMode('manual')}
+                    className={`p-3 rounded-xl text-xs font-bold border transition-all text-left flex flex-col gap-1 ${
+                      taxFormIncomeMode === 'manual'
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
+                        : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-[11px] uppercase tracking-wider">Modo Monto Manual ($)</span>
+                    <span className="text-[10px] font-normal text-slate-300">Detallado libremente por ti</span>
+                  </button>
+                </div>
+
+                {/* Input según modo */}
+                {taxFormIncomeMode === 'percentage' ? (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Porcentaje de Impuesto a la Renta (%)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        value={taxFormIncomePercent}
+                        onChange={(e) => setTaxFormIncomePercent(e.target.value)}
+                        placeholder="29.5"
+                        className="w-full glass-input pr-7 pl-3 py-2.5 rounded-xl text-xs font-mono font-bold"
+                        required
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">%</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Porcentaje que se deducirá de la Utilidad Antes de Impuestos (ej. 29.5% General, 10% MYPE).
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Monto Fijo de Impuesto a la Renta ($)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={taxFormIncomeManual}
+                        onChange={(e) => setTaxFormIncomeManual(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full glass-input pl-7 pr-3 py-2.5 rounded-xl text-xs font-mono font-bold"
+                        required
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Monto monetario exacto que se aplicará en el Balance Anual como provisión de Impuesto a la Renta.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Form Buttons */}
+              <div className="pt-3 border-t border-slate-800 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowTaxModal(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingTax}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs shadow-lg shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Check size={14} />
+                  <span>{isSavingTax ? 'Guardando...' : 'Guardar Configuración'}</span>
+                </button>
+              </div>
+
+            </form>
           </div>
         </div>
       )}

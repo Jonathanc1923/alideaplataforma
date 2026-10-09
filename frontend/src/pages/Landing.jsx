@@ -58,11 +58,41 @@ export default function Landing() {
   ]);
   const [isTyping, setIsTyping] = useState(false);
   const [kanbanStage, setKanbanStage] = useState('Nuevo Lead');
+  const [simLeadTag, setSimLeadTag] = useState('Nuevo Lead');
   const [simCatalog, setSimCatalog] = useState([]);
   const [simCurrencySymbol, setSimCurrencySymbol] = useState('S/');
   const [simDelayMin, setSimDelayMin] = useState(2);
   const [simDelayMax, setSimDelayMax] = useState(5);
   const [simKeywords, setSimKeywords] = useState([]);
+
+  // Tag & Stage progression score (No-downgrading rule)
+  const getSimProgressionLevel = (t) => {
+    if (!t) return 0;
+    const l = t.toLowerCase();
+    if (l.includes('ganad') || l.includes('cerrad') || l.includes('vip') || l.includes('comprador')) return 5;
+    if (l.includes('caliente') || l.includes('negocia')) return 4;
+    if (l.includes('cotiz') || l.includes('propuest') || l.includes('precio')) return 3;
+    if (l.includes('catalogo') || l.includes('catálogo') || l.includes('producto') || l.includes('servicio')) return 2;
+    if (l.includes('interesad') || l.includes('conversac') || l.includes('contacto')) return 1;
+    return 0;
+  };
+
+  const updateSimTagAndStage = (newTag, newStage) => {
+    if (newTag) {
+      setSimLeadTag((prevTag) => {
+        const prevLevel = getSimProgressionLevel(prevTag);
+        const nextLevel = getSimProgressionLevel(newTag);
+        return nextLevel >= prevLevel ? newTag : prevTag;
+      });
+    }
+    if (newStage) {
+      setKanbanStage((prevStage) => {
+        const prevLevel = getSimProgressionLevel(prevStage);
+        const nextLevel = getSimProgressionLevel(newStage);
+        return nextLevel >= prevLevel ? newStage : prevStage;
+      });
+    }
+  };
 
   // Load simulator configuration from backend
   useEffect(() => {
@@ -146,8 +176,7 @@ export default function Landing() {
           replyText = getFormattedCatalog();
         }
         setSimChat([...newChat, { sender: 'bot', text: replyText, time: 'Ahora' }]);
-        if (res.data.stage) setKanbanStage(res.data.stage);
-        else if (isCatalog) setKanbanStage('Negociación');
+        updateSimTagAndStage(res.data.assignedTag || (isCatalog ? 'Catálogo Enviado' : null), res.data.stage || (isCatalog ? 'Negociación' : null));
       }
     } catch(e) {
       await new Promise((resolve) => setTimeout(resolve, simulatedDelayMs));
@@ -155,29 +184,34 @@ export default function Landing() {
 
       let reply = 'Gracias por escribirnos. Nuestro equipo comercial de Alidea ya tiene tus datos registrados.';
       let newStage = 'En Conversación';
+      let newTag = 'Interesado';
 
       if (isCatalog) {
         reply = getFormattedCatalog();
         newStage = 'Negociación';
+        newTag = 'Catálogo Enviado';
       } else if (lower.includes('precio') || lower.includes('costo') || lower.includes('plan') || lower.includes('cuanto cuesta')) {
         reply = `💳 Contamos con el Plan Acceso Total Anual por solo ${simCurrencySymbol || 'S/'} 350 que incluye Bot 24/7, CRM Kanban, Retargeting Masivo y Curso de Anuncios en Meta y TikTok.`;
         newStage = 'Propuesta Enviada';
+        newTag = 'Cotización Enviada';
       } else if (lower.includes('comprar') || lower.includes('cerrar') || lower.includes('asesor') || lower.includes('pedido') || lower.includes('adquirir')) {
         reply = '🎉 ¡Excelente decisión! Tu asesor asignado se pondrá en contacto contigo de inmediato al WhatsApp 907318642.';
         newStage = 'Cerrado / Ganado';
+        newTag = 'Cerrado / Ganado';
       } else {
         for (const kw of simKeywords) {
           const list = (kw.keyword || '').toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
           if (list.some(k => lower.includes(k))) {
             reply = kw.response;
             if (kw.stage) newStage = kw.stage;
+            newTag = kw.stage || 'Interesado';
             break;
           }
         }
       }
 
       setSimChat([...newChat, { sender: 'bot', text: reply, time: 'Ahora' }]);
-      setKanbanStage(newStage);
+      updateSimTagAndStage(newTag, newStage);
     }
   };
 
@@ -774,12 +808,17 @@ export default function Landing() {
                   
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h4 className="font-bold text-white text-base">Prospecto Web (Interesado)</h4>
-                      <p className="text-xs text-slate-400">+51 987 654 321 • Origen: WhatsApp</p>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-white text-base">Prospecto Web</h4>
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 flex items-center gap-1 shadow-sm">
+                          🏷️ {simLeadTag}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">+51 987 654 321 • Origen: WhatsApp</p>
                     </div>
                     <div className="text-right">
                       <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
-                        S/ 350
+                        {simCurrencySymbol} 350
                       </span>
                     </div>
                   </div>

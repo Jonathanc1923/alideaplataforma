@@ -819,6 +819,29 @@ async function processQueue(queueKey, getDbConnection) {
                                 console.warn(`[Alidea Session ${sessionId}] Error al recuperar historial de chat:`, histErr.message);
                             }
 
+                            // Recuperar etiquetas configuradas y estado actual del lead para auto-etiquetado inteligente
+                            let availableTags = [];
+                            let existingLead = null;
+                            if (sessionRecord.user_id) {
+                                try {
+                                    const tagRows = await db.all('SELECT name FROM crm_tags WHERE user_id = ? ORDER BY name ASC', [sessionRecord.user_id]);
+                                    availableTags = (tagRows || []).map(r => r.name);
+                                    if (availableTags.length === 0) {
+                                        availableTags = ['Nuevo Contacto', 'Interesado', 'Catálogo Enviado', 'Cotización Pendiente', 'Cliente Caliente', 'Cerrado / Ganado'];
+                                    }
+
+                                    const phoneDigits = jid.split('@')[0];
+                                    existingLead = await db.get(
+                                        'SELECT * FROM crm_leads WHERE user_id = ? AND (phone = ? OR phone = ?)',
+                                        [sessionRecord.user_id, '+' + phoneDigits, phoneDigits]
+                                    );
+                                } catch(e) {}
+                            }
+
+                            const currentTagsStr = existingLead?.tags || '';
+                            const currentTagList = currentTagsStr.split(',').map(t => t.trim()).filter(Boolean);
+                            const currentPrimaryTag = currentTagList[0] || null;
+
                             // IMPORTANTE: NO mostrar 'escribiendo...' antes de evaluar ni marcar como leído.
                             // La IA evalúa en segundo plano con su historial completo y catálogo actualizado de productos.
                             let effectiveSystemPrompt = sessionRecord.ai_system_prompt;
@@ -833,6 +856,8 @@ async function processQueue(queueKey, getDbConnection) {
                                 prompt: messageText,
                                 systemPrompt: effectiveSystemPrompt,
                                 conversationHistory: conversationHistory,
+                                availableTags: availableTags,
+                                currentTag: currentPrimaryTag,
                                 endpoint: sessionRecord.ai_endpoint || 'http://127.0.0.1:11434',
                                 temperature: sessionRecord.ai_temperature || 0.35,
                                 allowGreeting: allowGreeting
@@ -884,12 +909,12 @@ async function processQueue(queueKey, getDbConnection) {
                                     } catch(tokErr) {}
                                 }
 
-                                // Registrar en CRM
+                                // Registrar en CRM y aplicar auto-etiquetado con regla de no-degradación
                                 if (sessionRecord.user_id) {
                                     const phoneDigits = jid.split('@')[0];
                                     const fullAiText = aiRes.messages.join(' \n\n ');
-                                    const lead = await db.get(
-                                        'SELECT id FROM crm_leads WHERE user_id = ? AND (phone = ? OR phone = ?)',
+                                    const lead = existingLead || await db.get(
+                                        'SELECT id, tags, stage FROM crm_leads WHERE user_id = ? AND (phone = ? OR phone = ?)',
                                         [sessionRecord.user_id, '+' + phoneDigits, phoneDigits]
                                     );
                                     if (lead) {
@@ -902,6 +927,46 @@ async function processQueue(queueKey, getDbConnection) {
                                             'UPDATE crm_leads SET last_message = ?, last_interaction = CURRENT_TIMESTAMP WHERE id = ?',
                                             [fullAiText, lead.id]
                                         );
+
+                                        // Auto-etiquetado con regla de no degradación
+                                        if (aiRes.assignedTag) {
+                                            const rawTag = aiRes.assignedTag.trim();
+                                            const matchedTag = availableTags.find(t => t.toLowerCase() === rawTag.toLowerCase()) || rawTag;
+
+                                            const getTagProgressionLevel = (tName) => {
+                                                if (!tName) return 0;
+                                                const l = tName.toLowerCase().trim();
+                                                if (l.includes('ganad') || l.includes('cerrad') || l.includes('vip') || l.includes('comprador') || l.includes('pago') || l.includes('venta')) return 5;
+                                                if (l.includes('caliente') || l.includes('negocia') || l.includes('seguimiento')) return 4;
+                                                if (l.includes('cotiz') || l.includes('propuest') || l.includes('precio')) return 3;
+                                                if (l.includes('catalogo') || l.includes('catálogo') || l.includes('demo') || l.includes('producto') || l.includes('servicio')) return 2;
+                                                if (l.includes('interesad') || l.includes('consulta') || l.includes('duda')) return 1;
+                                                return 0;
+                                            };
+
+                                            const leadTagList = (lead.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+                                            const currentMaxLvl = leadTagList.length > 0 ? Math.max(...leadTagList.map(getTagProgressionLevel)) : 0;
+                                            const newLvl = getTagProgressionLevel(matchedTag);
+
+                                            // La etiqueta SOLO puede subir de nivel o mantenerse, NUNCA bajar por decisión de la IA
+                                            if (newLvl >= currentMaxLvl || leadTagList.length === 0) {
+                                                if (!leadTagList.some(t => t.toLowerCase() === matchedTag.toLowerCase())) {
+                                                    const newTagStr = leadTagList.length > 0 ? `${lead.tags}, ${matchedTag}` : matchedTag;
+                                                    await db.run(
+                                                        'UPDATE crm_leads SET tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                                                        [newTagStr, lead.id]
+                                                    );
+                                                    await db.run(
+                                                        `INSERT INTO crm_activities (id, lead_id, user_id, type, content)
+                                                         VALUES (?, ?, ?, 'note', ?)`,
+                                                        [uuidv4(), lead.id, sessionRecord.user_id, `🏷️ Etiqueta auto-asignada por IA (Nivel ${newLvl}): "${matchedTag}"`]
+                                                    );
+                                                    console.log(`[Alidea Session ${sessionId}] 🏷️ Lead ${lead.id} auto-etiquetado a nivel ${newLvl}: "${matchedTag}"`);
+                                                }
+                                            } else {
+                                                console.log(`[Alidea Session ${sessionId}] 🛡️ Bloqueo de degradación: el lead posee nivel ${currentMaxLvl}. Se preserva la etiqueta superior ante sugerencia de nivel ${newLvl} ("${matchedTag}").`);
+                                            }
+                                        }
                                     }
                                 }
                                 console.log(`[Alidea Session ${sessionId}] Respuesta enviada a WhatsApp con éxito (${aiRes.messages.length} msgs)`);

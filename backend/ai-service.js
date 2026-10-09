@@ -91,6 +91,8 @@ async function generateLocalAIResponse({
   prompt, 
   systemPrompt, 
   conversationHistory = [], 
+  availableTags = [],
+  currentTag = null,
   endpoint = null, 
   temperature = 0.35, 
   allowGreeting = true 
@@ -105,6 +107,10 @@ async function generateLocalAIResponse({
       ? '1. SALUDO INICIAL: Puedes iniciar con un saludo breve y cordial (ej: "¡Hola! Con mucho gusto...", "¡Hola! Claro que sí...").'
       : '1. SIN SALUDOS REPETITIVOS: Ya estás conversando con este cliente en el hilo de chat actual. NO saludes con "¡Hola!" ni bienvenidas repetitivas; responde DIRECTAMENTE a su pregunta manteniendo el hilo.';
 
+    const tagListStr = (Array.isArray(availableTags) && availableTags.length > 0)
+      ? availableTags.map(t => typeof t === 'string' ? t.trim() : t.name.trim()).filter(Boolean).join(' | ')
+      : 'Nuevo Contacto | Interesado | Catálogo Enviado | Cotización Pendiente | Cliente Caliente | Cerrado / Ganado';
+
     const systemInstruction = `Eres Sofia, asesora comercial y ejecutiva de atención al cliente de la empresa.
 
 INFORMACIÓN AUTORIZADA DE LA EMPRESA:
@@ -112,29 +118,41 @@ INFORMACIÓN AUTORIZADA DE LA EMPRESA:
 ${businessContext}
 """
 
+ETIQUETAS COMERCIALES DISPONIBLES EN EL SISTEMA:
+[ ${tagListStr} ]
+${currentTag ? `Etiqueta actual del cliente en CRM: "${currentTag}"` : ''}
+
 REGLAS OBLIGATORIAS:
 ${greetingRule}
 2. HABLA COMO HUMANA: Comunícate de tú a tú, con entusiasmo, amabilidad, persuasión comercial y emojis pertinentes (😊, 🙌, ✨, 📲, 💬).
 3. CONTINUIDAD CONTEXTUAL: Ten en cuenta el contexto de los mensajes anteriores de la conversación para responder de manera coherente a lo que el cliente te viene preguntando.
-4. PROHIBIDO ANÁLISIS METATEXTUAL: NUNCA digas "En el texto se menciona:", "Según la información provista:", "1. Introducción". Habla con naturalidad directa.
-5. RESPUESTAS COMPLETAS: Completa SIEMPRE todas las oraciones, listas o explicaciones. NUNCA cortes las respuestas a la mitad.
-6. CERO ALUCINACIONES Y CERO PREGUNTAS AJENAS (ESTRICTO):
+4. PROHIBIDO ANÁLISIS METATEXTUAL: NUNCA digas "En el texto se menciona:", "Según la información provista:". Habla con naturalidad directa.
+5. CERO ALUCINACIONES Y CERO PREGUNTAS AJENAS (ESTRICTO):
 - Tu función exclusiva es atender y vender lo indicado en la INFORMACIÓN AUTORIZADA.
-- NO eres un asistente de conocimientos generales, NO resuelves dudas de ciencia (ej: astronomía, distancia de la Tierra a la Luna), tareas escolares, historia, geografía, recetas de cocina, chistes, poemas, política ni productos que la empresa no vende.
-- Si el usuario pregunta o solicita CUALQUIER COSA fuera de la INFORMACIÓN AUTORIZADA, responde ÚNICAMENTE:
-[NO_ANSWER_SAFE_TRANSFER]
+- NO eres un asistente de conocimientos generales, NO resuelves dudas de ciencia, tareas escolares, historia, geografía, recetas de cocina, chistes, poemas ni productos que la empresa no vende. Si el usuario pregunta algo fuera de lugar o no debes responder, coloca "should_answer": false.
 
-EJEMPLOS DE DERIVACIÓN:
-Usuario: ¿Cuál es la distancia de la Tierra a la Luna?
-Asistente: [NO_ANSWER_SAFE_TRANSFER]
+FORMATO OBLIGATORIO DE RESPUESTA:
+Debes responder SIEMPRE con un objeto JSON válido con la siguiente estructura exacta (sin texto extra antes ni después):
+{
+  "should_answer": true,
+  "messages": [
+    "Texto del primer mensaje de respuesta...",
+    "Texto del segundo mensaje opcional si es necesario..."
+  ],
+  "assigned_tag": "Nombre_De_La_Etiqueta_Adecuada"
+}
 
-Usuario: Dame una receta de cocina / Cuéntame un chiste
-Asistente: [NO_ANSWER_SAFE_TRANSFER]
-
-Usuario: ¿Quién ganó la copa mundial?
-Asistente: [NO_ANSWER_SAFE_TRANSFER]
-
-7. FORMATO: Responde en 1 o máximo 2 párrafos concisos ideales para WhatsApp. Si deseas enviar 2 mensajes sucesivos, sepáralos con [MSG_SPLIT].`;
+REGLAS PARA "assigned_tag":
+- Selecciona una de las ETIQUETAS COMERCIALES DISPONIBLES según el estado de la conversación.
+- Si el cliente solo saluda o hace una consulta inicial, asigna la etiqueta de contacto/interés inicial.
+- Si pide catálogo, productos o cotización de precios, asigna la etiqueta de catálogo/cotización.
+- Si confirma pedido, pago o desea cerrar la compra, asigna la etiqueta de cierre/ganado.
+- Si no debes responder por ser una pregunta fuera de lugar:
+{
+  "should_answer": false,
+  "messages": [],
+  "assigned_tag": null
+}`;
 
     try {
       // Assemble chat messages with system prompt, recent history context, and current user prompt
@@ -201,7 +219,7 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
                 model: prov.model,
                 messages: messagesPayload,
                 temperature: typeof temperature === 'number' ? temperature : 0.35,
-                max_tokens: 500,
+                max_tokens: 600,
                 stream: false
               })
             });
@@ -262,7 +280,7 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
               temperature: typeof temperature === 'number' ? temperature : 0.35,
               repeat_penalty: 1.15,
               num_ctx: 1536,
-              num_predict: 500
+              num_predict: 600
             }
           })
         });
@@ -280,53 +298,104 @@ Asistente: [NO_ANSWER_SAFE_TRANSFER]
         engineName = 'Ollama Local (qwen2.5:7b)';
       }
 
-      // Guardrail Check: Safe transfer if model indicates lack of certainty or refusal
-      const lowerOut = rawOutput.toLowerCase();
-      const isRefusal = !rawOutput || 
-        lowerOut.includes('no_answer_safe_transfer') ||
-        lowerOut.includes('no voy a responder') ||
-        lowerOut.includes('no puedo responder a esa consulta') ||
-        lowerOut.includes('no tengo información sobre') ||
-        lowerOut.includes('no tengo informacion sobre') ||
-        lowerOut.includes('no cuento con información') ||
-        lowerOut.includes('no cuento con informacion') ||
-        lowerOut.includes('no está en la información autorizada') ||
-        lowerOut.includes('no esta en la informacion autorizada');
+      // =========================================================================
+      // PARSEO ROBUSTO DE SALIDA JSON (Separación de Mensajes y Etiqueta)
+      // =========================================================================
+      let assignedTag = null;
+      let shouldAnswer = true;
+      let finalMessages = [];
 
-      if (isRefusal) {
+      let parsedJson = null;
+      try {
+        parsedJson = JSON.parse(rawOutput);
+      } catch (e) {
+        const jsonMatch = rawOutput.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            parsedJson = JSON.parse(jsonMatch[0]);
+          } catch(e2) {}
+        }
+      }
+
+      if (parsedJson && typeof parsedJson === 'object') {
+        shouldAnswer = parsedJson.should_answer !== false;
+        assignedTag = parsedJson.assigned_tag ? String(parsedJson.assigned_tag).trim() : null;
+
+        if (Array.isArray(parsedJson.messages)) {
+          finalMessages = parsedJson.messages.map(m => String(m).trim()).filter(Boolean);
+        } else if (parsedJson.message && typeof parsedJson.message === 'string') {
+          finalMessages = [parsedJson.message.trim()];
+        }
+      } else {
+        const lowerOut = rawOutput.toLowerCase();
+        const isRefusal = !rawOutput || 
+          lowerOut.includes('no_answer_safe_transfer') ||
+          lowerOut.includes('no voy a responder') ||
+          lowerOut.includes('no puedo responder a esa consulta') ||
+          lowerOut.includes('no tengo información sobre') ||
+          lowerOut.includes('no tengo informacion sobre') ||
+          lowerOut.includes('no cuento con información') ||
+          lowerOut.includes('no cuento con informacion') ||
+          lowerOut.includes('no está en la información autorizada') ||
+          lowerOut.includes('no esta en la informacion autorizada');
+
+        if (isRefusal) {
+          shouldAnswer = false;
+        } else {
+          let cleanText = rawOutput
+            .replace(/```json[\s\S]*?```/gi, '')
+            .replace(/^\{[\s\S]*?\}$/gm, '')
+            .trim();
+          if (!cleanText) cleanText = rawOutput;
+
+          let parts = [];
+          if (cleanText.includes('[MSG_SPLIT]')) {
+            parts = cleanText.split('[MSG_SPLIT]').map(p => p.trim()).filter(Boolean);
+          } else if (cleanText.includes('\n\n') && cleanText.length > 120) {
+            const splitByParagraph = cleanText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+            if (splitByParagraph.length >= 2) {
+              parts = [splitByParagraph[0], splitByParagraph.slice(1).join('\n\n')];
+            } else {
+              parts = [cleanText];
+            }
+          } else {
+            parts = [cleanText];
+          }
+          finalMessages = parts.slice(0, 2);
+        }
+      }
+
+      // Sanitizar mensajes para evitar cualquier fuga de JSON o etiquetas hacia el chat de WhatsApp
+      finalMessages = finalMessages
+        .map(m => {
+          let s = m.replace(/^\s*\{\s*"should_answer"[\s\S]*?\}\s*$/, '').trim();
+          s = s.replace(/"messages"\s*:\s*\[/g, '').replace(/"assigned_tag"\s*:\s*"[^"]*"/g, '').trim();
+          return s;
+        })
+        .filter(m => m && !m.startsWith('{') && !m.endsWith('}') && !m.includes('assigned_tag'));
+
+      if (finalMessages.length === 0 && shouldAnswer && parsedJson?.messages?.length > 0) {
+        finalMessages = parsedJson.messages.map(m => String(m).trim()).filter(Boolean);
+      }
+
+      if (!shouldAnswer || finalMessages.length === 0) {
         return {
           success: true,
           shouldAnswer: false,
           reason: 'safe_transfer_to_human',
           messages: [],
-          rawText: '',
+          assignedTag: null,
+          rawText: rawOutput,
           totalTokens: tokensUsed,
           usage: usageDetails
         };
       }
 
-      // Format 1 or 2 messages cleanly
-      let parts = [];
-      if (rawOutput.includes('[MSG_SPLIT]')) {
-        parts = rawOutput.split('[MSG_SPLIT]').map(p => p.trim()).filter(Boolean);
-      } else if (rawOutput.includes('\n\n') && rawOutput.length > 120) {
-        const splitByParagraph = rawOutput.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
-        if (splitByParagraph.length >= 2) {
-          parts = [splitByParagraph[0], splitByParagraph.slice(1).join('\n\n')];
-        } else {
-          parts = [rawOutput];
-        }
-      } else {
-        parts = [rawOutput];
-      }
-
-      // Limit to maximum 2 messages
-      const finalMessages = parts.slice(0, 2);
-
       return {
         success: true,
         shouldAnswer: true,
-        messages: finalMessages,
+        messages: finalMessages.slice(0, 2),
+        assignedTag: assignedTag,
         rawText: rawOutput,
         totalTokens: tokensUsed,
         usage: usageDetails,

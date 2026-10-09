@@ -598,6 +598,7 @@ app.post('/api/public/simulator-chat', async (req, res) => {
                 sender: 'bot',
                 text: catMsg,
                 stage: 'Negociación',
+                assignedTag: 'Catálogo Enviado',
                 isCatalog: true
             });
         }
@@ -617,6 +618,7 @@ app.post('/api/public/simulator-chat', async (req, res) => {
                 sender: 'bot',
                 text: matchedKw.response || '',
                 stage: matchedKw.stage || 'En Conversación',
+                assignedTag: matchedKw.stage || 'Interesado',
                 matchedKeyword: true
             });
         }
@@ -633,20 +635,38 @@ app.post('/api/public/simulator-chat', async (req, res) => {
                 effectiveSystemPrompt += `\n\n[CATÁLOGO DE PRODUCTOS DISPONIBLES (Moneda: ${code}, Símbolo: ${sym})]:\n` + parsedCatalog.map(p => `- ${p.name}: ${sym} ${p.price} (${p.description || ''})`).join('\n');
             }
 
+            const simAvailableTags = ['Nuevo Lead', 'Interesado', 'Catálogo Enviado', 'Cotización Enviada', 'Cliente Caliente', 'Cerrado / Ganado'];
+
             const aiRes = await generateLocalAIResponse({
                 sessionId: 'landing_demo_simulator',
                 prompt: message,
                 systemPrompt: effectiveSystemPrompt,
                 conversationHistory: formattedHistory,
+                availableTags: simAvailableTags,
                 temperature: sim.ai_temperature || 0.35,
                 allowGreeting: false
             });
 
             if (aiRes && aiRes.success && aiRes.shouldAnswer && aiRes.messages && aiRes.messages.length > 0) {
+                let assignedStage = 'En Conversación';
+                const tagLower = (aiRes.assignedTag || '').toLowerCase();
+                if (tagLower.includes('cerrad') || tagLower.includes('ganad') || tagLower.includes('comprador')) {
+                    assignedStage = 'Cerrado / Ganado';
+                } else if (tagLower.includes('caliente') || tagLower.includes('negocia')) {
+                    assignedStage = 'Negociación';
+                } else if (tagLower.includes('cotiz') || tagLower.includes('propuest') || tagLower.includes('precio')) {
+                    assignedStage = 'Propuesta Enviada';
+                } else if (tagLower.includes('catalogo') || tagLower.includes('catálogo') || tagLower.includes('producto')) {
+                    assignedStage = 'Negociación';
+                } else if (tagLower.includes('interesad') || tagLower.includes('conversac')) {
+                    assignedStage = 'En Conversación';
+                }
+
                 return res.json({
                     sender: 'bot',
                     text: aiRes.messages.join('\n\n'),
-                    stage: 'En Conversación',
+                    stage: assignedStage,
+                    assignedTag: aiRes.assignedTag || null,
                     isAi: true
                 });
             }

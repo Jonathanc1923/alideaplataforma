@@ -189,13 +189,9 @@ export default function Landing() {
 
       setIsTyping(false);
       if (res.data && res.data.text) {
-        let replyText = res.data.text;
-        if (isCatalog && (!replyText.includes('1.') && !replyText.includes('➔') && !replyText.includes(simCurrencySymbol || 'S/'))) {
-          replyText = getFormattedCatalog();
-        }
         setSimChat([...newChat, { 
           sender: 'bot', 
-          text: replyText, 
+          text: res.data.text, 
           mediaFiles: res.data.mediaFiles || [],
           time: 'Ahora' 
         }]);
@@ -209,28 +205,28 @@ export default function Landing() {
       let newStage = 'En Conversación';
       let newTag = 'Interesado';
 
-      if (isCatalog) {
+      // 1. Check user configured keywords FIRST in fallback
+      let matchedSimKw = null;
+      for (const kw of simKeywords) {
+        const list = (kw.keyword || '').toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
+        if (list.some(k => lower.includes(k))) {
+          matchedSimKw = kw;
+          break;
+        }
+      }
+
+      if (matchedSimKw) {
+        reply = matchedSimKw.response;
+        if (matchedSimKw.stage) newStage = matchedSimKw.stage;
+        newTag = matchedSimKw.stage || 'Interesado';
+      } else if (isCatalog) {
         reply = getFormattedCatalog();
         newStage = 'Negociación';
         newTag = 'Catálogo Enviado';
       } else if (lower.includes('precio') || lower.includes('costo') || lower.includes('plan') || lower.includes('cuanto cuesta')) {
-        reply = `💳 Contamos con el Plan Acceso Total Anual por solo ${simCurrencySymbol || 'S/'} 350 que incluye Bot 24/7, CRM Kanban, Retargeting Masivo y Curso de Anuncios en Meta y TikTok.`;
+        reply = `💳 Contamos con el Plan Acceso Total Anual por solo ${simCurrencySymbol || 'S/'} 49 que incluye Bot 24/7, CRM de Ventas, Retargeting y Curso Completo de Anuncios con IA.`;
         newStage = 'Propuesta Enviada';
         newTag = 'Cotización Enviada';
-      } else if (lower.includes('comprar') || lower.includes('cerrar') || lower.includes('asesor') || lower.includes('pedido') || lower.includes('adquirir')) {
-        reply = '🎉 ¡Excelente decisión! Tu asesor asignado se pondrá en contacto contigo de inmediato al WhatsApp 907318642.';
-        newStage = 'Cerrado / Ganado';
-        newTag = 'Cerrado / Ganado';
-      } else {
-        for (const kw of simKeywords) {
-          const list = (kw.keyword || '').toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
-          if (list.some(k => lower.includes(k))) {
-            reply = kw.response;
-            if (kw.stage) newStage = kw.stage;
-            newTag = kw.stage || 'Interesado';
-            break;
-          }
-        }
       }
 
       setSimChat([...newChat, { sender: 'bot', text: reply, time: 'Ahora' }]);

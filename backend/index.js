@@ -584,7 +584,27 @@ app.post('/api/public/simulator-chat', async (req, res) => {
 
         const textLower = message.toLowerCase().trim();
 
-        // Check if asking for catalog via configured keywords or default regex
+        // 1. PRIORITY 1: User-configured custom keywords take highest precedence
+        let matchedKw = null;
+        for (const kw of parsedKeywords) {
+            const list = (kw.keyword || '').toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
+            if (list.some(k => textLower.includes(k))) {
+                matchedKw = kw;
+                break;
+            }
+        }
+
+        if (matchedKw) {
+            return res.json({
+                sender: 'bot',
+                text: matchedKw.response || '',
+                stage: matchedKw.stage || 'En Conversación',
+                assignedTag: matchedKw.stage || 'Interesado',
+                matchedKeyword: true
+            });
+        }
+
+        // 2. PRIORITY 2: Catalog triggers (configured keywords or catalog regex)
         const rawCatalogKw = sim.catalog_keywords || 'catalogo, catálago, catalogo pdf, productos, servicios, lista de precios, precios, menu, carta, lista, cotizar, fotos de productos, ver catalogo';
         const catalogKwList = rawCatalogKw.toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
         const isCatalogKeywordMatch = catalogKwList.some(k => k !== '' && textLower.includes(k));
@@ -622,27 +642,7 @@ app.post('/api/public/simulator-chat', async (req, res) => {
             });
         }
 
-        let matchedKw = null;
-
-        for (const kw of parsedKeywords) {
-            const list = (kw.keyword || '').toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
-            if (list.some(k => textLower.includes(k))) {
-                matchedKw = kw;
-                break;
-            }
-        }
-
-        if (matchedKw) {
-            return res.json({
-                sender: 'bot',
-                text: matchedKw.response || '',
-                stage: matchedKw.stage || 'En Conversación',
-                assignedTag: matchedKw.stage || 'Interesado',
-                matchedKeyword: true
-            });
-        }
-
-        // Evaluate with AI engine if enabled
+        // 3. PRIORITY 3: Evaluate with AI engine if enabled
         if (sim.ai_enabled === 1 && sim.ai_system_prompt && sim.ai_system_prompt.trim()) {
             const formattedHistory = (history || []).map(h => ({
                 role: h.sender === 'bot' ? 'assistant' : 'user',
@@ -691,7 +691,7 @@ app.post('/api/public/simulator-chat', async (req, res) => {
             }
         }
 
-        // Default fallback if AI has no answer or is disabled
+        // 4. Fallback if AI has no answer or is disabled
         return res.json({
             sender: 'bot',
             text: 'Gracias por tu consulta. Un asesor de nuestro equipo comercial de Alidea te responderá a la brevedad.',
@@ -724,6 +724,9 @@ app.get('/api/admin/simulator-config', requireAdmin, async (req, res) => {
         }
         let parsedKeywords = [];
         try { parsedKeywords = JSON.parse(sim.keywords_json || '[]'); } catch(e) {}
+
+        let parsedCatalog = [];
+        try { parsedCatalog = JSON.parse(sim.catalog_json || '[]'); } catch(e) {}
 
         let parsedCatalogMedia = [];
         try { parsedCatalogMedia = JSON.parse(sim.catalog_media_files || '[]'); } catch(e) {}

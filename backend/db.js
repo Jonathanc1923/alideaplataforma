@@ -317,26 +317,21 @@ async function getDbConnection() {
 
   // Seed default simulator configuration if not present
   try {
-    const existingSim = await db.get("SELECT id FROM simulator_config WHERE id = 'default'");
+    const existingSim = await db.get("SELECT id, keywords_json FROM simulator_config WHERE id = 'default'");
     if (!existingSim) {
-      const defaultKeywords = JSON.stringify([
-        {
-          keyword: 'precio,costo,plan,cuanto cuesta',
-          response: '💳 Contamos con el Plan Acceso Total Anual por solo S/ 350 que incluye Bot 24/7, CRM Kanban, Retargeting Masivo y Curso de Anuncios en Meta y TikTok. Te acabamos de registrar en el sistema.',
-          stage: 'Propuesta Enviada'
-        },
-        {
-          keyword: 'comprar,cerrar,asesor,pedido,adquirir',
-          response: '🎉 ¡Excelente decisión! Tu asesor asignado se pondrá en contacto contigo de inmediato al WhatsApp 907318642.',
-          stage: 'Cerrado / Ganado'
-        }
-      ]);
-      const defaultPrompt = 'Eres Sofia, la asesora virtual comercial de Alidea en la demostración en vivo de nuestra página web. Tu objetivo es explicar de forma concisa, cálida, entusiasta y con emojis cómo Alidea ayuda a negocios a automatizar su atención por WhatsApp 24/7, capturar leads en CRM Kanban y lanzar retargeting masivo. Responde en 1 o 2 párrafos breves ideales para chat de WhatsApp.';
+      const defaultPrompt = 'Eres Sofia, la asesora virtual comercial de Alidea en la demostración en vivo de nuestra página web. Tu objetivo es explicar de forma concisa, cálida, entusiasta y con emojis cómo Alidea ayuda a negocios a automatizar su atención por WhatsApp 24/7, capturar leads en el CRM de Ventas y lanzar retargeting. Responde en 1 o 2 párrafos breves ideales para chat de WhatsApp.';
       await db.run(
         `INSERT INTO simulator_config (id, bot_name, welcome_message, keywords_json, delay_min, delay_max, ai_enabled, ai_system_prompt)
-         VALUES ('default', 'Alidea Bot Asistente', '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.', ?, 2, 5, 1, ?)`,
-        [defaultKeywords, defaultPrompt]
+         VALUES ('default', 'Alidea Bot Asistente', '¡Hola! Bienvenido a Alidea 🚀. Automatizamos tus ventas en WhatsApp y organizamos tus clientes en un CRM inteligente.', '[]', 2, 5, 1, ?)`,
+        [defaultPrompt]
       );
+    } else if (existingSim.keywords_json && existingSim.keywords_json.includes('907318642')) {
+      // Clean up legacy hardcoded seeds so user configured rules have 100% priority
+      try {
+        let kwList = JSON.parse(existingSim.keywords_json || '[]');
+        kwList = kwList.filter(k => !(k.response || '').includes('907318642') && !k.keyword.includes('907318642'));
+        await db.run("UPDATE simulator_config SET keywords_json = ? WHERE id = 'default'", [JSON.stringify(kwList)]);
+      } catch (err) {}
     }
   } catch(e) {}
 

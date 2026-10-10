@@ -288,6 +288,7 @@ export default function UserWorkspace() {
     batchDelaySeconds: 30
   });
   const [activeCampaignId, setActiveCampaignId] = useState(null);
+  const [campaignHistory, setCampaignHistory] = useState([]);
   const [campaignProgress, setCampaignProgress] = useState(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [isStartingRetargeting, setIsStartingRetargeting] = useState(false);
@@ -4940,7 +4941,7 @@ export default function UserWorkspace() {
               <div className="glass-panel p-4 rounded-2xl border border-slate-800">
                 <div className="text-xs text-slate-400">Grupos / Etiquetas</div>
                 <div className="text-2xl font-extrabold text-purple-400 mt-1 font-heading">
-                  {crmTags.length}
+                  {(Array.isArray(crmTags) ? crmTags : []).length}
                 </div>
                 <div className="text-[10px] text-slate-500 mt-0.5">Segmentos configurados</div>
               </div>
@@ -4948,7 +4949,7 @@ export default function UserWorkspace() {
               <div className="glass-panel p-4 rounded-2xl border border-slate-800">
                 <div className="text-xs text-slate-400">Campañas Realizadas</div>
                 <div className="text-2xl font-extrabold text-indigo-400 mt-1 font-heading">
-                  {campaignHistory.length}
+                  {(Array.isArray(campaignHistory) ? campaignHistory : []).length}
                 </div>
                 <div className="text-[10px] text-slate-500 mt-0.5">Envíos programados</div>
               </div>
@@ -4956,7 +4957,7 @@ export default function UserWorkspace() {
               <div className="glass-panel p-4 rounded-2xl border border-slate-800">
                 <div className="text-xs text-slate-400">Estado WhatsApp</div>
                 <div className="text-base font-bold mt-1.5 flex items-center gap-2">
-                  {botStatus.status === 'CONNECTED' ? (
+                  {(botStatus?.status === 'CONNECTED' || botStatus?.connected) ? (
                     <span className="text-emerald-400 flex items-center gap-1.5 text-xs font-semibold">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                       Listo para Difusión
@@ -4965,7 +4966,7 @@ export default function UserWorkspace() {
                     <span className="text-amber-400 text-xs font-semibold">Requiere Conexión</span>
                   )}
                 </div>
-                <div className="text-[10px] text-slate-500 mt-0.5 font-mono">{botStatus.phone || 'Sin número'}</div>
+                <div className="text-[10px] text-slate-500 mt-0.5 font-mono">{botStatus?.phone || 'Sin número'}</div>
               </div>
             </div>
 
@@ -5010,7 +5011,7 @@ export default function UserWorkspace() {
                 </div>
 
                 {/* Specific Tag Cards */}
-                {crmTags.map(tag => {
+                {(Array.isArray(crmTags) ? crmTags : []).map(tag => {
                   const tagCount = getAllTargetableContacts().filter(c => c.tags && c.tags.toLowerCase().includes(tag.name.toLowerCase())).length;
                   return (
                     <div 
@@ -5058,7 +5059,7 @@ export default function UserWorkspace() {
                 <Clock size={16} className="text-indigo-400" /> Historial de Campañas de Retargeting
               </h3>
 
-              {campaignHistory.length === 0 ? (
+              {(!Array.isArray(campaignHistory) || campaignHistory.length === 0) ? (
                 <div className="py-12 text-center text-xs text-slate-500">
                   <Radio size={36} className="mx-auto mb-2 opacity-30 text-purple-400" />
                   No se han registrado campañas de retargeting aún. Haz clic en "Nueva Campaña" para empezar.

@@ -709,7 +709,250 @@ async function getDbConnection() {
   // Seed default tags for demo user if none exist
   await seedDefaultTagsForUser(db, demoUserId);
 
+  // Automatic bootstrap for official user 'alidea' on both local and production environments
+  await bootstrapAlideaOfficial(db);
+
   return db;
+}
+
+async function bootstrapAlideaOfficial(db) {
+  try {
+    const pwdHash = hashPassword('123456');
+    const alideaId = 'user-alidea-oficial';
+
+    // 1. Asegurar o actualizar usuario 'alidea'
+    await db.run(
+      `INSERT INTO users (id, username, password_hash, business_name, role, plan, currency_code, currency_symbol, is_active, failed_login_attempts, locked_until)
+       VALUES (?, 'alidea', ?, 'Alidea Academia', 'user', 'Plan Pro', 'PEN', 'S/', 1, 0, NULL)
+       ON CONFLICT(id) DO UPDATE SET
+         password_hash = excluded.password_hash,
+         business_name = 'Alidea Academia',
+         currency_code = 'PEN',
+         currency_symbol = 'S/',
+         is_active = 1,
+         failed_login_attempts = 0,
+         locked_until = NULL`,
+      [alideaId, pwdHash]
+    );
+
+    // Asegurar cualquier registro con username 'alidea'
+    await db.run(
+      `UPDATE users SET password_hash = ?, failed_login_attempts = 0, locked_until = NULL, is_active = 1, currency_code = 'PEN', currency_symbol = 'S/' WHERE LOWER(username) = 'alidea'`,
+      [pwdHash]
+    );
+
+    // 2. Sesión para alidea
+    const alideaSessionId = 'session-alidea-oficial';
+    await db.run(
+      `INSERT INTO sessions (id, user_id, session_name, status, phone_number, ai_enabled)
+       VALUES (?, ?, 'Alidea Bot Principal', 'CONNECTED', '51907318642', 1)
+       ON CONFLICT(id) DO UPDATE SET
+         user_id = excluded.user_id,
+         status = 'CONNECTED',
+         phone_number = '51907318642',
+         ai_enabled = 1`,
+      [alideaSessionId, alideaId]
+    );
+
+    // 3. Tax Settings
+    await db.run(
+      `INSERT INTO accounting_tax_settings (user_id, default_tax_percentage, income_tax_percentage, income_tax_manual_amount, income_tax_mode)
+       VALUES (?, 18, 29.5, 0, 'percentage')
+       ON CONFLICT(user_id) DO UPDATE SET
+         default_tax_percentage = 18,
+         income_tax_percentage = 29.5`,
+      [alideaId]
+    );
+
+    // 4. Chequear si faltan asientos contables
+    const accCount = await db.get('SELECT COUNT(*) as count FROM accounting_entries WHERE user_id = ?', [alideaId]);
+    if (!accCount || accCount.count < 10) {
+      const entries = [
+        { date: '2026-10-09', type: 'ingreso', classification: 'activo', account: 'Caja / Banco (Yape)', desc: 'Venta Ecosistema IA 24/7 - Carlos Mendoza (Yape #84920)', amount: 41.53, tax: 7.47, total: 49.00, ref: 'Bol-B001-0482' },
+        { date: '2026-10-09', type: 'ingreso', classification: 'activo', account: 'Caja / Banco (Plin)', desc: 'Venta Ecosistema IA 24/7 - Lic. Roberto Gómez (Plin #91823)', amount: 41.53, tax: 7.47, total: 49.00, ref: 'Bol-B001-0483' },
+        { date: '2026-10-08', type: 'ingreso', classification: 'activo', account: 'Pasarela de Pagos (Tarjeta Visa)', desc: 'Venta Ecosistema IA 24/7 - Lucía Santillán (Culqi/Stripe)', amount: 41.53, tax: 7.47, total: 49.00, ref: 'Bol-B001-0481' },
+        { date: '2026-10-08', type: 'egreso', classification: 'pasivo', account: 'Publicidad Meta Ads', desc: 'Campaña Atracción Facebook & Instagram Ads - Tráfico WhatsApp', amount: 120.00, tax: 21.60, total: 141.60, ref: 'Fact-FB-2026-1008' },
+        { date: '2026-10-07', type: 'ingreso', classification: 'activo', account: 'Caja / Banco (Yape)', desc: 'Venta Pack 50 Plantillas + Asesoría - Dra. Valeria Ruiz', amount: 126.27, tax: 22.73, total: 149.00, ref: 'Fact-F001-0129' },
+        { date: '2026-10-06', type: 'ingreso', classification: 'activo', account: 'Caja / Banco (Yape)', desc: 'Venta Ecosistema IA S/49 - 3 Licencias Nuevas Negocios', amount: 124.58, tax: 22.42, total: 147.00, ref: 'Bol-B001-0478' },
+        { date: '2026-10-05', type: 'egreso', classification: 'pasivo', account: 'Infraestructura & Servidores', desc: 'Servidor Cloud VPS Dedicado WhatsApp Baileys & Ollama IA', amount: 85.00, tax: 15.30, total: 100.30, ref: 'Inv-HETZNER-992' },
+        { date: '2026-10-04', type: 'ingreso', classification: 'activo', account: 'Caja / Banco (Plin)', desc: 'Venta Programa Táctico de Atracción S/89 - Cusco Adventure', amount: 75.42, tax: 13.58, total: 89.00, ref: 'Bol-B001-0475' },
+        { date: '2026-10-03', type: 'ingreso', classification: 'activo', account: 'Caja / Banco (Yape)', desc: 'Venta Ecosistema IA S/49 - Mariana Paredes Boutique', amount: 41.53, tax: 7.47, total: 49.00, ref: 'Bol-B001-0474' },
+        { date: '2026-10-02', type: 'egreso', classification: 'pasivo', account: 'Herramientas de Software', desc: 'Suscripción OpenAI API & Servidores CDN', amount: 45.00, tax: 8.10, total: 53.10, ref: 'Rec-OAI-5510' },
+        { date: '2026-10-01', type: 'ingreso', classification: 'activo', account: 'Caja / Banco (Yape)', desc: 'Venta Ecosistema IA S/49 - 2 Clientes Campaña Fin de Mes', amount: 83.05, tax: 14.95, total: 98.00, ref: 'Bol-B001-0471' },
+        { date: '2026-09-28', type: 'ingreso', classification: 'activo', account: 'Ventas Ecosistema IA', desc: 'Lote 6 Ventas Ecosistema IA S/49 Promoción Lanzamiento', amount: 249.15, tax: 44.85, total: 294.00, ref: 'Bol-B001-0450' },
+        { date: '2026-09-20', type: 'ingreso', classification: 'activo', account: 'Consultoría & Asesorías VIP', desc: 'Implementación Inmobiliaria Horizon 5 Asesores', amount: 296.61, tax: 53.39, total: 350.00, ref: 'Fact-F001-0115' },
+        { date: '2026-09-15', type: 'egreso', classification: 'pasivo', account: 'Publicidad Meta Ads', desc: 'Pauta TikTok Ads & Meta Ads Escalamiento Septiembre', amount: 180.00, tax: 32.40, total: 212.40, ref: 'Fact-FB-2026-0915' },
+        { date: '2026-09-10', type: 'ingreso', classification: 'activo', account: 'Ventas Cursos Digitales', desc: 'Ventas Curso Marketing con IA (5 alumnos)', amount: 377.12, tax: 67.88, total: 445.00, ref: 'Bol-B001-0430' },
+        { date: '2026-08-25', type: 'ingreso', classification: 'activo', account: 'Ventas Ecosistema IA', desc: 'Venta Lote 8 Licencias Ecosistema IA', amount: 332.20, tax: 59.80, total: 392.00, ref: 'Bol-B001-0390' },
+        { date: '2026-08-15', type: 'egreso', classification: 'pasivo', account: 'Publicidad Meta Ads', desc: 'Pauta Publicitaria Campaña Escalamiento Agosto', amount: 150.00, tax: 27.00, total: 177.00, ref: 'Fact-FB-2026-0815' },
+        { date: '2026-08-05', type: 'ingreso', classification: 'activo', account: 'Ventas Software', desc: 'Renovaciones y Paquetes de Automatizaciones Pro', amount: 211.86, tax: 38.14, total: 250.00, ref: 'Fact-F001-0098' }
+      ];
+
+      for (let i = 0; i < entries.length; i++) {
+        const ent = entries[i];
+        await db.run(
+          `INSERT OR IGNORE INTO accounting_entries (id, user_id, entry_date, entry_type, classification, account_name, description, amount, tax_percentage, tax_amount, total_amount, reference_doc, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 18, ?, ?, ?, 'Registro automatizado en Bóveda Alidea')`,
+          [`acc-${alideaId}-${i + 1}`, alideaId, ent.date, ent.type, ent.classification, ent.account, ent.desc, ent.amount, ent.tax, ent.total, ent.ref]
+        );
+      }
+    }
+
+    // 5. Chequear si faltan leads en CRM
+    const leadsCount = await db.get('SELECT COUNT(*) as count FROM crm_leads WHERE user_id = ?', [alideaId]);
+    if (!leadsCount || leadsCount.count < 10) {
+      const mockConversations = [
+        { name: 'Carlos Mendoza', phone: '+51984123456', cleanPhone: '51984123456', email: 'carlos.mendoza.peru@gmail.com', stage: 'ganado', dealValue: 49.00, source: 'facebook_ads', tags: 'VIP, Pagado, Yape, Ecosistema S/49', notes: 'Cliente transfirió por Yape S/ 49. Acceso al aula virtual y Bot IA activado exitosamente.', messages: [
+          { fromMe: 0, text: 'Hola Alidea, vi el anuncio en Facebook sobre el Ecosistema de Ventas IA por S/ 49. ¿Sigue disponible la oferta?' },
+          { fromMe: 1, text: '¡Hola Carlos! ⚡ Qué gusto saludarte. Soy el Asistente IA de Alidea Academia. ¡Sí, exactamente! La promoción del Ecosistema de Ventas IA 24/7 por solo S/ 49 está activa por tiempo limitado (pago único, sin mensualidades).' },
+          { fromMe: 0, text: 'Excelente. ¿Qué incluye exactamente y cómo hago para pagar por Yape?' },
+          { fromMe: 1, text: 'Te incluye:\n✅ Curso completo de Marketing & Anuncios con IA.\n✅ Tu propio Bot de WhatsApp 24/7 alojado por 1 año.\n✅ CRM de gestión y seguimiento de clientes.\n\n📲 Puedes cancelar S/ 49 al Yape/Plin: 907 318 642 a nombre de Alidea Academia. Envíame la captura por aquí.' },
+          { fromMe: 0, text: 'Listo, aquí te adjunto la captura del Yape por S/ 49. Mi nombre es Carlos Mendoza.' },
+          { fromMe: 1, text: '🎉 ¡Pago confirmado Carlos! Bienvenido al Ecosistema Alidea. Tus credenciales son:\n👤 Usuario: carlos.mendoza\n🔑 Acceso: https://academia.alidea.pe\n\nTu bot ya está listo para configurarse.' }
+        ]},
+        { name: 'Dra. Valeria Ruiz - Clínica Dental', phone: '+51972654321', cleanPhone: '51972654321', email: 'contacto@odontoruiz.com', stage: 'propuesta', dealValue: 49.00, source: 'instagram', tags: 'Clínica Dental, Interesado, Cita Agendada', notes: 'Requiere bot para automatizar respuestas de precios de brackets y blanqueamiento.', messages: [
+          { fromMe: 0, text: 'Buenas tardes, tengo una clínica odontológica. ¿El bot puede responder las dudas de precios de ortodoncia y agendar citas automáticamente?' },
+          { fromMe: 1, text: '¡Buenas tardes Dra. Valeria! 🩺 Por supuesto. Nuestro Bot IA clasifica a los pacientes según el tratamiento y les envía tus horarios disponibles de forma 100% autónoma.' },
+          { fromMe: 0, text: 'Me parece genial porque actualmente pierdo muchos pacientes en las noches cuando no estamos en la clínica.' },
+          { fromMe: 1, text: 'Exacto, el Bot responde en menos de 3 segundos las 24 horas. ¿Deseas que te reservemos el acceso promocional por S/ 49?' },
+          { fromMe: 0, text: 'Por favor, resérvamelo. En una hora que termine mi consulta te transfiero por Yape.' }
+        ]},
+        { name: 'Ing. Fernando Castillo - Inmobiliaria', phone: '+51961889012', cleanPhone: '51961889012', email: 'fcastillo@horizoninmobiliaria.pe', stage: 'negociacion', dealValue: 149.00, source: 'google_ads', tags: 'Inmobiliaria, Proyectos, Telemetría BI', notes: 'Interesado en gestionar 5 asesores y campañas masivas de retargeting de departamentos.', messages: [
+          { fromMe: 0, text: 'Buenos días, manejamos proyectos inmobiliarios. ¿El CRM permite segmentar compradores por rango de presupuesto?' },
+          { fromMe: 1, text: '¡Buenos días Ing. Fernando! 🏢 Efectivamente. El panel incluye etiquetas comerciales inteligentes, embudo de ventas (Kanban) y difusión masiva con delays anti-bloqueo.' },
+          { fromMe: 0, text: '¿Puedo conectar varios números o ver las métricas de cuántos leads ingresan cada día?' },
+          { fromMe: 1, text: 'Sí, la sección de Telemetría & BI te grafica en tiempo real los ingresos, leads por canal y efectividad de cada asesor en vivo.' },
+          { fromMe: 0, text: 'Muy completo. Pásame los datos de cuenta bancaria BCP o enlace de pago corporativo por favor.' }
+        ]},
+        { name: 'Mariana Paredes - Boutique & Moda', phone: '+51993445120', cleanPhone: '51993445120', email: 'mariana.boutique@gmail.com', stage: 'contactado', dealValue: 49.00, source: 'tiktok', tags: 'E-commerce, Catálogo PDF, Calzado', notes: 'Le enviamos el catálogo y video demostrativo. Vende vestidos de fiesta.', messages: [
+          { fromMe: 0, text: 'Hola! Vi el video en TikTok. ¿Cómo hace el bot para enviar las fotos de los vestidos cuando la gente pide catálogo?' },
+          { fromMe: 1, text: '¡Hola Mariana! 👗 El sistema detecta automáticamente palabras como "catálogo", "precios", "tallas" o "fotos" y envía al instante tu PDF con la lista de precios.' },
+          { fromMe: 0, text: '¡Qué maravilla! Justo lo que necesito para no tener que estar enviando fotos una por una todo el día.' },
+          { fromMe: 1, text: 'Totalmente. Te ahorra hasta 4 horas diarias de trabajo repetitivo. Aprovecha la promoción única de S/ 49 antes de que finalice hoy.' }
+        ]},
+        { name: 'Lic. Roberto Gómez - Academia Pre', phone: '+51950112334', cleanPhone: '51950112334', email: 'director@academiapre.edu.pe', stage: 'ganado', dealValue: 49.00, source: 'whatsapp', tags: 'Educación, Pagado, Plin, Alumno Activo', notes: 'Matrícula de ciclo verano 2026. Pagó por Plin.', messages: [
+          { fromMe: 0, text: 'Hola, deseo adquirir el Ecosistema para nuestra sede central de informes preuniversitarios.' },
+          { fromMe: 1, text: '¡Hola Lic. Roberto! Un gusto saludarte. Con el Ecosistema Alidea podrás automatizar la entrega de mallas curriculares, costos de matrícula y horarios de clase.' },
+          { fromMe: 0, text: 'Excelente. Acabo de hacer el pago por Plin por S/ 49.' },
+          { fromMe: 1, text: '¡Recibido con éxito! 🎓 Tu plataforma ya está activa con acceso ilimitado durante 1 año. Ya puedes escanear el QR y comenzar a atender a tus postulantes.' }
+        ]},
+        { name: 'Andrea Benavides - Cusco Travel Agency', phone: '+51941778990', cleanPhone: '51941778990', email: 'andrea@cuscoadventuretours.com', stage: 'negociacion', dealValue: 99.00, source: 'facebook_ads', tags: 'Turismo, Cusco Tours, Retargeting Activo', notes: 'Interesada en recontactar a 2,000 turistas que viajaron el año pasado.', messages: [
+          { fromMe: 0, text: 'Hola amigos de Alidea, tengo una base de datos de 2000 turistas en Excel. ¿Puedo importar sus contactos y mandarles una oferta especial?' },
+          { fromMe: 1, text: '¡Hola Andrea! 🏔️ Claro que sí. En la pestaña "Emisión" puedes importar tu base de clientes y lanzar difusiones segmentadas por lotes de 5 a 10 contactos con intervalos aleatorios.' },
+          { fromMe: 0, text: '¡Espectacular! ¿Y les puedo adjuntar el PDF del itinerario con fotos del tour a la Montaña de 7 Colores?' },
+          { fromMe: 1, text: 'Exactamente, permite texto enriquecido, imágenes, audios y documentos PDF en el mismo envío.' }
+        ]},
+        { name: 'Gustavo Morales - Taller & Autopartes', phone: '+51987234567', cleanPhone: '51987234567', email: 'repuestos.morales@hotmail.com', stage: 'nuevo', dealValue: 49.00, source: 'facebook_ads', tags: 'Autopartes, Nuevo Lead, Cotización', notes: 'Nuevo contacto solicitando información general sobre cómo cargar su inventario.', messages: [
+          { fromMe: 0, text: 'Buenas noches, vi su publicidad de automatización para negocios. ¿Cómo me sirve para un taller de mecánica y repuestos?' },
+          { fromMe: 1, text: '¡Buenas noches Gustavo! 🚗 Te permite registrar tus repuestos y servicios en el Catálogo Digital, enviar presupuestos rápidos por WhatsApp y llevar el control contable de tus ingresos diarios.' },
+          { fromMe: 0, text: '¿Es difícil de configurar? No soy muy tecnológico.' },
+          { fromMe: 1, text: 'Para nada Gustavo, el sistema viene pre-configurado y en el curso paso a paso te enseñamos a dejarlo funcionando en solo 15 minutos.' }
+        ]},
+        { name: 'Lucía Santillán - Belleza & Spa', phone: '+51963852741', cleanPhone: '51963852741', email: 'luciasantillan.spa@gmail.com', stage: 'ganado', dealValue: 49.00, source: 'instagram', tags: 'Spa, Pagado, Tarjeta, Acceso Enviado', notes: 'Pagó con tarjeta Visa. Ya sincronizó su WhatsApp Business con Alidea Bot.', messages: [
+          { fromMe: 0, text: 'Hola! Pagué por la web con tarjeta Visa los S/ 49. ¿Por dónde entro al panel?' },
+          { fromMe: 1, text: '¡Hola Lucía! 🌸 Muchas gracias por tu compra. Te confirmamos el registro. Tu usuario es tu correo y tu acceso ya está disponible.' },
+          { fromMe: 0, text: '¡Muchas gracias! Ya entré y está súper claro el video de bienvenida. Ya vinculé mi QR.' },
+          { fromMe: 1, text: '¡Genial Lucía! A romperla en ventas con tu Spa. Cualquier consulta estamos para apoyarte. ✨' }
+        ]},
+        { name: 'Marcos Alarcón - Sabor Criollo Restaurant', phone: '+51978965214', cleanPhone: '51978965214', email: 'marcos.alida.delivery@gmail.com', stage: 'propuesta', dealValue: 49.00, source: 'facebook_ads', tags: 'Restaurante, Delivery, Carta Digital', notes: 'Quiere que el bot envíe la carta del día a las 11:30 AM a clientes.', messages: [
+          { fromMe: 0, text: 'Hola, tengo un restaurante en San Borja. ¿Puedo programar envíos del menú ejecutivo diario a mis clientes habituales?' },
+          { fromMe: 1, text: '¡Hola Marcos! 🍲 Totalmente. Puedes usar la función de "Emisión" de Alidea para mandar la carta del día con fotos de los platos en 1 solo clic a todos tus comensales registrados.' },
+          { fromMe: 0, text: 'Perfecto, eso me ahorraría mucho tiempo. ¿Hasta cuándo dura la oferta de S/ 49?' },
+          { fromMe: 1, text: 'El precio especial de S/ 49 se mantiene si realizas tu activación el día de hoy.' }
+        ]},
+        { name: 'Diana Cárdenas - Joyería Fina', phone: '+51991321654', cleanPhone: '51991321654', email: 'diana.joyas@gmail.com', stage: 'contactado', dealValue: 49.00, source: 'instagram', tags: 'Joyería, Seguimiento 24h, Consulta Pagos', notes: 'Consultó sobre pagos recurrentes. Aclarado que es 1 solo pago anual sin letra chica.', messages: [
+          { fromMe: 0, text: 'Hola, una consulta sincera: ¿después de pagar los S/ 49 me van a cobrar mensualidades adicionales?' },
+          { fromMe: 1, text: '¡Hola Diana! ✨ Cero letras pequeñas. En Alidea Academia haces un ÚNICO PAGO de S/ 49. Con eso tienes 1 año completo de servidor para tu Bot, la plantilla de CRM de Ventas y el curso completo de Marketing con IA.' },
+          { fromMe: 0, text: '¡Qué tranquilidad! Había probado otros programas que cobraban 30 dólares al mes. Me parece una excelente oportunidad.' },
+          { fromMe: 1, text: '¡Exacto! Nuestro objetivo es que todo emprendedor pueda automatizar sus ventas sin desangrarse en mensualidades.' }
+        ]}
+      ];
+
+      for (let i = 0; i < mockConversations.length; i++) {
+        const conv = mockConversations[i];
+        const leadId = `lead-${alideaId}-${i + 1}`;
+        const jid = `${conv.cleanPhone}@s.whatsapp.net`;
+        const lastMsg = conv.messages[conv.messages.length - 1].text;
+
+        await db.run(
+          `INSERT OR REPLACE INTO crm_leads (id, user_id, name, phone, email, stage, deal_value, source, tags, notes, last_message, ai_disabled)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+          [leadId, alideaId, conv.name, conv.phone, conv.email, conv.stage, conv.dealValue, conv.source, conv.tags, conv.notes, lastMsg]
+        );
+
+        for (let mIdx = 0; mIdx < conv.messages.length; mIdx++) {
+          const msg = conv.messages[mIdx];
+          const msgId = `msg-${alideaId}-${i + 1}-${mIdx + 1}`;
+          await db.run(
+            `INSERT OR REPLACE INTO chat_messages (id, user_id, session_id, jid, sender_phone, sender_name, from_me, text, media_url)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+            [msgId, alideaId, alideaSessionId, jid, conv.cleanPhone, msg.fromMe ? 'Alidea Academia' : conv.name, msg.fromMe ? 1 : 0, msg.text]
+          );
+        }
+      }
+    }
+
+    // 6. Productos & Órdenes & Campañas
+    const prodCount = await db.get('SELECT COUNT(*) as count FROM products WHERE user_id = ?', [alideaId]);
+    if (!prodCount || prodCount.count < 3) {
+      const prods = [
+        { name: 'Ecosistema de Ventas IA 24/7 (Acceso 1 Año)', sku: 'ALI-ECO-049', price: 49.00, cat: 'Software & Licencias', desc: 'Acceso completo por 1 año a tu Asesor Bot en servidor dedicado, CRM de ventas y curso táctico de anuncios.' },
+        { name: 'Programa Táctico de Atracción con IA', sku: 'ALI-MKT-089', price: 89.00, cat: 'Cursos & Capacitación', desc: 'Estrategias probadas de pauta publicitaria directa en TikTok Ads y Meta Ads para captar clientes calificados.' },
+        { name: 'Pack 50 Plantillas de Respuestas & Prompts', sku: 'ALI-TMP-029', price: 29.00, cat: 'Plantillas Digitales', desc: 'Scripts de venta persuasivos, cierres por objeciones de precio y prompts de IA para WhatsApp.' },
+        { name: 'Sesión 1 a 1 de Auditoría & Implementación', sku: 'ALI-VIP-149', price: 149.00, cat: 'Consultoría VIP', desc: 'Revisión privada de tus embudos, optimización del bot y conexión de tu base de clientes.' }
+      ];
+      for (let pIdx = 0; pIdx < prods.length; pIdx++) {
+        const p = prods[pIdx];
+        await db.run(
+          `INSERT OR REPLACE INTO products (id, user_id, name, sku, price, category, description, in_stock)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+          [`prod-${alideaId}-${pIdx + 1}`, alideaId, p.name, p.sku, p.price, p.cat, p.desc]
+        );
+      }
+    }
+
+    const orderCount = await db.get('SELECT COUNT(*) as count FROM orders WHERE user_id = ?', [alideaId]);
+    if (!orderCount || orderCount.count < 3) {
+      const ordersData = [
+        { orderNum: 'ORD-2026-1089', amount: 49.00, status: 'completado', items: [{ name: 'Ecosistema de Ventas IA 24/7', qty: 1, price: 49.00 }] },
+        { orderNum: 'ORD-2026-1088', amount: 49.00, status: 'completado', items: [{ name: 'Ecosistema de Ventas IA 24/7', qty: 1, price: 49.00 }] },
+        { orderNum: 'ORD-2026-1087', amount: 49.00, status: 'completado', items: [{ name: 'Ecosistema de Ventas IA 24/7', qty: 1, price: 49.00 }] },
+        { orderNum: 'ORD-2026-1086', amount: 149.00, status: 'procesando', items: [{ name: 'Pack 50 Plantillas + Asesoría VIP', qty: 1, price: 149.00 }] },
+        { orderNum: 'ORD-2026-1085', amount: 89.00, status: 'pendiente', items: [{ name: 'Programa Táctico de Atracción', qty: 1, price: 89.00 }] },
+        { orderNum: 'ORD-2026-1084', amount: 49.00, status: 'pendiente', items: [{ name: 'Ecosistema de Ventas IA 24/7', qty: 1, price: 49.00 }] }
+      ];
+      for (let oIdx = 0; oIdx < ordersData.length; oIdx++) {
+        const ord = ordersData[oIdx];
+        await db.run(
+          `INSERT OR REPLACE INTO orders (id, user_id, order_number, total_amount, status, items_json, notes)
+           VALUES (?, ?, ?, ?, ?, ?, 'Generado desde WhatsApp Bot')`,
+          [`ord-${alideaId}-${oIdx + 1}`, alideaId, ord.orderNum, ord.amount, ord.status, JSON.stringify(ord.items)]
+        );
+      }
+    }
+
+    const campCount = await db.get('SELECT COUNT(*) as count FROM retargeting_campaigns WHERE user_id = ?', [alideaId]);
+    if (!campCount || campCount.count < 2) {
+      const campaignsData = [
+        { name: '🚀 Difusión Relámpago Ecosistema IA S/49', tag: 'Todos los Contactos', total: 142, sent: 142, status: 'completed' },
+        { name: '🔥 Seguimiento Clientes Pendientes Yape/Plin', tag: 'Interesado', total: 38, sent: 38, status: 'completed' },
+        { name: '💎 Promoción Exclusiva VIP Clientes Antiguos', tag: 'VIP', total: 65, sent: 65, status: 'completed' }
+      ];
+      for (let cIdx = 0; cIdx < campaignsData.length; cIdx++) {
+        const c = campaignsData[cIdx];
+        await db.run(
+          `INSERT OR REPLACE INTO retargeting_campaigns (id, user_id, session_id, name, target_tag, messages_json, media_files, batch_size, total_recipients, sent_count, failed_count, status, logs_json)
+           VALUES (?, ?, ?, ?, ?, '[]', '[]', 5, ?, ?, 0, ?, '[]')`,
+          [`camp-${alideaId}-${cIdx + 1}`, alideaId, alideaSessionId, c.name, c.tag, c.total, c.sent, c.status]
+        );
+      }
+    }
+
+    // 7. Seed tags
+    await seedDefaultTagsForUser(db, alideaId);
+  } catch (err) {
+    console.warn('[Alidea Bootstrap] Error al inicializar usuario oficial alidea:', err.message);
+  }
 }
 
 async function seedDefaultTagsForUser(db, userId) {
@@ -736,4 +979,4 @@ async function seedDefaultTagsForUser(db, userId) {
   }
 }
 
-module.exports = { getDbConnection, hashPassword, seedDefaultTagsForUser };
+module.exports = { getDbConnection, hashPassword, seedDefaultTagsForUser, bootstrapAlideaOfficial };

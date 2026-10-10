@@ -2743,8 +2743,21 @@ app.get('/api/accounting/entries', async (req, res) => {
         const userId = getUserId(req);
         if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
 
-        const { year, month, classification, type, search } = req.query;
+        const { year, month, classification, type, entry_type, search } = req.query;
+        const effectiveType = type || entry_type;
         const db = await getDbConnection();
+
+        // Si es el usuario alidea o si no tiene asientos, asegurar bootstrap
+        const user = await db.get('SELECT username FROM users WHERE id = ?', [userId]);
+        if (user && (user.username === 'alidea' || user.username === 'demo')) {
+            const countCheck = await db.get('SELECT COUNT(*) as c FROM accounting_entries WHERE user_id = ?', [userId]);
+            if (!countCheck || countCheck.c < 5) {
+                const { bootstrapAlideaOfficial } = require('./db');
+                if (typeof bootstrapAlideaOfficial === 'function') {
+                    await bootstrapAlideaOfficial(db);
+                }
+            }
+        }
 
         let query = 'SELECT * FROM accounting_entries WHERE user_id = ?';
         const params = [userId];
@@ -2762,9 +2775,9 @@ app.get('/api/accounting/entries', async (req, res) => {
             query += ' AND classification = ?';
             params.push(classification);
         }
-        if (type && type !== 'all') {
+        if (effectiveType && effectiveType !== 'all') {
             query += ' AND entry_type = ?';
-            params.push(type);
+            params.push(effectiveType);
         }
         if (search && search.trim()) {
             query += ' AND (description LIKE ? OR account_name LIKE ? OR reference_doc LIKE ? OR notes LIKE ?)';

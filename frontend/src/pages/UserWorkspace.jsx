@@ -5938,7 +5938,7 @@ export default function UserWorkspace() {
                       <ArrowUpRight size={16} className="text-emerald-400" />
                     </div>
                     <div className="text-2xl font-black text-emerald-400 mt-2 font-heading">
-                      ${(accountingSummary.totalIngresos || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {currencySymbol}{(accountingSummary.totalIngresos || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-[11px] text-slate-500 mt-1">Ventas brutas y cobros</div>
                   </div>
@@ -5949,7 +5949,7 @@ export default function UserWorkspace() {
                       <ArrowDownRight size={16} className="text-rose-400" />
                     </div>
                     <div className="text-2xl font-black text-rose-400 mt-2 font-heading">
-                      ${(accountingSummary.totalEgresos || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {currencySymbol}{(accountingSummary.totalEgresos || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-[11px] text-slate-500 mt-1">Compras y gastos operativos</div>
                   </div>
@@ -5960,7 +5960,7 @@ export default function UserWorkspace() {
                       <FileText size={16} className="text-amber-400" />
                     </div>
                     <div className="text-2xl font-black text-amber-400 mt-2 font-heading">
-                      ${(accountingSummary.totalNotasCredito || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {currencySymbol}{(accountingSummary.totalNotasCredito || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-[11px] text-slate-500 mt-1">Deducciones a ventas</div>
                   </div>
@@ -5971,7 +5971,7 @@ export default function UserWorkspace() {
                       <Percent size={16} className="text-cyan-400" />
                     </div>
                     <div className="text-2xl font-black text-cyan-400 mt-2 font-heading">
-                      ${(accountingSummary.totalImpuestos || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {currencySymbol}{(accountingSummary.totalImpuestos || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-[11px] text-slate-500 mt-1">IGV / IVA discriminado</div>
                   </div>
@@ -5984,7 +5984,7 @@ export default function UserWorkspace() {
                     <div className={`text-2xl font-black mt-2 font-heading ${
                       accountingSummary.saldoNeto >= 0 ? 'text-indigo-400' : 'text-rose-400'
                     }`}>
-                      ${(accountingSummary.saldoNeto || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {currencySymbol}{(accountingSummary.saldoNeto || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-[11px] text-slate-500 mt-1">Ingresos - Egresos</div>
                   </div>

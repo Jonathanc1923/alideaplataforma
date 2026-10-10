@@ -106,8 +106,9 @@ app.post('/api/auth/login', async (req, res) => {
             }
         }
 
-        const inputHash = hashPassword(password);
-        if (user.password_hash !== inputHash) {
+        const inputHash = hashPassword(password.trim());
+        const rawHash = hashPassword(password);
+        if (user.password_hash !== inputHash && user.password_hash !== rawHash) {
             const attempts = (user.failed_login_attempts || 0) + 1;
             const maxAttempts = 3;
             if (attempts >= maxAttempts) {
@@ -365,8 +366,8 @@ app.put('/api/admin/users/:userId', requireAdmin, async (req, res) => {
         if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
         if (password && password.trim().length > 0) {
-            const passwordHash = hashPassword(password);
-            await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, userId]);
+            const passwordHash = hashPassword(password.trim());
+            await db.run('UPDATE users SET password_hash = ?, failed_login_attempts = 0, locked_until = NULL WHERE id = ?', [passwordHash, userId]);
         }
 
         await db.run(
@@ -391,6 +392,39 @@ app.put('/api/admin/users/:userId', requireAdmin, async (req, res) => {
         );
 
         res.json({ message: 'Usuario actualizado correctamente' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin Dedicated Password Change Endpoint
+app.put('/api/admin/users/:userId/password', requireAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { new_password } = req.body;
+        if (!new_password || !new_password.trim()) {
+            return res.status(400).json({ error: 'La nueva contraseña no puede estar vacía' });
+        }
+
+        const db = await getDbConnection();
+        const user = await db.get('SELECT id, username, business_name FROM users WHERE id = ?', [userId]);
+        if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+        const passwordHash = hashPassword(new_password.trim());
+        await db.run(
+            `UPDATE users 
+             SET password_hash = ?, 
+                 failed_login_attempts = 0, 
+                 locked_until = NULL, 
+                 updated_at = CURRENT_TIMESTAMP 
+             WHERE id = ?`,
+            [passwordHash, userId]
+        );
+
+        res.json({ 
+            success: true, 
+            message: `Contraseña de @${user.username} (${user.business_name}) actualizada con éxito.` 
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

@@ -36,7 +36,9 @@ import {
   Image as ImageIcon,
   Tag,
   AlertCircle,
-  AlertTriangle
+  AlertTriangle,
+  KeyRound,
+  ShieldCheck
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
@@ -72,6 +74,12 @@ export default function AdminDashboard() {
   const [editPlan, setEditPlan] = useState('');
   const [editIsActive, setEditIsActive] = useState(true);
   const [editNewPassword, setEditNewPassword] = useState('');
+
+  // Dedicated Password Change Modal State
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordTargetUser, setPasswordTargetUser] = useState(null);
+  const [quickNewPassword, setQuickNewPassword] = useState('');
+  const [passwordSuccessMsg, setPasswordSuccessMsg] = useState('');
 
   // ==========================================
   // LANDING SIMULATOR CONFIGURATION STATE
@@ -525,6 +533,44 @@ export default function AdminDashboard() {
     }
   };
 
+  const openPasswordModal = (user) => {
+    setPasswordTargetUser(user);
+    setQuickNewPassword('');
+    setPasswordSuccessMsg('');
+    setShowPasswordModal(true);
+  };
+
+  const handleQuickPasswordChange = async (e) => {
+    e.preventDefault();
+    if (!passwordTargetUser || !quickNewPassword.trim()) {
+      alert('Por favor ingresa una nueva contraseña válida');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await axios.put(
+        `${API_BASE}/admin/users/${passwordTargetUser.id}/password`,
+        { new_password: quickNewPassword.trim() },
+        { headers: { 'x-admin-key': ADMIN_PIN } }
+      );
+
+      setPasswordSuccessMsg(res.data?.message || '¡Contraseña actualizada con éxito!');
+      setTimeout(() => {
+        setShowPasswordModal(false);
+        setPasswordTargetUser(null);
+        setQuickNewPassword('');
+        setPasswordSuccessMsg('');
+      }, 2000);
+      fetchAdminData();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || 'Error al cambiar la contraseña.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Direct Impersonation: jump to that user's workspace
   const impersonateUser = (user) => {
     localStorage.setItem('alidea_auth', JSON.stringify({
@@ -822,10 +868,18 @@ export default function AdminDashboard() {
                               
                               <button 
                                 onClick={() => openEditModal(u)}
-                                title="Editar usuario o contraseña"
+                                title="Editar datos del negocio"
                                 className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors"
                               >
                                 <Edit3 size={15} />
+                              </button>
+
+                              <button 
+                                onClick={() => openPasswordModal(u)}
+                                title="Cambiar / Resetear contraseña"
+                                className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-colors flex items-center gap-1 text-xs font-semibold"
+                              >
+                                <KeyRound size={15} />
                               </button>
 
                               <button 
@@ -1831,7 +1885,7 @@ export default function AdminDashboard() {
                   </label>
                   <select 
                     value={editPlan}
-                    onChange={(e) => setNewPlan(e.target.value)}
+                    onChange={(e) => setEditPlan(e.target.value)}
                     className="w-full glass-input px-4 py-2.5 rounded-xl text-sm bg-slate-900"
                   >
                     <option value="Plan Emprendedor">Plan Emprendedor</option>
@@ -1850,7 +1904,7 @@ export default function AdminDashboard() {
                   value={editNewPassword}
                   onChange={(e) => setEditNewPassword(e.target.value)}
                   placeholder="Nueva contraseña opcional"
-                  className="w-full glass-input px-4 py-2.5 rounded-xl text-sm"
+                  className="w-full glass-input px-4 py-2.5 rounded-xl text-sm font-mono"
                 />
               </div>
 
@@ -1880,6 +1934,77 @@ export default function AdminDashboard() {
                   className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 text-white font-bold text-sm shadow-lg shadow-amber-500/25 transition-all disabled:opacity-50"
                 >
                   {submitting ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 7. DEDICATED PASSWORD CHANGE MODAL */}
+      {showPasswordModal && passwordTargetUser && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md glass-panel p-6 sm:p-8 rounded-3xl border border-amber-500/40 shadow-2xl relative animate-fade-in">
+            <button 
+              onClick={() => { setShowPasswordModal(false); setPasswordTargetUser(null); }}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                <KeyRound size={22} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white font-heading">Cambiar Contraseña</h3>
+                <p className="text-xs text-slate-400">
+                  Usuario: <span className="text-amber-300 font-mono font-bold">@{passwordTargetUser.username}</span> ({passwordTargetUser.business_name})
+                </p>
+              </div>
+            </div>
+
+            {passwordSuccessMsg && (
+              <div className="mb-4 p-3.5 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl text-xs text-emerald-300 font-semibold flex items-center gap-2 animate-fade-in">
+                <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                <span>{passwordSuccessMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleQuickPasswordChange} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Nueva Contraseña para el Usuario *
+                </label>
+                <input 
+                  type="text" 
+                  value={quickNewPassword}
+                  onChange={(e) => setQuickNewPassword(e.target.value)}
+                  placeholder="Escribe la nueva contraseña..."
+                  className="w-full glass-input px-4 py-3 rounded-xl text-sm font-mono text-white bg-slate-950 border border-slate-700 focus:border-amber-500"
+                  required
+                  autoFocus
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Al cambiar la contraseña, la cuenta se desbloqueará inmediatamente en caso de bloqueos por intentos fallidos.
+                </p>
+              </div>
+
+              <div className="pt-3 flex justify-end gap-3">
+                <button 
+                  type="button"
+                  onClick={() => { setShowPasswordModal(false); setPasswordTargetUser(null); }}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  disabled={submitting || !quickNewPassword.trim()}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-500 text-slate-950 font-extrabold text-xs shadow-lg shadow-amber-500/25 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <KeyRound size={14} />
+                  <span>{submitting ? 'Actualizando...' : 'Guardar Nueva Contraseña'}</span>
                 </button>
               </div>
             </form>

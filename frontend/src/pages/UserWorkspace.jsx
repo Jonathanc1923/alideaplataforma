@@ -119,6 +119,28 @@ export default function UserWorkspace() {
     });
   };
 
+  const handleRemoveExistingMedia = (idx) => {
+    setExistingKwMedia(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleRemoveNewKwFile = (idx) => {
+    setKwFiles(prev => {
+      const updated = prev.filter((_, i) => i !== idx);
+      if (updated.length === 0) {
+        const input = document.getElementById('kwFileInput');
+        if (input) input.value = '';
+      }
+      return updated;
+    });
+  };
+
+  const handleClearAllKwMedia = () => {
+    setExistingKwMedia([]);
+    setKwFiles([]);
+    const input = document.getElementById('kwFileInput');
+    if (input) input.value = '';
+  };
+
   // Live Bot Simulator State
   const [simMessage, setSimMessage] = useState('');
   const [simChat, setSimChat] = useState([
@@ -4694,10 +4716,21 @@ export default function UserWorkspace() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
-                        <span>Adjuntos Multimedia (Imágenes, Audios de Voz PTT, Catálogos PDF, Videos)</span>
-                        <Paperclip size={14} className="text-indigo-400" />
-                      </label>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                          <Paperclip size={14} className="text-indigo-400" />
+                          <span>Adjuntos Multimedia (Imágenes, Audios PTT, Catálogos PDF, Videos)</span>
+                        </label>
+                        {(existingKwMedia.length > 0 || kwFiles.length > 0) && (
+                          <button
+                            type="button"
+                            onClick={handleClearAllKwMedia}
+                            className="text-[11px] text-rose-400 hover:text-rose-300 flex items-center gap-1 transition-colors font-medium hover:underline"
+                          >
+                            <Trash2 size={12} /> Quitar todos los adjuntos
+                          </button>
+                        )}
+                      </div>
                       
                       <input 
                         id="kwFileInput"
@@ -4708,13 +4741,61 @@ export default function UserWorkspace() {
                         className="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-indigo-300 hover:file:bg-slate-700 cursor-pointer"
                       />
 
+                      {/* Archivos adjuntos ya guardados en esta respuesta */}
                       {existingKwMedia.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {existingKwMedia.map((m, idx) => (
-                            <span key={idx} className="text-[10px] px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1">
-                              📎 {m.name || 'Archivo adjunto'}
-                            </span>
-                          ))}
+                        <div className="mt-2.5">
+                          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                            Archivos adjuntos guardados ({existingKwMedia.length}):
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {existingKwMedia.map((m, idx) => (
+                              <span 
+                                key={idx} 
+                                className="group text-[11px] pl-2.5 pr-1.5 py-1 rounded-lg bg-slate-850 bg-slate-900/90 text-slate-200 border border-slate-700/80 hover:border-slate-600 flex items-center gap-1.5 transition-all shadow-sm"
+                              >
+                                <span className="truncate max-w-[200px]" title={m.name || 'Archivo adjunto'}>
+                                  📎 {m.name || 'Archivo adjunto'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveExistingMedia(idx)}
+                                  className="p-1 rounded-md text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                                  title="Eliminar este archivo adjunto"
+                                >
+                                  <X size={13} />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Nuevos archivos seleccionados por subir */}
+                      {kwFiles.length > 0 && (
+                        <div className="mt-2.5">
+                          <span className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider block mb-1">
+                            Nuevos archivos por subir ({kwFiles.length}):
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {kwFiles.map((file, idx) => (
+                              <span 
+                                key={idx} 
+                                className="group text-[11px] pl-2.5 pr-1.5 py-1 rounded-lg bg-indigo-950/40 text-indigo-200 border border-indigo-500/30 flex items-center gap-1.5 transition-all shadow-sm"
+                              >
+                                <span className="truncate max-w-[200px]" title={file.name}>
+                                  ✨ {file.name} ({(file.size / 1024).toFixed(0)} KB)
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveNewKwFile(idx)}
+                                  className="p-1 rounded-md text-indigo-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                                  title="Quitar archivo"
+                                >
+                                  <X size={13} />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>

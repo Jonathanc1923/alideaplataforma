@@ -810,70 +810,224 @@ async function bootstrapAlideaOfficial(db) {
     const leadsCount = await db.get('SELECT COUNT(*) as count FROM crm_leads WHERE user_id = ?', [alideaId]);
     if (!leadsCount || leadsCount.count < 10) {
       const mockConversations = [
-        { name: 'Carlos Mendoza', phone: '+51984123456', cleanPhone: '51984123456', email: 'carlos.mendoza.peru@gmail.com', stage: 'ganado', dealValue: 49.00, source: 'facebook_ads', tags: 'VIP, Pagado, Yape, Ecosistema S/49', notes: 'Cliente transfirió por Yape S/ 49. Acceso al aula virtual y Bot IA activado exitosamente.', messages: [
-          { fromMe: 0, text: 'Hola Alidea, vi el anuncio en Facebook sobre el Ecosistema de Ventas IA por S/ 49. ¿Sigue disponible la oferta?' },
-          { fromMe: 1, text: '¡Hola Carlos! ⚡ Qué gusto saludarte. Soy el Asistente IA de Alidea Academia. ¡Sí, exactamente! La promoción del Ecosistema de Ventas IA 24/7 por solo S/ 49 está activa por tiempo limitado (pago único, sin mensualidades).' },
-          { fromMe: 0, text: 'Excelente. ¿Qué incluye exactamente y cómo hago para pagar por Yape?' },
-          { fromMe: 1, text: 'Te incluye:\n✅ Curso completo de Marketing & Anuncios con IA.\n✅ Tu propio Bot de WhatsApp 24/7 alojado por 1 año.\n✅ CRM de gestión y seguimiento de clientes.\n\n📲 Puedes cancelar S/ 49 al Yape/Plin: 907 318 642 a nombre de Alidea Academia. Envíame la captura por aquí.' },
-          { fromMe: 0, text: 'Listo, aquí te adjunto la captura del Yape por S/ 49. Mi nombre es Carlos Mendoza.' },
-          { fromMe: 1, text: '🎉 ¡Pago confirmado Carlos! Bienvenido al Ecosistema Alidea. Tus credenciales son:\n👤 Usuario: carlos.mendoza\n🔑 Acceso: https://academia.alidea.pe\n\nTu bot ya está listo para configurarse.' }
-        ]},
-        { name: 'Dra. Valeria Ruiz - Clínica Dental', phone: '+51972654321', cleanPhone: '51972654321', email: 'contacto@odontoruiz.com', stage: 'propuesta', dealValue: 49.00, source: 'instagram', tags: 'Clínica Dental, Interesado, Cita Agendada', notes: 'Requiere bot para automatizar respuestas de precios de brackets y blanqueamiento.', messages: [
-          { fromMe: 0, text: 'Buenas tardes, tengo una clínica odontológica. ¿El bot puede responder las dudas de precios de ortodoncia y agendar citas automáticamente?' },
-          { fromMe: 1, text: '¡Buenas tardes Dra. Valeria! 🩺 Por supuesto. Nuestro Bot IA clasifica a los pacientes según el tratamiento y les envía tus horarios disponibles de forma 100% autónoma.' },
-          { fromMe: 0, text: 'Me parece genial porque actualmente pierdo muchos pacientes en las noches cuando no estamos en la clínica.' },
-          { fromMe: 1, text: 'Exacto, el Bot responde en menos de 3 segundos las 24 horas. ¿Deseas que te reservemos el acceso promocional por S/ 49?' },
-          { fromMe: 0, text: 'Por favor, resérvamelo. En una hora que termine mi consulta te transfiero por Yape.' }
-        ]},
-        { name: 'Ing. Fernando Castillo - Inmobiliaria', phone: '+51961889012', cleanPhone: '51961889012', email: 'fcastillo@horizoninmobiliaria.pe', stage: 'negociacion', dealValue: 149.00, source: 'google_ads', tags: 'Inmobiliaria, Proyectos, Telemetría BI', notes: 'Interesado en gestionar 5 asesores y campañas masivas de retargeting de departamentos.', messages: [
-          { fromMe: 0, text: 'Buenos días, manejamos proyectos inmobiliarios. ¿El CRM permite segmentar compradores por rango de presupuesto?' },
-          { fromMe: 1, text: '¡Buenos días Ing. Fernando! 🏢 Efectivamente. El panel incluye etiquetas comerciales inteligentes, embudo de ventas (Kanban) y difusión masiva con delays anti-bloqueo.' },
-          { fromMe: 0, text: '¿Puedo conectar varios números o ver las métricas de cuántos leads ingresan cada día?' },
-          { fromMe: 1, text: 'Sí, la sección de Telemetría & BI te grafica en tiempo real los ingresos, leads por canal y efectividad de cada asesor en vivo.' },
-          { fromMe: 0, text: 'Muy completo. Pásame los datos de cuenta bancaria BCP o enlace de pago corporativo por favor.' }
-        ]},
-        { name: 'Mariana Paredes - Boutique & Moda', phone: '+51993445120', cleanPhone: '51993445120', email: 'mariana.boutique@gmail.com', stage: 'contactado', dealValue: 49.00, source: 'tiktok', tags: 'E-commerce, Catálogo PDF, Calzado', notes: 'Le enviamos el catálogo y video demostrativo. Vende vestidos de fiesta.', messages: [
-          { fromMe: 0, text: 'Hola! Vi el video en TikTok. ¿Cómo hace el bot para enviar las fotos de los vestidos cuando la gente pide catálogo?' },
-          { fromMe: 1, text: '¡Hola Mariana! 👗 El sistema detecta automáticamente palabras como "catálogo", "precios", "tallas" o "fotos" y envía al instante tu PDF con la lista de precios.' },
-          { fromMe: 0, text: '¡Qué maravilla! Justo lo que necesito para no tener que estar enviando fotos una por una todo el día.' },
-          { fromMe: 1, text: 'Totalmente. Te ahorra hasta 4 horas diarias de trabajo repetitivo. Aprovecha la promoción única de S/ 49 antes de que finalice hoy.' }
-        ]},
-        { name: 'Lic. Roberto Gómez - Academia Pre', phone: '+51950112334', cleanPhone: '51950112334', email: 'director@academiapre.edu.pe', stage: 'ganado', dealValue: 49.00, source: 'whatsapp', tags: 'Educación, Pagado, Plin, Alumno Activo', notes: 'Matrícula de ciclo verano 2026. Pagó por Plin.', messages: [
-          { fromMe: 0, text: 'Hola, deseo adquirir el Ecosistema para nuestra sede central de informes preuniversitarios.' },
-          { fromMe: 1, text: '¡Hola Lic. Roberto! Un gusto saludarte. Con el Ecosistema Alidea podrás automatizar la entrega de mallas curriculares, costos de matrícula y horarios de clase.' },
-          { fromMe: 0, text: 'Excelente. Acabo de hacer el pago por Plin por S/ 49.' },
-          { fromMe: 1, text: '¡Recibido con éxito! 🎓 Tu plataforma ya está activa con acceso ilimitado durante 1 año. Ya puedes escanear el QR y comenzar a atender a tus postulantes.' }
-        ]},
-        { name: 'Andrea Benavides - Cusco Travel Agency', phone: '+51941778990', cleanPhone: '51941778990', email: 'andrea@cuscoadventuretours.com', stage: 'negociacion', dealValue: 99.00, source: 'facebook_ads', tags: 'Turismo, Cusco Tours, Retargeting Activo', notes: 'Interesada en recontactar a 2,000 turistas que viajaron el año pasado.', messages: [
-          { fromMe: 0, text: 'Hola amigos de Alidea, tengo una base de datos de 2000 turistas en Excel. ¿Puedo importar sus contactos y mandarles una oferta especial?' },
-          { fromMe: 1, text: '¡Hola Andrea! 🏔️ Claro que sí. En la pestaña "Emisión" puedes importar tu base de clientes y lanzar difusiones segmentadas por lotes de 5 a 10 contactos con intervalos aleatorios.' },
-          { fromMe: 0, text: '¡Espectacular! ¿Y les puedo adjuntar el PDF del itinerario con fotos del tour a la Montaña de 7 Colores?' },
-          { fromMe: 1, text: 'Exactamente, permite texto enriquecido, imágenes, audios y documentos PDF en el mismo envío.' }
-        ]},
-        { name: 'Gustavo Morales - Taller & Autopartes', phone: '+51987234567', cleanPhone: '51987234567', email: 'repuestos.morales@hotmail.com', stage: 'nuevo', dealValue: 49.00, source: 'facebook_ads', tags: 'Autopartes, Nuevo Lead, Cotización', notes: 'Nuevo contacto solicitando información general sobre cómo cargar su inventario.', messages: [
-          { fromMe: 0, text: 'Buenas noches, vi su publicidad de automatización para negocios. ¿Cómo me sirve para un taller de mecánica y repuestos?' },
-          { fromMe: 1, text: '¡Buenas noches Gustavo! 🚗 Te permite registrar tus repuestos y servicios en el Catálogo Digital, enviar presupuestos rápidos por WhatsApp y llevar el control contable de tus ingresos diarios.' },
-          { fromMe: 0, text: '¿Es difícil de configurar? No soy muy tecnológico.' },
-          { fromMe: 1, text: 'Para nada Gustavo, el sistema viene pre-configurado y en el curso paso a paso te enseñamos a dejarlo funcionando en solo 15 minutos.' }
-        ]},
-        { name: 'Lucía Santillán - Belleza & Spa', phone: '+51963852741', cleanPhone: '51963852741', email: 'luciasantillan.spa@gmail.com', stage: 'ganado', dealValue: 49.00, source: 'instagram', tags: 'Spa, Pagado, Tarjeta, Acceso Enviado', notes: 'Pagó con tarjeta Visa. Ya sincronizó su WhatsApp Business con Alidea Bot.', messages: [
-          { fromMe: 0, text: 'Hola! Pagué por la web con tarjeta Visa los S/ 49. ¿Por dónde entro al panel?' },
-          { fromMe: 1, text: '¡Hola Lucía! 🌸 Muchas gracias por tu compra. Te confirmamos el registro. Tu usuario es tu correo y tu acceso ya está disponible.' },
-          { fromMe: 0, text: '¡Muchas gracias! Ya entré y está súper claro el video de bienvenida. Ya vinculé mi QR.' },
-          { fromMe: 1, text: '¡Genial Lucía! A romperla en ventas con tu Spa. Cualquier consulta estamos para apoyarte. ✨' }
-        ]},
-        { name: 'Marcos Alarcón - Sabor Criollo Restaurant', phone: '+51978965214', cleanPhone: '51978965214', email: 'marcos.alida.delivery@gmail.com', stage: 'propuesta', dealValue: 49.00, source: 'facebook_ads', tags: 'Restaurante, Delivery, Carta Digital', notes: 'Quiere que el bot envíe la carta del día a las 11:30 AM a clientes.', messages: [
-          { fromMe: 0, text: 'Hola, tengo un restaurante en San Borja. ¿Puedo programar envíos del menú ejecutivo diario a mis clientes habituales?' },
-          { fromMe: 1, text: '¡Hola Marcos! 🍲 Totalmente. Puedes usar la función de "Emisión" de Alidea para mandar la carta del día con fotos de los platos en 1 solo clic a todos tus comensales registrados.' },
-          { fromMe: 0, text: 'Perfecto, eso me ahorraría mucho tiempo. ¿Hasta cuándo dura la oferta de S/ 49?' },
-          { fromMe: 1, text: 'El precio especial de S/ 49 se mantiene si realizas tu activación el día de hoy.' }
-        ]},
-        { name: 'Diana Cárdenas - Joyería Fina', phone: '+51991321654', cleanPhone: '51991321654', email: 'diana.joyas@gmail.com', stage: 'contactado', dealValue: 49.00, source: 'instagram', tags: 'Joyería, Seguimiento 24h, Consulta Pagos', notes: 'Consultó sobre pagos recurrentes. Aclarado que es 1 solo pago anual sin letra chica.', messages: [
-          { fromMe: 0, text: 'Hola, una consulta sincera: ¿después de pagar los S/ 49 me van a cobrar mensualidades adicionales?' },
-          { fromMe: 1, text: '¡Hola Diana! ✨ Cero letras pequeñas. En Alidea Academia haces un ÚNICO PAGO de S/ 49. Con eso tienes 1 año completo de servidor para tu Bot, la plantilla de CRM de Ventas y el curso completo de Marketing con IA.' },
-          { fromMe: 0, text: '¡Qué tranquilidad! Había probado otros programas que cobraban 30 dólares al mes. Me parece una excelente oportunidad.' },
-          { fromMe: 1, text: '¡Exacto! Nuestro objetivo es que todo emprendedor pueda automatizar sus ventas sin desangrarse en mensualidades.' }
-        ]}
+        {
+          name: 'Carlos Mendoza',
+          phone: '+51984123456',
+          cleanPhone: '51984123456',
+          email: 'carlos.mendoza.peru@gmail.com',
+          stage: 'ganado',
+          dealValue: 49.00,
+          source: 'facebook_ads',
+          tags: 'Cliente VIP, Pagado, Yape, Ecosistema S/49',
+          notes: 'Cliente transfirió por Yape S/ 49. Acceso al aula virtual y Bot IA activado exitosamente.',
+          messages: [
+            { fromMe: 0, text: 'Hola, buenas tardes. Vi su anuncio en TikTok sobre el bot de WhatsApp para ventas y CRM por S/ 49. ¿Me podrían dar más información?' },
+            { fromMe: 1, text: '¡Hola Carlos! ⚡ Qué gusto saludarte. Soy el Asistente IA de Alidea Academia. Con nuestro Ecosistema de Ventas IA 24/7 obtienes tu propio Bot de WhatsApp alojado por 1 año en nuestro servidor, CRM de ventas y el curso de anuncios para captar clientes todos los días por un único pago de S/ 49 (sin mensualidades).' },
+            { fromMe: 0, text: '¿Y el bot puede enviar archivos PDF como folletos o cotizaciones cuando el cliente lo pida?' },
+            { fromMe: 1, text: '¡Exactamente! El bot detecta palabras como "catálogo", "precios" o "fichas" y envía tus PDFs, audios o fotos al instante. Además etiqueta y organiza a cada contacto en tu embudo de ventas.' },
+            { fromMe: 0, text: 'Excelente, justo lo que necesito. ¿A qué número de Yape puedo transferir los S/ 49?' },
+            { fromMe: 1, text: 'Puedes realizar el abono al Yape/Plin: 907 318 642 a nombre de Alidea Academia. Apenas transfieras, envíanos la captura por aquí para habilitar tu usuario y contraseña de inmediato 🚀.' },
+            { fromMe: 0, text: 'Listo, ya realicé el Yape de S/ 49. Te acabo de adjuntar la captura del comprobante.' },
+            { fromMe: 1, text: '🎉 ¡Pago confirmado Carlos! Tu acceso al aula virtual y panel ya está activo en https://academia.alidea.pe con usuario "carlos.mendoza". ¡Bienvenido a Alidea!' }
+          ]
+        },
+        {
+          name: 'Dra. Valeria Ruiz - Clínica Dental',
+          phone: '+51972654321',
+          cleanPhone: '51972654321',
+          email: 'contacto@odontoruiz.com',
+          stage: 'propuesta',
+          dealValue: 49.00,
+          source: 'instagram',
+          tags: 'Clínica Dental, Interesado, Cita Agendada',
+          notes: 'Requiere bot para automatizar respuestas de precios de brackets y blanqueamiento.',
+          messages: [
+            { fromMe: 0, text: 'Buenas noches, tengo un consultorio dental en Miraflores. ¿El bot sirve para responder dudas de pacientes fuera de horario y agendar citas?' },
+            { fromMe: 1, text: '¡Buenas noches Dra. Valeria! 🩺 Totalmente. Nuestro Asistente IA atiende a tus pacientes 24/7 en menos de 3 segundos, responde dudas frecuentes sobre tratamientos (ortodoncia, limpieza, carillas) y comparte tus horarios de atención disponibles.' },
+            { fromMe: 0, text: 'Me parece muy útil porque en las noches no puedo responder y los pacientes se van con otra clínica. ¿Cuánto cuesta la instalación?' },
+            { fromMe: 1, text: 'Hoy tienes acceso a todo el Ecosistema Completo por solo S/ 49 (precio regular S/ 350). Incluye 1 año de alojamiento en nuestro servidor y plantilla de CRM lista para usar.' },
+            { fromMe: 0, text: '¿El pago es único o hay cobros mensuales adicionales por mensaje?' },
+            { fromMe: 1, text: 'Es 100% PAGO ÚNICO de S/ 49 por 1 año completo. Cero mensualidades y cero cobros ocultos por mensaje.' },
+            { fromMe: 0, text: 'Perfecto, resérvame un cupo por favor. Mañana a primera hora hago la transferencia.' },
+            { fromMe: 1, text: '¡Cupo reservado con éxito para Clínica Dental Ruiz! Quedamos atentos a tu comprobante para activar tu panel.' }
+          ]
+        },
+        {
+          name: 'Mariana Paredes - Boutique & Moda',
+          phone: '+51993445120',
+          cleanPhone: '51993445120',
+          email: 'mariana.boutique@gmail.com',
+          stage: 'contactado',
+          dealValue: 49.00,
+          source: 'tiktok',
+          tags: 'E-commerce, Catálogo Enviado, Calzado',
+          notes: 'Le enviamos el catálogo y video demostrativo. Vende vestidos de fiesta.',
+          messages: [
+            { fromMe: 0, text: 'Hola! Vendo vestidos de fiesta y calzado para damas. ¿El bot puede enviar las fotos de los modelos con sus precios cuando me escriben?' },
+            { fromMe: 1, text: '¡Hola Mariana! 👗 Claro que sí. Puedes cargar tu catálogo multimedia y cuando un cliente escriba "catálogo", "precios" o "modelos", el bot enviará fotos en alta resolución y el PDF de precios al instante.' },
+            { fromMe: 0, text: '¡Genial! Y si un cliente quiere hablar con una persona para coordinar el delivery, ¿cómo hace?' },
+            { fromMe: 1, text: 'Si el cliente escribe "asesor" o solicita ayuda personalizada, el bot pausa la IA en ese chat y te notifica en el CRM para que tomes el control de la conversación.' },
+            { fromMe: 0, text: '¿Puedo vincular el WhatsApp que ya uso en mi celular?' },
+            { fromMe: 1, text: 'Sí, solo escaneas un código QR desde la plataforma de Alidea tal como lo harías con WhatsApp Web y queda conectado en 10 segundos.' },
+            { fromMe: 0, text: 'Qué práctico. ¿Me pasas el link para pagar con tarjeta de crédito?' },
+            { fromMe: 1, text: '¡Claro que sí! Puedes cancelar con tarjeta Visa/Mastercard mediante nuestro enlace seguro de Alidea: https://alidea.pe/checkout-s49. Al confirmar te entregamos tu acceso.' }
+          ]
+        },
+        {
+          name: 'Ing. Fernando Castillo - Inmobiliaria Horizon',
+          phone: '+51961889012',
+          cleanPhone: '51961889012',
+          email: 'fcastillo@horizoninmobiliaria.pe',
+          stage: 'negociacion',
+          dealValue: 149.00,
+          source: 'google_ads',
+          tags: 'Inmobiliaria, Cotización Pendiente, Proyectos',
+          notes: 'Interesado en gestionar 5 asesores y campañas masivas de retargeting de departamentos.',
+          messages: [
+            { fromMe: 0, text: 'Buenos días, manejamos proyectos de departamentos en Lima Moderna. ¿El sistema soporta alto volumen de leads y gestión por etapas de compra?' },
+            { fromMe: 1, text: '¡Buenos días Ing. Fernando! 🏢 Sí, nuestro CRM de Ventas incluye embudos visuales tipo Kanban, segmentación por etiquetas personalizadas y telemetría en vivo con métricas de conversión comercial.' },
+            { fromMe: 0, text: 'Nos interesa también la función de emisión masiva para invitar a clientes de nuestra base a los Open House de preventa.' },
+            { fromMe: 1, text: 'El módulo de "Emisión" te permite segmentar por etiquetas y enviar secuencias de difusión masiva con intervalos inteligentes anti-baneo para proteger la línea de WhatsApp.' },
+            { fromMe: 0, text: '¿Podemos emitir factura electrónica con RUC por la compra del sistema?' },
+            { fromMe: 1, text: 'Sí, emitimos Factura o Boleta electrónica con IGV discriminado y te la enviamos en PDF al correo de tu empresa.' },
+            { fromMe: 0, text: 'Excelente. Te paso los datos de facturación de Inmobiliaria Horizon SAC para que me emitas la factura.' },
+            { fromMe: 1, text: 'Recibido con gusto Fernando. Procedemos a generar la orden corporativa y te enviamos las credenciales.' }
+          ]
+        },
+        {
+          name: 'Lic. Roberto Gómez - Academia Pre',
+          phone: '+51950112334',
+          cleanPhone: '51950112334',
+          email: 'director@academiapre.edu.pe',
+          stage: 'ganado',
+          dealValue: 49.00,
+          source: 'whatsapp',
+          tags: 'Educación, Cerrado / Ganado, Plin, Alumno Activo',
+          notes: 'Matrícula de ciclo verano 2026. Pagó por Plin.',
+          messages: [
+            { fromMe: 0, text: 'Hola, buenas tardes. Requerimos automatizar los informes de matrícula y entrega de mallas curriculares de nuestros cursos preuniversitarios.' },
+            { fromMe: 1, text: '¡Buenas tardes Lic. Roberto! 🎓 Con Alidea puedes configurar respuestas automáticas con los horarios, temarios y costos de matrícula de cada ciclo académico.' },
+            { fromMe: 0, text: '¿Es necesario tener la computadora prendida todo el día para que el bot funcione?' },
+            { fromMe: 1, text: 'No es necesario. Tu bot queda alojado en nuestros servidores en la nube 24/7, por lo que responde aunque tu computadora o celular estén apagados.' },
+            { fromMe: 0, text: 'Eso es una gran ventaja. Ya realicé el pago de S/ 49 por Plin. Aquí adjunto la constancia.' },
+            { fromMe: 1, text: '¡Comprobante verificado exitosamente Roberto! Ya tienes habilitado el acceso a tu espacio de Alidea Academia.' },
+            { fromMe: 0, text: 'Muchísimas gracias por la rapidez. Ya estamos configurando los primeros mensajes.' },
+            { fromMe: 1, text: '¡A ti Roberto! Si necesitas apoyo con alguna plantilla, nuestro equipo de soporte está siempre disponible. ¡Muchos éxitos en la campaña de matrículas!' }
+          ]
+        },
+        {
+          name: 'Gustavo Morales - Taller & Autopartes',
+          phone: '+51987234567',
+          cleanPhone: '51987234567',
+          email: 'repuestos.morales@hotmail.com',
+          stage: 'nuevo',
+          dealValue: 49.00,
+          source: 'facebook_ads',
+          tags: 'Autopartes, Nuevo Lead, Cotización',
+          notes: 'Nuevo contacto solicitando información general sobre cómo cargar su inventario.',
+          messages: [
+            { fromMe: 0, text: 'Buenas noches, vi su publicidad de automatización para negocios. ¿Cómo me sirve para un taller de mecánica y repuestos?' },
+            { fromMe: 1, text: '¡Buenas noches Gustavo! 🚗 Te permite registrar tus repuestos y servicios en el Catálogo Digital, enviar presupuestos rápidos por WhatsApp y llevar el control contable de tus ingresos diarios.' },
+            { fromMe: 0, text: '¿Es difícil de configurar? No soy muy tecnológico.' },
+            { fromMe: 1, text: 'Para nada Gustavo, el sistema viene pre-configurado y en el curso paso a paso te enseñamos a dejarlo funcionando en solo 15 minutos.' }
+          ]
+        },
+        {
+          name: 'Lucía Santillán - Belleza & Spa',
+          phone: '+51963852741',
+          cleanPhone: '51963852741',
+          email: 'luciasantillan.spa@gmail.com',
+          stage: 'ganado',
+          dealValue: 49.00,
+          source: 'instagram',
+          tags: 'Spa, Cliente VIP, Pagado, Tarjeta',
+          notes: 'Pagó con tarjeta Visa. Ya sincronizó su WhatsApp Business con Alidea Bot.',
+          messages: [
+            { fromMe: 0, text: 'Hola! Pagué por la web con tarjeta Visa los S/ 49. ¿Por dónde entro al panel?' },
+            { fromMe: 1, text: '¡Hola Lucía! 🌸 Muchas gracias por tu compra. Te confirmamos el registro. Tu usuario es tu correo y tu acceso ya está disponible.' },
+            { fromMe: 0, text: '¡Muchas gracias! Ya entré y está súper claro el video de bienvenida. Ya vinculé mi QR.' },
+            { fromMe: 1, text: '¡Genial Lucía! A romperla en ventas con tu Spa. Cualquier consulta estamos para apoyarte. ✨' }
+          ]
+        },
+        {
+          name: 'Marcos Alarcón - Sabor Criollo Restaurant',
+          phone: '+51978965214',
+          cleanPhone: '51978965214',
+          email: 'marcos.alida.delivery@gmail.com',
+          stage: 'propuesta',
+          dealValue: 49.00,
+          source: 'facebook_ads',
+          tags: 'Restaurante, Delivery, Interesado',
+          notes: 'Quiere que el bot envíe la carta del día a las 11:30 AM a clientes.',
+          messages: [
+            { fromMe: 0, text: 'Hola, tengo un restaurante en San Borja. ¿Puedo programar envíos del menú ejecutivo diario a mis clientes habituales?' },
+            { fromMe: 1, text: '¡Hola Marcos! 🍲 Totalmente. Puedes usar la función de "Emisión" de Alidea para mandar la carta del día con fotos de los platos en 1 solo clic a todos tus comensales registrados.' },
+            { fromMe: 0, text: 'Perfecto, eso me ahorraría mucho tiempo. ¿Hasta cuándo dura la oferta de S/ 49?' },
+            { fromMe: 1, text: 'El precio especial de S/ 49 se mantiene si realizas tu activación el día de hoy.' }
+          ]
+        },
+        {
+          name: 'Diana Cárdenas - Joyería Fina',
+          phone: '+51991321654',
+          cleanPhone: '51991321654',
+          email: 'diana.joyas@gmail.com',
+          stage: 'contactado',
+          dealValue: 49.00,
+          source: 'instagram',
+          tags: 'Joyería, Seguimiento 24h, Consulta Pagos',
+          notes: 'Consultó sobre pagos recurrentes. Aclarado que es 1 solo pago anual sin letra chica.',
+          messages: [
+            { fromMe: 0, text: 'Hola, una consulta sincera: ¿después de pagar los S/ 49 me van a cobrar mensualidades adicionales?' },
+            { fromMe: 1, text: '¡Hola Diana! ✨ Cero letras pequeñas. En Alidea Academia haces un ÚNICO PAGO de S/ 49. Con eso tienes 1 año completo de servidor para tu Bot, la plantilla de CRM de Ventas y el curso completo de Marketing con IA.' },
+            { fromMe: 0, text: '¡Qué tranquilidad! Había probado otros programas que cobraban 30 dólares al mes. Me parece una excelente oportunidad.' },
+            { fromMe: 1, text: '¡Exacto! Nuestro objetivo es que todo emprendedor pueda automatizar sus ventas sin desangrarse en mensualidades.' }
+          ]
+        },
+        {
+          name: 'Camila Torres - Estética & Uñas',
+          phone: '+51981223344',
+          cleanPhone: '51981223344',
+          email: 'camila.nails@gmail.com',
+          stage: 'nuevo',
+          dealValue: 49.00,
+          source: 'tiktok',
+          tags: 'Nuevo Lead, TikTok Ads, Belleza',
+          notes: 'Prospecto nuevo captado desde campaña de TikTok. Preguntó por demo.',
+          messages: [
+            { fromMe: 0, text: 'Hola, vi un video en TikTok sobre cómo automatizar citas de manicura y pedicure con WhatsApp. ¿Cómo es el sistema?' },
+            { fromMe: 1, text: '¡Hola Camila! 💅 Con Alidea puedes configurar tu carta de servicios, precios de esmaltado y agendar a tus clientas en automático las 24 horas.' }
+          ]
+        },
+        {
+          name: 'Jorge Valenzuela - Distribuidora Mayorista',
+          phone: '+51994556677',
+          cleanPhone: '51994556677',
+          email: 'ventas@distribuidoravalenzuela.pe',
+          stage: 'nuevo',
+          dealValue: 149.00,
+          source: 'instagram',
+          tags: 'Nuevo Lead, Mayorista, Cotización Pendiente',
+          notes: 'Distribuidora de abarrotes. Requiere módulo de catálogo y pedidos masivos.',
+          messages: [
+            { fromMe: 0, text: 'Buenos días, manejamos más de 300 productos de consumo masivo. ¿El bot puede enviar la lista de precios mayorista en Excel o PDF?' },
+            { fromMe: 1, text: '¡Buenos días Jorge! 📦 Sí, puedes cargar listas en PDF y el bot las entregará al instante a bodegas y minimarkets que te escriban.' }
+          ]
+        },
+        {
+          name: 'Hugo Villanueva - Constructora',
+          phone: '+51977889900',
+          cleanPhone: '51977889900',
+          email: 'hvillanueva@constructora.pe',
+          stage: 'perdido',
+          dealValue: 49.00,
+          source: 'whatsapp',
+          tags: 'En Pausa, Próximo Mes',
+          notes: 'Cliente postergó compra para el próximo mes por cierre de balance.',
+          messages: [
+            { fromMe: 0, text: 'Hola Alidea, por el momento estamos cerrando el balance del mes. Los contactaremos el 1 de noviembre.' },
+            { fromMe: 1, text: 'Entendido Hugo. Te guardamos la promoción y te reactivamos el cupo la primera semana de noviembre. ¡Éxitos!' }
+          ]
+        }
       ];
 
       for (let i = 0; i < mockConversations.length; i++) {
@@ -888,13 +1042,17 @@ async function bootstrapAlideaOfficial(db) {
           [leadId, alideaId, conv.name, conv.phone, conv.email, conv.stage, conv.dealValue, conv.source, conv.tags, conv.notes, lastMsg]
         );
 
+        // Limpiar mensajes previos de este JID
+        await db.run('DELETE FROM chat_messages WHERE user_id = ? AND jid = ?', [alideaId, jid]);
+
         for (let mIdx = 0; mIdx < conv.messages.length; mIdx++) {
           const msg = conv.messages[mIdx];
           const msgId = `msg-${alideaId}-${i + 1}-${mIdx + 1}`;
+          const msgTime = new Date(Date.now() - (conv.messages.length - mIdx) * 120 * 1000).toISOString();
           await db.run(
-            `INSERT OR REPLACE INTO chat_messages (id, user_id, session_id, jid, sender_phone, sender_name, from_me, text, media_url)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
-            [msgId, alideaId, alideaSessionId, jid, conv.cleanPhone, msg.fromMe ? 'Alidea Academia' : conv.name, msg.fromMe ? 1 : 0, msg.text]
+            `INSERT OR REPLACE INTO chat_messages (id, user_id, session_id, jid, sender_phone, sender_name, from_me, text, media_url, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
+            [msgId, alideaId, alideaSessionId, jid, conv.cleanPhone, msg.fromMe ? 'Alidea Academia' : conv.name, msg.fromMe ? 1 : 0, msg.text, msgTime]
           );
         }
       }

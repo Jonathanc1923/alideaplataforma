@@ -5411,10 +5411,10 @@ export default function UserWorkspace() {
                                   {/* Tooltip on Hover */}
                                   <div className="absolute -top-16 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-30 bg-slate-900 text-white p-2.5 rounded-xl border border-slate-700 shadow-xl text-[11px] whitespace-nowrap flex flex-col gap-0.5">
                                     <span className="font-bold text-indigo-300">{label} {subLabel && `(${subLabel})`}</span>
-                                    <span className="text-emerald-400">Ingresos: ${(item.ingresos || 0).toFixed(2)}</span>
-                                    <span className="text-rose-400">Egresos: ${(item.egresos || 0).toFixed(2)}</span>
+                                    <span className="text-emerald-400">Ingresos: {currencySymbol}{(item.ingresos || 0).toFixed(2)}</span>
+                                    <span className="text-rose-400">Egresos: {currencySymbol}{(item.egresos || 0).toFixed(2)}</span>
                                     <span className={`font-bold ${isProfitable ? 'text-indigo-400' : 'text-amber-400'}`}>
-                                      Utilidad: ${(item.utilidad || 0).toFixed(2)} ({item.margenNeto}%)
+                                      Utilidad: {currencySymbol}{(item.utilidad || 0).toFixed(2)} ({item.margenNeto}%)
                                     </span>
                                   </div>
 
@@ -5526,7 +5526,7 @@ export default function UserWorkspace() {
                                   <div className="flex items-center gap-2 font-mono">
                                     <span className="text-slate-400">{stage.count} ({stage.percentage}%)</span>
                                     {stage.value > 0 && (
-                                      <span className="text-emerald-400 font-bold">${stage.value.toLocaleString()}</span>
+                                      <span className="text-emerald-400 font-bold">{currencySymbol}{stage.value.toLocaleString()}</span>
                                     )}
                                   </div>
                                 </div>
@@ -5670,7 +5670,7 @@ export default function UserWorkspace() {
                                   </span>
                                   <div className="flex items-center gap-2 font-mono">
                                     <span className="text-slate-400">{prod.quantity} unid.</span>
-                                    <span className="font-bold text-purple-300">${prod.revenue.toFixed(2)}</span>
+                                    <span className="font-bold text-purple-300">{currencySymbol}{prod.revenue.toFixed(2)}</span>
                                   </div>
                                 </div>
 
@@ -5703,28 +5703,28 @@ export default function UserWorkspace() {
                         <div className="p-3 rounded-2xl bg-blue-950/20 border border-blue-500/20">
                           <span className="text-[10px] text-blue-300 font-bold uppercase">Activos Operativos</span>
                           <div className="text-lg font-black text-blue-400 mt-1 font-heading font-mono">
-                            ${(businessInsights.classificationBreakdown?.activo || 0).toFixed(2)}
+                            {currencySymbol}{(businessInsights.classificationBreakdown?.activo || 0).toFixed(2)}
                           </div>
                         </div>
 
                         <div className="p-3 rounded-2xl bg-amber-950/20 border border-amber-500/20">
                           <span className="text-[10px] text-amber-300 font-bold uppercase">Pasivos & Deudas</span>
                           <div className="text-lg font-black text-amber-400 mt-1 font-heading font-mono">
-                            ${(businessInsights.classificationBreakdown?.pasivo || 0).toFixed(2)}
+                            {currencySymbol}{(businessInsights.classificationBreakdown?.pasivo || 0).toFixed(2)}
                           </div>
                         </div>
 
                         <div className="p-3 rounded-2xl bg-purple-950/20 border border-purple-500/20">
                           <span className="text-[10px] text-purple-300 font-bold uppercase">Patrimonio</span>
                           <div className="text-lg font-black text-purple-400 mt-1 font-heading font-mono">
-                            ${(businessInsights.classificationBreakdown?.patrimonio || 0).toFixed(2)}
+                            {currencySymbol}{(businessInsights.classificationBreakdown?.patrimonio || 0).toFixed(2)}
                           </div>
                         </div>
 
                         <div className="p-3 rounded-2xl bg-rose-950/20 border border-rose-500/20">
                           <span className="text-[10px] text-rose-300 font-bold uppercase">Notas de Crédito</span>
                           <div className="text-lg font-black text-rose-400 mt-1 font-heading font-mono">
-                            -${(businessInsights.classificationBreakdown?.nota_credito || 0).toFixed(2)}
+                            -{currencySymbol}{(businessInsights.classificationBreakdown?.nota_credito || 0).toFixed(2)}
                           </div>
                         </div>
                       </div>
@@ -5775,15 +5775,15 @@ export default function UserWorkspace() {
                                 )}
                               </td>
                               <td className="py-3 px-4 text-right font-mono text-emerald-400 font-semibold">
-                                ${(item.ingresos || 0).toFixed(2)}
+                                {currencySymbol}{(item.ingresos || 0).toFixed(2)}
                               </td>
                               <td className="py-3 px-4 text-right font-mono text-rose-400 font-semibold">
-                                ${(item.egresos || 0).toFixed(2)}
+                                {currencySymbol}{(item.egresos || 0).toFixed(2)}
                               </td>
                               <td className={`py-3 px-4 text-right font-mono font-bold ${
                                 isProfitable ? 'text-indigo-300' : 'text-rose-400'
                               }`}>
-                                ${(item.utilidad || 0).toFixed(2)}
+                                {currencySymbol}{(item.utilidad || 0).toFixed(2)}
                               </td>
                               <td className="py-3 px-4 text-center font-mono text-slate-300 font-semibold">
                                 {item.margenNeto || 0}%
@@ -5795,7 +5795,7 @@ export default function UserWorkspace() {
                                 {item.leadsGanados || 0}
                               </td>
                               <td className="py-3 px-4 text-right font-mono text-purple-300">
-                                ${(item.ticketPromedio || 0).toFixed(2)}
+                                {currencySymbol}{(item.ticketPromedio || 0).toFixed(2)}
                               </td>
                               <td className="py-3 px-4 text-center whitespace-nowrap">
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -6189,18 +6189,18 @@ export default function UserWorkspace() {
                                   </span>
                                 </td>
                                 <td className="py-3 px-4 whitespace-nowrap text-right font-mono text-slate-300">
-                                  ${(e.amount || 0).toFixed(2)}
+                                  {currencySymbol}{(e.amount || 0).toFixed(2)}
                                 </td>
                                 <td className="py-3 px-4 whitespace-nowrap text-center font-mono text-slate-400">
                                   {e.tax_percentage || 0}%
                                 </td>
                                 <td className="py-3 px-4 whitespace-nowrap text-right font-mono text-cyan-400">
-                                  ${(e.tax_amount || 0).toFixed(2)}
+                                  {currencySymbol}{(e.tax_amount || 0).toFixed(2)}
                                 </td>
                                 <td className={`py-3 px-4 whitespace-nowrap text-right font-mono font-bold ${
                                   isIngreso ? 'text-emerald-400' : 'text-rose-400'
                                 }`}>
-                                  ${(e.total_amount || 0).toFixed(2)}
+                                  {currencySymbol}{(e.total_amount || 0).toFixed(2)}
                                 </td>
                                 <td className="py-3 px-4 whitespace-nowrap text-center">
                                   <div className="flex items-center justify-center gap-1">
@@ -6271,7 +6271,7 @@ export default function UserWorkspace() {
                     ) : (
                       <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-bold">
                         <AlertTriangle size={15} />
-                        <span>Diferencia de Cuadre: ${(accountingLedger.diferencia || 0).toFixed(2)}</span>
+                        <span>Diferencia de Cuadre: {currencySymbol}{(accountingLedger.diferencia || 0).toFixed(2)}</span>
                       </div>
                     )}
                   </div>
@@ -6282,7 +6282,7 @@ export default function UserWorkspace() {
                   <div className="glass-panel p-5 rounded-2xl border border-blue-500/30 bg-blue-950/20">
                     <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider">Total Sumas DEBE (Cargos)</span>
                     <div className="text-3xl font-black text-blue-400 mt-2 font-heading">
-                      ${(accountingLedger.totalDebe || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {currencySymbol}{(accountingLedger.totalDebe || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-xs text-slate-400 mt-1">Incrementos de activo, gastos y notas de débito</div>
                   </div>
@@ -6290,7 +6290,7 @@ export default function UserWorkspace() {
                   <div className="glass-panel p-5 rounded-2xl border border-purple-500/30 bg-purple-950/20">
                     <span className="text-xs font-semibold text-purple-300 uppercase tracking-wider">Total Sumas HABER (Abonos)</span>
                     <div className="text-3xl font-black text-purple-400 mt-2 font-heading">
-                      ${(accountingLedger.totalHaber || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {currencySymbol}{(accountingLedger.totalHaber || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-xs text-slate-400 mt-1">Incrementos de pasivo, ventas y notas de crédito</div>
                   </div>
@@ -6298,7 +6298,7 @@ export default function UserWorkspace() {
                   <div className="glass-panel p-5 rounded-2xl border border-emerald-500/30 bg-emerald-950/20">
                     <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Diferencia Neta de Balance</span>
                     <div className="text-3xl font-black text-emerald-400 mt-2 font-heading">
-                      ${(accountingLedger.diferencia || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {currencySymbol}{(accountingLedger.diferencia || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-xs text-slate-400 mt-1">
                       {accountingLedger.estaCuadrado ? 'Balance perfecto en cero' : 'Ajustes requeridos'}
@@ -6364,7 +6364,7 @@ export default function UserWorkspace() {
                                         <span className="text-slate-400 truncate max-w-[120px]" title={item.concept}>
                                           {item.concept}
                                         </span>
-                                        <span className="font-mono font-semibold text-blue-300">${item.amount.toFixed(2)}</span>
+                                        <span className="font-mono font-semibold text-blue-300">{currencySymbol}{item.amount.toFixed(2)}</span>
                                       </div>
                                     ))
                                   )}
@@ -6372,7 +6372,7 @@ export default function UserWorkspace() {
                               </div>
                               <div className="pt-3 border-t border-slate-800 mt-3 flex justify-between items-center font-bold">
                                 <span className="text-slate-400 text-[11px]">Total Debe:</span>
-                                <span className="font-mono text-blue-400">${(acc.totalDebe || 0).toFixed(2)}</span>
+                                <span className="font-mono text-blue-400">{currencySymbol}{(acc.totalDebe || 0).toFixed(2)}</span>
                               </div>
                             </div>
 
@@ -6391,7 +6391,7 @@ export default function UserWorkspace() {
                                         <span className="text-slate-400 truncate max-w-[120px]" title={item.concept}>
                                           {item.concept}
                                         </span>
-                                        <span className="font-mono font-semibold text-purple-300">${item.amount.toFixed(2)}</span>
+                                        <span className="font-mono font-semibold text-purple-300">{currencySymbol}{item.amount.toFixed(2)}</span>
                                       </div>
                                     ))
                                   )}
@@ -6399,7 +6399,7 @@ export default function UserWorkspace() {
                               </div>
                               <div className="pt-3 border-t border-slate-800 mt-3 flex justify-between items-center font-bold">
                                 <span className="text-slate-400 text-[11px]">Total Haber:</span>
-                                <span className="font-mono text-purple-400">${(acc.totalHaber || 0).toFixed(2)}</span>
+                                <span className="font-mono text-purple-400">{currencySymbol}{(acc.totalHaber || 0).toFixed(2)}</span>
                               </div>
                             </div>
                           </div>
@@ -6466,7 +6466,7 @@ export default function UserWorkspace() {
                       <div className="glass-panel p-4 rounded-2xl border border-slate-800">
                         <span className="text-[11px] font-semibold text-slate-400 uppercase">Ventas Brutas</span>
                         <div className="text-2xl font-black text-white mt-1.5 font-heading">
-                          ${(annualBalance.incomeStatement.ventasBrutas || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {currencySymbol}{(annualBalance.incomeStatement.ventasBrutas || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div className="text-[10px] text-slate-500 mt-1">Facturado en el año</div>
                       </div>
@@ -6474,7 +6474,7 @@ export default function UserWorkspace() {
                       <div className="glass-panel p-4 rounded-2xl border border-slate-800">
                         <span className="text-[11px] font-semibold text-emerald-400 uppercase">Ventas Netas</span>
                         <div className="text-2xl font-black text-emerald-400 mt-1.5 font-heading">
-                          ${(annualBalance.incomeStatement.ventasNetas || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {currencySymbol}{(annualBalance.incomeStatement.ventasNetas || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div className="text-[10px] text-slate-500 mt-1">Brutas - NC + ND</div>
                       </div>
@@ -6482,7 +6482,7 @@ export default function UserWorkspace() {
                       <div className="glass-panel p-4 rounded-2xl border border-slate-800">
                         <span className="text-[11px] font-semibold text-indigo-400 uppercase">Utilidad Operativa</span>
                         <div className="text-2xl font-black text-indigo-400 mt-1.5 font-heading">
-                          ${(annualBalance.incomeStatement.utilidadAntesImpuestos || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {currencySymbol}{(annualBalance.incomeStatement.utilidadAntesImpuestos || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div className="text-[10px] text-slate-500 mt-1">Antes de impuestos (UAI)</div>
                       </div>
@@ -6495,7 +6495,7 @@ export default function UserWorkspace() {
                           </span>
                         </div>
                         <div className="text-2xl font-black text-amber-400 mt-1.5 font-heading">
-                          ${(annualBalance.incomeStatement.impuestoRenta || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {currencySymbol}{(annualBalance.incomeStatement.impuestoRenta || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div className="text-[10px] text-slate-500 mt-1">Deducción fiscal</div>
                       </div>
@@ -6508,7 +6508,7 @@ export default function UserWorkspace() {
                           </span>
                         </div>
                         <div className="text-2xl font-black text-emerald-300 mt-1.5 font-heading">
-                          ${(annualBalance.incomeStatement.utilidadNetaFinal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {currencySymbol}{(annualBalance.incomeStatement.utilidadNetaFinal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div className="text-[10px] text-slate-400 mt-1">Ganancia neta final</div>
                       </div>
@@ -6530,32 +6530,32 @@ export default function UserWorkspace() {
                         <div className="space-y-2.5 text-xs">
                           <div className="flex justify-between items-center text-slate-300">
                             <span>(+) Ventas Brutas Totales</span>
-                            <span className="font-mono font-semibold">${(annualBalance.incomeStatement.ventasBrutas || 0).toFixed(2)}</span>
+                            <span className="font-mono font-semibold">{currencySymbol}{(annualBalance.incomeStatement.ventasBrutas || 0).toFixed(2)}</span>
                           </div>
 
                           <div className="flex justify-between items-center text-rose-400">
                             <span>(-) Notas de Crédito emitidas</span>
-                            <span className="font-mono font-semibold">-${(annualBalance.incomeStatement.notasCreditoVentas || 0).toFixed(2)}</span>
+                            <span className="font-mono font-semibold">-{currencySymbol}{(annualBalance.incomeStatement.notasCreditoVentas || 0).toFixed(2)}</span>
                           </div>
 
                           <div className="flex justify-between items-center text-emerald-400">
                             <span>(+) Notas de Débito aplicadas</span>
-                            <span className="font-mono font-semibold">+${(annualBalance.incomeStatement.notasDebitoVentas || 0).toFixed(2)}</span>
+                            <span className="font-mono font-semibold">+{currencySymbol}{(annualBalance.incomeStatement.notasDebitoVentas || 0).toFixed(2)}</span>
                           </div>
 
                           <div className="pt-2 border-t border-slate-800 flex justify-between items-center font-bold text-white">
                             <span>(=) Ventas Netas Totales</span>
-                            <span className="font-mono text-emerald-400">${(annualBalance.incomeStatement.ventasNetas || 0).toFixed(2)}</span>
+                            <span className="font-mono text-emerald-400">{currencySymbol}{(annualBalance.incomeStatement.ventasNetas || 0).toFixed(2)}</span>
                           </div>
 
                           <div className="flex justify-between items-center text-rose-400">
                             <span>(-) Gastos y Costos Operativos</span>
-                            <span className="font-mono font-semibold">-${(annualBalance.incomeStatement.egresosOperativos || 0).toFixed(2)}</span>
+                            <span className="font-mono font-semibold">-{currencySymbol}{(annualBalance.incomeStatement.egresosOperativos || 0).toFixed(2)}</span>
                           </div>
 
                           <div className="pt-2 border-t border-slate-800 flex justify-between items-center font-bold text-indigo-300">
                             <span>(=) Utilidad Antes de Impuestos</span>
-                            <span className="font-mono">${(annualBalance.incomeStatement.utilidadAntesImpuestos || 0).toFixed(2)}</span>
+                            <span className="font-mono">{currencySymbol}{(annualBalance.incomeStatement.utilidadAntesImpuestos || 0).toFixed(2)}</span>
                           </div>
 
                           <div className="flex justify-between items-center text-amber-400">
@@ -6565,12 +6565,12 @@ export default function UserWorkspace() {
                                 {annualBalance.incomeStatement.impuestoRentaMode === 'manual' ? 'Manual' : `${annualBalance.incomeStatement.impuestoRentaPercentage}%`}
                               </span>
                             </div>
-                            <span className="font-mono font-semibold">-${(annualBalance.incomeStatement.impuestoRenta || 0).toFixed(2)}</span>
+                            <span className="font-mono font-semibold">-{currencySymbol}{(annualBalance.incomeStatement.impuestoRenta || 0).toFixed(2)}</span>
                           </div>
 
                           <div className="pt-3 border-t-2 border-emerald-500/50 flex justify-between items-center font-extrabold text-sm text-emerald-300 bg-emerald-950/30 p-3 rounded-2xl">
                             <span>(=) UTILIDAD NETA DEL EJERCICIO</span>
-                            <span className="font-mono text-base">${(annualBalance.incomeStatement.utilidadNetaFinal || 0).toFixed(2)}</span>
+                            <span className="font-mono text-base">{currencySymbol}{(annualBalance.incomeStatement.utilidadNetaFinal || 0).toFixed(2)}</span>
                           </div>
                         </div>
                       </div>
@@ -6590,7 +6590,7 @@ export default function UserWorkspace() {
                             <div className="flex justify-between items-center">
                               <span className="font-bold text-blue-300">TOTAL ACTIVOS</span>
                               <span className="font-mono font-black text-blue-400 text-sm">
-                                ${(annualBalance.balanceSheet.totalActivos || 0).toFixed(2)}
+                                {currencySymbol}{(annualBalance.balanceSheet.totalActivos || 0).toFixed(2)}
                               </span>
                             </div>
                             <p className="text-[10px] text-slate-400 mt-1">Caja, bancos, cuentas por cobrar e inventarios</p>
@@ -6600,7 +6600,7 @@ export default function UserWorkspace() {
                             <div className="flex justify-between items-center">
                               <span className="font-bold text-amber-300">TOTAL PASIVOS</span>
                               <span className="font-mono font-black text-amber-400 text-sm">
-                                ${(annualBalance.balanceSheet.totalPasivos || 0).toFixed(2)}
+                                {currencySymbol}{(annualBalance.balanceSheet.totalPasivos || 0).toFixed(2)}
                               </span>
                             </div>
                             <p className="text-[10px] text-slate-400 mt-1">Obligaciones, proveedores y tributos por pagar</p>
@@ -6610,7 +6610,7 @@ export default function UserWorkspace() {
                             <div className="flex justify-between items-center">
                               <span className="font-bold text-purple-300">PATRIMONIO TOTAL AJUSTADO</span>
                               <span className="font-mono font-black text-purple-400 text-sm">
-                                ${(annualBalance.balanceSheet.totalPatrimonio || 0).toFixed(2)}
+                                {currencySymbol}{(annualBalance.balanceSheet.totalPatrimonio || 0).toFixed(2)}
                               </span>
                             </div>
                             <p className="text-[10px] text-slate-400 mt-1">Capital inicial aportado + Utilidad neta del ejercicio</p>
@@ -6619,7 +6619,7 @@ export default function UserWorkspace() {
                           <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-xs font-bold text-slate-300">
                             <span>Pasivo + Patrimonio Total:</span>
                             <span className="font-mono text-white">
-                              ${((annualBalance.balanceSheet.totalPasivos || 0) + (annualBalance.balanceSheet.totalPatrimonio || 0)).toFixed(2)}
+                              {currencySymbol}{((annualBalance.balanceSheet.totalPasivos || 0) + (annualBalance.balanceSheet.totalPatrimonio || 0)).toFixed(2)}
                             </span>
                           </div>
                         </div>
@@ -6638,12 +6638,12 @@ export default function UserWorkspace() {
                         <div className="space-y-3 text-xs">
                           <div className="flex justify-between items-center text-slate-300">
                             <span>Débito Fiscal (IVA cobrado en ventas)</span>
-                            <span className="font-mono font-semibold text-cyan-300">${(annualBalance.taxSummary.ivaDebitoFiscal || 0).toFixed(2)}</span>
+                            <span className="font-mono font-semibold text-cyan-300">{currencySymbol}{(annualBalance.taxSummary.ivaDebitoFiscal || 0).toFixed(2)}</span>
                           </div>
 
                           <div className="flex justify-between items-center text-slate-300">
                             <span>Crédito Fiscal (IVA pagado en compras)</span>
-                            <span className="font-mono font-semibold text-cyan-300">${(annualBalance.taxSummary.ivaCreditoFiscal || 0).toFixed(2)}</span>
+                            <span className="font-mono font-semibold text-cyan-300">{currencySymbol}{(annualBalance.taxSummary.ivaCreditoFiscal || 0).toFixed(2)}</span>
                           </div>
 
                           <div className="pt-2 border-t border-slate-800 flex justify-between items-center font-bold">
@@ -6651,7 +6651,7 @@ export default function UserWorkspace() {
                             <span className={`font-mono ${
                               annualBalance.taxSummary.saldoNetoIva >= 0 ? 'text-amber-400' : 'text-emerald-400'
                             }`}>
-                              ${(annualBalance.taxSummary.saldoNetoIva || 0).toFixed(2)}
+                              {currencySymbol}{(annualBalance.taxSummary.saldoNetoIva || 0).toFixed(2)}
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-500">
@@ -6663,7 +6663,7 @@ export default function UserWorkspace() {
                           <div className="pt-3 border-t border-slate-800 flex justify-between items-center text-xs">
                             <span className="text-slate-400">Provisión Anual Impuesto a la Renta:</span>
                             <span className="font-mono font-bold text-amber-400">
-                              ${(annualBalance.taxSummary.impuestoRenta || 0).toFixed(2)}
+                              {currencySymbol}{(annualBalance.taxSummary.impuestoRenta || 0).toFixed(2)}
                             </span>
                           </div>
                         </div>
@@ -6698,18 +6698,18 @@ export default function UserWorkspace() {
                                     {m.monthName} ({String(m.month).padStart(2, '0')})
                                   </td>
                                   <td className="py-3 px-4 text-right font-mono text-emerald-400">
-                                    ${m.ingresos.toFixed(2)}
+                                    {currencySymbol}{m.ingresos.toFixed(2)}
                                   </td>
                                   <td className="py-3 px-4 text-right font-mono text-rose-400">
-                                    ${m.egresos.toFixed(2)}
+                                    {currencySymbol}{m.egresos.toFixed(2)}
                                   </td>
                                   <td className={`py-3 px-4 text-right font-mono font-bold ${
                                     isPositive ? 'text-indigo-300' : 'text-rose-400'
                                   }`}>
-                                    ${m.utilidad.toFixed(2)}
+                                    {currencySymbol}{m.utilidad.toFixed(2)}
                                   </td>
                                   <td className="py-3 px-4 text-right font-mono text-cyan-400">
-                                    ${m.impuestos.toFixed(2)}
+                                    {currencySymbol}{m.impuestos.toFixed(2)}
                                   </td>
                                   <td className="py-3 px-4 text-center">
                                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -7981,7 +7981,7 @@ export default function UserWorkspace() {
                     Monto Base Imponible ($) *
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">{currencySymbol}</span>
                     <input
                       type="number"
                       step="0.01"
@@ -8020,7 +8020,7 @@ export default function UserWorkspace() {
                 <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1 text-xs font-mono">
                   <div className="flex justify-between text-slate-400">
                     <span>Base Imponible:</span>
-                    <span>${parseFloat(entryAmount).toFixed(2)}</span>
+                    <span>{currencySymbol}{parseFloat(entryAmount).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-cyan-400">
                     <span>Impuesto ({parseFloat(entryTaxPercentage || 0)}%):</span>
@@ -8184,7 +8184,7 @@ export default function UserWorkspace() {
                       Monto Fijo de Impuesto a la Renta ($)
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">{currencySymbol}</span>
                       <input
                         type="number"
                         step="0.01"

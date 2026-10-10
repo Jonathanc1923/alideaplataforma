@@ -2069,141 +2069,211 @@ export default function UserWorkspace() {
         </div>
       )}
 
-      {/* 1. TOP NAVBAR */}
-      <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-xl border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-emerald-400 p-0.5 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                <div className="w-full h-full bg-[#070c18] rounded-[10px] flex items-center justify-center">
-                  <Bot className="text-indigo-400" size={20} />
+      {/* 1. TOP NAVBAR (SPACESHIP COCKPIT COMMAND DECK) */}
+      <header className="sticky top-0 z-40 cockpit-deck backdrop-blur-2xl border-b border-cyan-500/20 shadow-[0_10px_30px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-3">
+          
+          {/* Ship Reactor & Brand ID */}
+          <div className="flex items-center gap-3.5 shrink-0">
+            <Link to="/" className="flex items-center gap-2.5 group">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-emerald-400 p-[1.5px] flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.35)] group-hover:shadow-[0_0_25px_rgba(6,182,212,0.6)] transition-all">
+                <div className="w-full h-full bg-[#070d1a] rounded-[14px] flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 bg-cyan-500/10 animate-pulse"></div>
+                  <Bot className="text-cyan-400 relative z-10 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" size={22} />
                 </div>
               </div>
-              <span className="text-xl font-bold font-heading text-white hidden sm:inline">Alidea</span>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xl font-black font-heading text-white tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 via-white to-indigo-300">
+                    ALIDEA
+                  </span>
+                  <span className="text-[9px] font-mono font-extrabold px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 uppercase tracking-widest hidden sm:inline">
+                    OS v2.5
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                  <span className="text-slate-300 font-bold truncate max-w-[120px] sm:max-w-[160px]">{auth.user.business_name}</span>
+                </div>
+              </div>
             </Link>
-
-            <div className="h-6 w-px bg-slate-700 hidden sm:block"></div>
-
-            {/* Business Badge */}
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm sm:text-base text-white">{auth.user.business_name}</span>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
-                {auth.user.plan || 'Plan Pro'}
-              </span>
-            </div>
           </div>
 
-          {/* Navigation Tabs (Organized) */}
-          <div className="hidden lg:flex items-center p-1 bg-slate-950/80 rounded-xl border border-slate-800 text-xs font-semibold">
+          {/* Spaceship Cockpit Navigation Console (Console Deck Buttons) */}
+          <div className="hidden lg:flex items-center p-1.5 bg-[#0b1329]/90 rounded-2xl border border-cyan-500/30 shadow-[inset_0_2px_6px_rgba(0,0,0,0.8),0_0_15px_rgba(6,182,212,0.15)] gap-1">
             <button 
               onClick={() => setActiveTab('crm')} 
-              className={`px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-2 rounded-xl flex items-center gap-2 text-xs font-bold font-mono transition-all uppercase tracking-wider ${
                 activeTab === 'crm' 
-                  ? 'bg-gradient-to-r from-indigo-600 to-emerald-500 text-white shadow-md' 
-                  : 'text-slate-400 hover:text-white'
+                  ? 'cockpit-tab-btn-active' 
+                  : 'cockpit-tab-btn text-slate-300'
               }`}
             >
-              <Kanban size={14} /> CRM Clientes
+              <Kanban size={15} className={activeTab === 'crm' ? 'text-cyan-200 animate-bounce' : 'text-cyan-400'} />
+              <span>CRM Leads</span>
             </button>
+
             <button 
               onClick={() => setActiveTab('chat')} 
-              className={`px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all relative ${
+              className={`px-3 py-2 rounded-xl flex items-center gap-2 text-xs font-bold font-mono transition-all uppercase tracking-wider relative ${
                 activeTab === 'chat' 
-                  ? 'bg-gradient-to-r from-indigo-600 to-emerald-500 text-white shadow-md' 
-                  : 'text-slate-400 hover:text-white'
+                  ? 'cockpit-tab-btn-active' 
+                  : 'cockpit-tab-btn text-slate-300'
               }`}
             >
-              <MessageCircle size={14} /> Chat en Vivo
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <MessageCircle size={15} className={activeTab === 'chat' ? 'text-emerald-200' : 'text-emerald-400'} />
+              <span>Transmisión</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse"></span>
             </button>
+
             <button 
               onClick={() => setActiveTab('tasks')} 
-              className={`px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-2 rounded-xl flex items-center gap-2 text-xs font-bold font-mono transition-all uppercase tracking-wider ${
                 activeTab === 'tasks' 
-                  ? 'bg-gradient-to-r from-indigo-600 to-emerald-500 text-white shadow-md' 
-                  : 'text-slate-400 hover:text-white'
+                  ? 'cockpit-tab-btn-active' 
+                  : 'cockpit-tab-btn text-slate-300'
               }`}
             >
-              <CalendarCheck size={14} /> Tareas ({tasks.filter(t => t.status === 'pendiente').length})
+              <CalendarCheck size={15} className={activeTab === 'tasks' ? 'text-amber-200' : 'text-amber-400'} />
+              <span>Misiones ({tasks.filter(t => t.status === 'pendiente').length})</span>
             </button>
+
             <button 
               onClick={() => setActiveTab('catalog')} 
-              className={`px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-2 rounded-xl flex items-center gap-2 text-xs font-bold font-mono transition-all uppercase tracking-wider ${
                 activeTab === 'catalog' 
-                  ? 'bg-gradient-to-r from-indigo-600 to-emerald-500 text-white shadow-md' 
-                  : 'text-slate-400 hover:text-white'
+                  ? 'cockpit-tab-btn-active' 
+                  : 'cockpit-tab-btn text-slate-300'
               }`}
             >
-              <Package size={14} /> Catálogo & Pedidos
+              <Package size={15} className={activeTab === 'catalog' ? 'text-rose-200' : 'text-rose-400'} />
+              <span>Catálogo</span>
             </button>
+
             <button 
               onClick={() => {
                 setActiveTab('retargeting');
                 fetchCampaignHistory();
               }} 
-              className={`px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-2 rounded-xl flex items-center gap-2 text-xs font-bold font-mono transition-all uppercase tracking-wider ${
                 activeTab === 'retargeting' 
-                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md' 
-                  : 'text-slate-400 hover:text-white'
+                  ? 'cockpit-tab-btn-active' 
+                  : 'cockpit-tab-btn text-slate-300'
               }`}
             >
-              <Radio size={14} className="text-purple-300" /> Retargeting
+              <Radio size={15} className={activeTab === 'retargeting' ? 'text-purple-200 animate-spin' : 'text-purple-400'} />
+              <span>Emisión</span>
             </button>
+
             <button 
               onClick={() => setActiveTab('bot')} 
-              className={`px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-2 rounded-xl flex items-center gap-2 text-xs font-bold font-mono transition-all uppercase tracking-wider ${
                 activeTab === 'bot' 
-                  ? 'bg-gradient-to-r from-indigo-600 to-emerald-500 text-white shadow-md' 
-                  : 'text-slate-400 hover:text-white'
+                  ? 'cockpit-tab-btn-active' 
+                  : 'cockpit-tab-btn text-slate-300'
               }`}
             >
-              <Bot size={14} /> Bot WhatsApp
+              <Zap size={15} className={activeTab === 'bot' ? 'text-cyan-200' : 'text-cyan-400'} />
+              <span>Piloto IA</span>
             </button>
+
             <button 
               onClick={() => setActiveTab('accounting')} 
-              className={`px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-2 rounded-xl flex items-center gap-2 text-xs font-bold font-mono transition-all uppercase tracking-wider ${
                 activeTab === 'accounting' 
-                  ? 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-md' 
-                  : 'text-slate-400 hover:text-white'
+                  ? 'cockpit-tab-btn-active' 
+                  : 'cockpit-tab-btn text-slate-300'
               }`}
             >
-              <Landmark size={14} /> Contabilidad
+              <Landmark size={15} className={activeTab === 'accounting' ? 'text-teal-200' : 'text-teal-400'} />
+              <span>Bóveda</span>
             </button>
+
             <button 
               onClick={() => setActiveTab('dashboard')} 
-              className={`px-3 py-2 rounded-lg flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-2 rounded-xl flex items-center gap-2 text-xs font-bold font-mono transition-all uppercase tracking-wider ${
                 activeTab === 'dashboard' 
-                  ? 'bg-gradient-to-r from-indigo-600 to-emerald-500 text-white shadow-md' 
-                  : 'text-slate-400 hover:text-white'
+                  ? 'cockpit-tab-btn-active' 
+                  : 'cockpit-tab-btn text-slate-300'
               }`}
             >
-              <TrendingUp size={14} /> Analítica & BI
+              <TrendingUp size={15} className={activeTab === 'dashboard' ? 'text-indigo-200' : 'text-indigo-400'} />
+              <span>Telemetría</span>
             </button>
           </div>
 
-          {/* Right Action Menu */}
-          <div className="flex items-center gap-3">
+          {/* Right Spaceship Control & Eject Button */}
+          <div className="flex items-center gap-2.5">
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors"
+              className="cockpit-btn flex items-center gap-2 px-4 py-2 text-xs font-bold font-mono rounded-xl text-rose-300 hover:text-rose-100 hover:border-rose-500/50 shadow-[0_0_10px_rgba(244,63,94,0.15)] uppercase tracking-wider"
+              title="Desconectar y expulsar sesión"
             >
-              <Power size={14} /> Salir
+              <Power size={14} className="text-rose-400" />
+              <span className="hidden sm:inline">Desconectar</span>
             </button>
           </div>
         </div>
 
-        {/* Mobile Tab Selector */}
-        <div className="lg:hidden flex border-t border-slate-800 bg-slate-950/95 text-[11px] font-semibold overflow-x-auto">
-          <button onClick={() => setActiveTab('crm')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'crm' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>CRM</button>
-          <button onClick={() => setActiveTab('chat')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'chat' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Chat en Vivo</button>
-          <button onClick={() => { setActiveTab('retargeting'); fetchCampaignHistory(); }} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'retargeting' ? 'border-purple-400 text-purple-400' : 'border-transparent text-slate-400'}`}>Retargeting</button>
-          <button onClick={() => setActiveTab('tasks')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'tasks' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Tareas</button>
-          <button onClick={() => setActiveTab('catalog')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'catalog' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Catálogo & Pedidos</button>
-          <button onClick={() => setActiveTab('accounting')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'accounting' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Contabilidad</button>
-          <button onClick={() => setActiveTab('bot')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'bot' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Bot WhatsApp</button>
-          <button onClick={() => setActiveTab('dashboard')} className={`px-3 py-2.5 whitespace-nowrap border-b-2 ${activeTab === 'dashboard' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400'}`}>Analítica & BI</button>
+        {/* Mobile Tab Selector - Spaceship Console Style */}
+        <div className="lg:hidden flex border-t border-cyan-500/20 bg-[#070e1e]/98 text-[11px] font-mono font-bold uppercase tracking-wider overflow-x-auto p-1 gap-1">
+          <button onClick={() => setActiveTab('crm')} className={`px-3 py-2 rounded-lg whitespace-nowrap ${activeTab === 'crm' ? 'bg-cyan-600 text-white shadow-[0_0_10px_#0891b2]' : 'text-slate-400 bg-slate-900/60'}`}>CRM Leads</button>
+          <button onClick={() => setActiveTab('chat')} className={`px-3 py-2 rounded-lg whitespace-nowrap ${activeTab === 'chat' ? 'bg-cyan-600 text-white shadow-[0_0_10px_#0891b2]' : 'text-slate-400 bg-slate-900/60'}`}>Transmisión</button>
+          <button onClick={() => { setActiveTab('retargeting'); fetchCampaignHistory(); }} className={`px-3 py-2 rounded-lg whitespace-nowrap ${activeTab === 'retargeting' ? 'bg-purple-600 text-white shadow-[0_0_10px_#9333ea]' : 'text-slate-400 bg-slate-900/60'}`}>Emisión</button>
+          <button onClick={() => setActiveTab('tasks')} className={`px-3 py-2 rounded-lg whitespace-nowrap ${activeTab === 'tasks' ? 'bg-amber-600 text-white shadow-[0_0_10px_#d97706]' : 'text-slate-400 bg-slate-900/60'}`}>Misiones</button>
+          <button onClick={() => setActiveTab('catalog')} className={`px-3 py-2 rounded-lg whitespace-nowrap ${activeTab === 'catalog' ? 'bg-rose-600 text-white shadow-[0_0_10px_#e11d48]' : 'text-slate-400 bg-slate-900/60'}`}>Catálogo</button>
+          <button onClick={() => setActiveTab('accounting')} className={`px-3 py-2 rounded-lg whitespace-nowrap ${activeTab === 'accounting' ? 'bg-teal-600 text-white shadow-[0_0_10px_#0d9488]' : 'text-slate-400 bg-slate-900/60'}`}>Bóveda</button>
+          <button onClick={() => setActiveTab('bot')} className={`px-3 py-2 rounded-lg whitespace-nowrap ${activeTab === 'bot' ? 'bg-cyan-600 text-white shadow-[0_0_10px_#0891b2]' : 'text-slate-400 bg-slate-900/60'}`}>Piloto IA</button>
+          <button onClick={() => setActiveTab('dashboard')} className={`px-3 py-2 rounded-lg whitespace-nowrap ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-[0_0_10px_#4f46e5]' : 'text-slate-400 bg-slate-900/60'}`}>Telemetría</button>
         </div>
       </header>
+
+      {/* 2. SPACESHIP TELEMETRY HUD BAR (BARRA DE MANDO ESTELAR) */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-[#091326] via-[#0d1c38] to-[#091326] border border-cyan-500/25 shadow-[0_4px_20px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+          
+          {/* Reactor & AI Status */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+              <span className="font-bold tracking-wider">MOTOR: ALIDEA GENESIS IA</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-200">
+                {aiEnabled ? 'ACTIVO 100%' : 'EN ESPERA'}
+              </span>
+            </div>
+
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+              <Radio size={13} className="text-emerald-400 animate-pulse" />
+              <span>RADAR WHATSAPP: {botStatus.connected ? 'CONECTADO' : 'LISTO'}</span>
+            </div>
+          </div>
+
+          {/* Quick HUD Metrics */}
+          <div className="flex items-center gap-3 ml-auto">
+            <div className="flex items-center gap-1.5 text-slate-300">
+              <span className="text-slate-400">TRIPULACIÓN/LEADS:</span>
+              <span className="font-extrabold text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">{leads.length}</span>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-1.5 text-slate-300">
+              <span className="text-slate-400">MISIONES:</span>
+              <span className="font-extrabold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                {tasks.filter(t => t.status === 'pendiente').length} Pendientes
+              </span>
+            </div>
+
+            {/* Quick Action Button */}
+            <button
+              onClick={() => setShowAiConfigModal(true)}
+              className="cockpit-btn px-3 py-1.5 rounded-xl text-cyan-300 border-cyan-500/40 hover:border-cyan-400 hover:text-white flex items-center gap-1.5 shadow-[0_0_12px_rgba(6,182,212,0.2)]"
+            >
+              <Zap size={13} className="text-cyan-400" />
+              <span>Calibrar IA</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         

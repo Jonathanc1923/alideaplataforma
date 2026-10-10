@@ -89,6 +89,7 @@ export default function AdminDashboard() {
 
   // Simulator New Keyword rule modal
   const [showSimKwModal, setShowSimKwModal] = useState(false);
+  const [editingSimKwIdx, setEditingSimKwIdx] = useState(null);
   const [newSimKw, setNewSimKw] = useState('');
   const [newSimResponse, setNewSimResponse] = useState('');
   const [newSimStage, setNewSimStage] = useState('En Conversación');
@@ -322,6 +323,7 @@ export default function AdminDashboard() {
         category: newSimProdCategory.trim() || 'Servicios'
       };
       setSimCatalog(updated);
+      saveSimToDb({ catalog: updated });
     } else {
       const updated = [
         ...simCatalog,
@@ -334,6 +336,7 @@ export default function AdminDashboard() {
         }
       ];
       setSimCatalog(updated);
+      saveSimToDb({ catalog: updated });
     }
     setShowSimProdModal(false);
     setEditingSimProdIdx(null);
@@ -346,32 +349,90 @@ export default function AdminDashboard() {
   const handleDeleteSimProduct = (idx) => {
     const updated = simCatalog.filter((_, i) => i !== idx);
     setSimCatalog(updated);
+    saveSimToDb({ catalog: updated });
   };
 
-  const handleAddSimKeyword = (e) => {
+  const openAddSimKeywordModal = () => {
+    setEditingSimKwIdx(null);
+    setNewSimKw('');
+    setNewSimResponse('');
+    setNewSimStage('En Conversación');
+    setShowSimKwModal(true);
+  };
+
+  const openEditSimKeywordModal = (kw, idx) => {
+    setEditingSimKwIdx(idx);
+    setNewSimKw(kw.keyword || '');
+    setNewSimResponse(kw.response || '');
+    setNewSimStage(kw.stage || 'En Conversación');
+    setShowSimKwModal(true);
+  };
+
+  const saveSimToDb = async (overrides = {}) => {
+    try {
+      const headers = { 'x-admin-key': ADMIN_PIN };
+      await axios.put(
+        `${API_BASE}/admin/simulator-config`,
+        {
+          bot_name: simBotName.trim(),
+          welcome_message: simWelcomeMessage.trim(),
+          keywords: overrides.keywords !== undefined ? overrides.keywords : simKeywords,
+          catalog: overrides.catalog !== undefined ? overrides.catalog : simCatalog,
+          catalog_keywords: simCatalogKeywords,
+          catalog_custom_message: simCatalogCustomMessage,
+          catalog_media_files: simCatalogMediaFiles,
+          currency_code: simCurrencyCode.trim() || 'PEN',
+          currency_symbol: simCurrencySymbol.trim() || 'S/',
+          delay_min: simDelayMin,
+          delay_max: simDelayMax,
+          ai_enabled: simAiEnabled ? 1 : 0,
+          ai_system_prompt: simAiPrompt.trim(),
+          ai_temperature: simAiTemp
+        },
+        { headers }
+      );
+      setSimSuccessMsg('¡Guardado en base de datos correctamente!');
+      setTimeout(() => setSimSuccessMsg(''), 3000);
+    } catch (err) {
+      console.error('Error auto-guardando configuración del simulador:', err);
+    }
+  };
+
+  const handleAddSimKeyword = async (e) => {
     e.preventDefault();
     if (!newSimKw.trim() || !newSimResponse.trim()) {
       alert('Completa la palabra clave y la respuesta');
       return;
     }
-    const updated = [
-      ...simKeywords,
-      {
-        keyword: newSimKw.trim(),
-        response: newSimResponse.trim(),
-        stage: newSimStage
-      }
-    ];
+    
+    const kwObj = {
+      keyword: newSimKw.trim(),
+      response: newSimResponse.trim(),
+      stage: newSimStage
+    };
+
+    let updated = [];
+    if (editingSimKwIdx !== null) {
+      updated = simKeywords.map((k, idx) => idx === editingSimKwIdx ? kwObj : k);
+    } else {
+      updated = [...simKeywords, kwObj];
+    }
+    
     setSimKeywords(updated);
     setShowSimKwModal(false);
+    setEditingSimKwIdx(null);
     setNewSimKw('');
     setNewSimResponse('');
     setNewSimStage('En Conversación');
+
+    // Auto-save immediately to database
+    await saveSimToDb({ keywords: updated });
   };
 
-  const handleDeleteSimKeyword = (idx) => {
+  const handleDeleteSimKeyword = async (idx) => {
     const updated = simKeywords.filter((_, i) => i !== idx);
     setSimKeywords(updated);
+    await saveSimToDb({ keywords: updated });
   };
 
   const handleCreateUser = async (e) => {
@@ -1039,8 +1100,8 @@ export default function AdminDashboard() {
 
                   <button
                     type="button"
-                    onClick={() => setShowSimKwModal(true)}
-                    className="px-3.5 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-all flex items-center gap-1.5"
+                    onClick={openAddSimKeywordModal}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
                   >
                     <Plus size={15} />
                     <span>Agregar Regla</span>
@@ -1054,7 +1115,7 @@ export default function AdminDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {simKeywords.map((kw, idx) => (
-                      <div key={idx} className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div key={idx} className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group hover:border-slate-700 transition-all">
                         <div className="flex-1 space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs font-bold text-indigo-300 font-mono bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
@@ -1064,19 +1125,29 @@ export default function AdminDashboard() {
                               Etapa CRM: {kw.stage || 'En Conversación'}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-300 leading-relaxed">
+                          <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
                             {kw.response}
                           </p>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSimKeyword(idx)}
-                          className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs transition-colors self-end sm:self-center"
-                          title="Eliminar regla"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="flex items-center gap-1.5 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => openEditSimKeywordModal(kw, idx)}
+                            className="p-2 rounded-xl bg-slate-800 hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-300 border border-slate-700 text-xs transition-colors"
+                            title="Editar regla"
+                          >
+                            <Edit3 size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSimKeyword(idx)}
+                            className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs transition-colors"
+                            title="Eliminar regla"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1500,12 +1571,12 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* MODAL AGREGAR PALABRA CLAVE AL SIMULADOR */}
+      {/* MODAL AGREGAR / EDITAR PALABRA CLAVE AL SIMULADOR */}
       {showSimKwModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md glass-panel p-6 rounded-3xl border border-slate-700 shadow-2xl relative animate-fade-in">
             <button 
-              onClick={() => setShowSimKwModal(false)}
+              onClick={() => { setShowSimKwModal(false); setEditingSimKwIdx(null); }}
               className="absolute top-5 right-5 text-slate-400 hover:text-white"
             >
               <X size={20} />
@@ -1513,41 +1584,41 @@ export default function AdminDashboard() {
 
             <h3 className="text-lg font-bold text-white font-heading mb-4 flex items-center gap-2">
               <Plus size={18} className="text-emerald-400" />
-              <span>Agregar Regla de Respuesta</span>
+              <span>{editingSimKwIdx !== null ? 'Editar Regla de Respuesta' : 'Agregar Regla de Respuesta'}</span>
             </h3>
 
             <form onSubmit={handleAddSimKeyword} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Palabras Clave (separadas por coma)
+                  Palabras Clave (separadas por coma) *
                 </label>
                 <input
                   type="text"
                   value={newSimKw}
                   onChange={(e) => setNewSimKw(e.target.value)}
-                  placeholder="Ej: precio, costo, planes, cuanto vale"
-                  className="w-full glass-input px-4 py-2.5 rounded-xl text-sm"
+                  placeholder="Ej: asesor, humano, contacto, hablar con alguien"
+                  className="w-full glass-input px-4 py-2.5 rounded-xl text-sm font-mono"
                   required
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Respuesta del Bot en el Simulador
+                  Respuesta del Bot en el Simulador *
                 </label>
                 <textarea
-                  rows={3}
+                  rows={4}
                   value={newSimResponse}
                   onChange={(e) => setNewSimResponse(e.target.value)}
-                  placeholder="Escribe la respuesta automática..."
-                  className="w-full glass-input px-4 py-2.5 rounded-xl text-sm leading-relaxed"
+                  placeholder="Escribe la respuesta exacta que el bot enviará..."
+                  className="w-full glass-input px-4 py-2.5 rounded-xl text-sm leading-relaxed font-sans"
                   required
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Etapa del CRM Kanban a Simular
+                  Etapa del CRM a Simular
                 </label>
                 <select
                   value={newSimStage}
@@ -1566,16 +1637,16 @@ export default function AdminDashboard() {
               <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowSimKwModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
+                  onClick={() => { setShowSimKwModal(false); setEditingSimKwIdx(null); }}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/25"
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/25 transition-all"
                 >
-                  Agregar Regla
+                  {editingSimKwIdx !== null ? 'Guardar Cambios' : 'Agregar y Guardar Regla'}
                 </button>
               </div>
             </form>

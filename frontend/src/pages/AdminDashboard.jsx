@@ -29,7 +29,14 @@ import {
   Sliders,
   Check,
   Package,
-  Clock
+  Clock,
+  Paperclip,
+  FileText,
+  Video,
+  Image as ImageIcon,
+  Tag,
+  AlertCircle,
+  AlertTriangle
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
@@ -88,6 +95,11 @@ export default function AdminDashboard() {
 
   // Simulator Catalog State & Modal
   const [simCatalog, setSimCatalog] = useState([]);
+  const [simCatalogKeywords, setSimCatalogKeywords] = useState('catalogo, catálago, catalogo pdf, productos, servicios, lista de precios, precios, menu, carta, lista, cotizar, fotos de productos, ver catalogo');
+  const [simCatalogCustomMessage, setSimCatalogCustomMessage] = useState('');
+  const [simCatalogMediaFiles, setSimCatalogMediaFiles] = useState([]);
+  const [pendingSimCatalogFiles, setPendingSimCatalogFiles] = useState([]);
+  const [simCatalogErrorMsg, setSimCatalogErrorMsg] = useState('');
   const [simCurrencyCode, setSimCurrencyCode] = useState('PEN');
   const [simCurrencySymbol, setSimCurrencySymbol] = useState('S/');
   const [showSimProdModal, setShowSimProdModal] = useState(false);
@@ -139,6 +151,48 @@ export default function AdminDashboard() {
     }
   };
 
+  const formatFileSize = (bytes) => {
+    if (!bytes || isNaN(bytes) || bytes === 0) return '0 KB';
+    const k = 1024;
+    const dm = 1;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  };
+
+  const calculateSimCatalogTotalBytes = () => {
+    const existingBytes = (simCatalogMediaFiles || []).reduce((sum, f) => sum + (Number(f.size) || 0), 0);
+    const pendingBytes = (pendingSimCatalogFiles || []).reduce((sum, f) => sum + (Number(f.size) || 0), 0);
+    return existingBytes + pendingBytes;
+  };
+
+  const handleSelectSimCatalogFiles = (e) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length === 0) return;
+
+    setSimCatalogErrorMsg('');
+    const MAX_TOTAL_BYTES = 10 * 1024 * 1024; // 10MB
+    const currentBytes = calculateSimCatalogTotalBytes();
+    const newBytes = selectedFiles.reduce((sum, f) => sum + (Number(f.size) || 0), 0);
+
+    if (currentBytes + newBytes > MAX_TOTAL_BYTES) {
+      const overMB = ((currentBytes + newBytes) / (1024 * 1024)).toFixed(2);
+      setSimCatalogErrorMsg(`El peso total de los archivos del catálogo superaría los 10 MB (Total resultante: ${overMB} MB). Por favor selecciona archivos más livianos.`);
+      return;
+    }
+
+    setPendingSimCatalogFiles(prev => [...prev, ...selectedFiles]);
+    e.target.value = '';
+  };
+
+  const handleRemoveExistingSimMediaFile = (fileId) => {
+    setSimCatalogMediaFiles(prev => prev.filter(f => f.id !== fileId));
+  };
+
+  const handleRemovePendingSimFile = (index) => {
+    setPendingSimCatalogFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const fetchSimulatorConfig = async () => {
     try {
       const headers = { 'x-admin-key': ADMIN_PIN };
@@ -148,6 +202,9 @@ export default function AdminDashboard() {
         setSimWelcomeMessage(res.data.welcome_message || '');
         setSimKeywords(Array.isArray(res.data.keywords) ? res.data.keywords : []);
         setSimCatalog(Array.isArray(res.data.catalog) ? res.data.catalog : []);
+        setSimCatalogKeywords(res.data.catalog_keywords || 'catalogo, catálago, catalogo pdf, productos, servicios, lista de precios, precios, menu, carta, lista, cotizar, fotos de productos, ver catalogo');
+        setSimCatalogCustomMessage(res.data.catalog_custom_message || '');
+        setSimCatalogMediaFiles(Array.isArray(res.data.catalog_media_files) ? res.data.catalog_media_files : []);
         setSimCurrencyCode(res.data.currency_code || 'PEN');
         setSimCurrencySymbol(res.data.currency_symbol || 'S/');
         setSimDelayMin(res.data.delay_min !== undefined ? res.data.delay_min : 2);
@@ -165,8 +222,41 @@ export default function AdminDashboard() {
     if (e) e.preventDefault();
     setSimSaving(true);
     setSimSuccessMsg('');
+    setSimCatalogErrorMsg('');
     try {
       const headers = { 'x-admin-key': ADMIN_PIN };
+
+      // Validate 10MB Total
+      const MAX_TOTAL_BYTES = 10 * 1024 * 1024;
+      if (calculateSimCatalogTotalBytes() > MAX_TOTAL_BYTES) {
+        setSimCatalogErrorMsg('El peso total de los archivos del catálogo no puede superar los 10 MB.');
+        setSimSaving(false);
+        return;
+      }
+
+      let updatedMediaFiles = [...simCatalogMediaFiles];
+
+      // If pending files exist, upload them first
+      if (pendingSimCatalogFiles.length > 0) {
+        const formData = new FormData();
+        formData.append('existing_media_files', JSON.stringify(simCatalogMediaFiles));
+        pendingSimCatalogFiles.forEach(file => {
+          formData.append('media', file);
+        });
+
+        const uploadRes = await axios.post(`${API_BASE}/admin/simulator-catalog-upload`, formData, {
+          headers: {
+            'x-admin-key': ADMIN_PIN,
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        if (uploadRes.data?.media_files) {
+          updatedMediaFiles = uploadRes.data.media_files;
+          setSimCatalogMediaFiles(updatedMediaFiles);
+          setPendingSimCatalogFiles([]);
+        }
+      }
+
       await axios.put(
         `${API_BASE}/admin/simulator-config`,
         {
@@ -174,6 +264,9 @@ export default function AdminDashboard() {
           welcome_message: simWelcomeMessage.trim(),
           keywords: simKeywords,
           catalog: simCatalog,
+          catalog_keywords: simCatalogKeywords,
+          catalog_custom_message: simCatalogCustomMessage,
+          catalog_media_files: updatedMediaFiles,
           currency_code: simCurrencyCode.trim() || 'PEN',
           currency_symbol: simCurrencySymbol.trim() || 'S/',
           delay_min: simDelayMin,
@@ -184,11 +277,11 @@ export default function AdminDashboard() {
         },
         { headers }
       );
-      setSimSuccessMsg('¡Configuración del Simulador de la Landing guardada exitosamente!');
+      setSimSuccessMsg('¡Configuración del Simulador y Catálogo guardadas exitosamente!');
       setTimeout(() => setSimSuccessMsg(''), 4000);
     } catch (err) {
       console.error(err);
-      alert('Error al guardar configuración del simulador');
+      setSimCatalogErrorMsg(err.response?.data?.error || 'Error al guardar configuración del simulador');
     } finally {
       setSimSaving(false);
     }
@@ -1065,6 +1158,178 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 )}
+
+                {/* Sub-bloque 4.1: Palabras clave y Mensaje de Activación del Catálogo */}
+                <div className="pt-4 border-t border-slate-800/80 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Triggers */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <Tag size={14} className="text-rose-400" />
+                        Palabras Clave de Disparo del Catálogo
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={simCatalogKeywords}
+                        onChange={(e) => setSimCatalogKeywords(e.target.value)}
+                        placeholder="catalogo, catalogo pdf, productos, lista de precios, precios, menu, carta, lista, cotizar, fotos"
+                        className="w-full bg-slate-950/90 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 font-mono transition-all"
+                      />
+                      <div className="flex flex-wrap gap-1">
+                        {['catalogo', 'catalogo pdf', 'productos', 'precios', 'lista de precios', 'fotos'].map(w => (
+                          <button
+                            key={w}
+                            type="button"
+                            onClick={() => {
+                              if (!(simCatalogKeywords || '').toLowerCase().includes(w)) {
+                                setSimCatalogKeywords(prev => prev ? `${prev}, ${w}` : w);
+                              }
+                            }}
+                            className="px-2 py-0.5 rounded text-[10.5px] bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border border-slate-700"
+                          >
+                            + {w}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Mensaje Personalizado */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <MessageSquare size={14} className="text-indigo-400" />
+                        Mensaje Personalizado del Catálogo (Opcional)
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={simCatalogCustomMessage}
+                        onChange={(e) => setSimCatalogCustomMessage(e.target.value)}
+                        placeholder="Deja en blanco para autogenerar la lista con los productos de la demo..."
+                        className="w-full bg-slate-950/90 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-all leading-relaxed"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Sub-bloque 4.2: Subida de Archivos Multimedia para el Simulador (Fotos, Videos, PDFs - Máx 10 MB) */}
+                  <div className="p-4 bg-slate-950/90 rounded-2xl border border-slate-800 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Paperclip size={16} className="text-emerald-400" />
+                        <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                          Archivos Multimedia Adjuntos del Simulador (Fotos, Videos, PDFs)
+                        </h4>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                          Máx 10 MB
+                        </span>
+                      </div>
+
+                      {/* Weight Gauge */}
+                      {(() => {
+                        const totalBytes = calculateSimCatalogTotalBytes();
+                        const MAX_BYTES = 10 * 1024 * 1024;
+                        const percent = Math.min(100, (totalBytes / MAX_BYTES) * 100);
+                        const isOver = totalBytes > MAX_BYTES;
+
+                        return (
+                          <div className="flex items-center gap-2 text-xs font-mono font-bold">
+                            <span className="text-slate-400">Peso Total:</span>
+                            <span className={isOver ? 'text-rose-400' : 'text-emerald-400'}>
+                              {formatFileSize(totalBytes)} / 10.0 MB ({percent.toFixed(0)}%)
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {simCatalogErrorMsg && (
+                      <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs font-semibold flex items-center gap-2">
+                        <AlertTriangle size={15} />
+                        <span>{simCatalogErrorMsg}</span>
+                      </div>
+                    )}
+
+                    {/* Dropzone */}
+                    <label className="block border-2 border-dashed border-slate-700 hover:border-rose-500/50 rounded-xl p-4 text-center cursor-pointer bg-slate-900/40 hover:bg-slate-900/80 transition-all group">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*,video/*,application/pdf"
+                        onChange={handleSelectSimCatalogFiles}
+                        className="hidden"
+                      />
+                      <div className="flex flex-col items-center justify-center gap-1.5">
+                        <div className="w-8 h-8 rounded-lg bg-slate-800 group-hover:bg-rose-500/20 flex items-center justify-center text-slate-400 group-hover:text-rose-400 transition-colors">
+                          <Plus size={18} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-200 group-hover:text-white">
+                          Haz clic para seleccionar Fotos, Videos o PDFs para la demo
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          JPG, PNG, MP4, PDF • Máx 10 MB combinado
+                        </span>
+                      </div>
+                    </label>
+
+                    {/* Files List */}
+                    <div className="space-y-2">
+                      {simCatalogMediaFiles.map((file) => {
+                        const fType = (file.type || file.mimetype || '').toLowerCase();
+                        const isImg = fType.startsWith('image/');
+                        const isVid = fType.startsWith('video/');
+                        const isPdf = fType.includes('pdf') || (file.name || '').endsWith('.pdf');
+
+                        return (
+                          <div key={file.id || file.url} className="p-2 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-sm">
+                                {isImg && '🖼️'}
+                                {isVid && '🎥'}
+                                {isPdf && '📄'}
+                                {!isImg && !isVid && !isPdf && '📎'}
+                              </span>
+                              <span className="text-xs font-medium text-white truncate max-w-xs">{file.name}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">({formatFileSize(file.size)})</span>
+                              <span className="text-[9.5px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">Guardado</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {file.url && (
+                                <a href={file.url} target="_blank" rel="noreferrer" className="p-1 text-slate-400 hover:text-white">
+                                  <ExternalLink size={13} />
+                                </a>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveExistingSimMediaFile(file.id)}
+                                className="p-1 text-slate-500 hover:text-rose-400"
+                                title="Eliminar"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {pendingSimCatalogFiles.map((file, idx) => (
+                        <div key={`pending-${idx}`} className="p-2 bg-rose-950/20 rounded-xl border border-rose-500/30 flex items-center justify-between gap-2 animate-fade-in">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm">📎</span>
+                            <span className="text-xs font-medium text-rose-200 truncate max-w-xs">{file.name}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">({formatFileSize(file.size)})</span>
+                            <span className="text-[9.5px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">Pendiente</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePendingSimFile(idx)}
+                            className="p-1 text-slate-500 hover:text-rose-400"
+                            title="Quitar"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Bloque 5: Inteligencia Artificial (IA) para Consultas Abiertas */}

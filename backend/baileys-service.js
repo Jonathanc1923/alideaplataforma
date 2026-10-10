@@ -507,67 +507,81 @@ async function processQueue(queueKey, getDbConnection) {
                 const textLower = messageText.toLowerCase();
                 let matched = false;
 
-                // 1. Verificación automática de solicitud de catálogo de productos/servicios
-                const isCatalogIntent = /(catalogo|cat[aá]logo|pedir cat[aá]logo|enviar cat[aá]logo|ver cat[aá]logo|productos|servicios|lista de precios|precios|menu|menú|carta)/i.test(messageText);
+                // 1. Verificación de Auto-Respuesta del Catálogo (Palabras Clave + Archivos Multimedia adjuntos)
+                let catalogConfig = null;
                 let userProducts = [];
                 let userRecord = null;
 
                 if (sessionRecord && sessionRecord.user_id) {
                     try {
+                        catalogConfig = await db.get('SELECT * FROM catalog_config WHERE user_id = ?', [sessionRecord.user_id]);
                         userProducts = await db.all('SELECT * FROM products WHERE user_id = ? AND in_stock = 1 ORDER BY category, name ASC', [sessionRecord.user_id]);
                         userRecord = await db.get('SELECT business_name, currency_symbol, currency_code FROM users WHERE id = ?', [sessionRecord.user_id]);
                     } catch(e) {}
                 }
 
-                if (isCatalogIntent && userProducts && userProducts.length > 0) {
+                const catalogAutoReplyEnabled = !catalogConfig || catalogConfig.auto_reply_enabled === 1 || catalogConfig.auto_reply_enabled === true || catalogConfig.auto_reply_enabled === '1';
+                
+                let isCatalogMatch = false;
+                if (catalogAutoReplyEnabled) {
+                    const rawCatalogKeywords = catalogConfig?.trigger_keywords || 'catalogo, catálago, catalogo pdf, productos, servicios, lista de precios, precios, menu, carta, lista, cotizar, fotos de productos, ver catalogo';
+                    const catalogKeywords = rawCatalogKeywords.toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
+                    
+                    const matchedByKeyword = catalogKeywords.some(ck => ck !== '' && textLower.includes(ck));
+                    const matchedByRegex = /(catalogo|cat[aá]logo|pedir cat[aá]logo|enviar cat[aá]logo|ver cat[aá]logo|productos|servicios|lista de precios|precios|menu|menú|carta)/i.test(messageText);
+
+                    if (matchedByKeyword || matchedByRegex) {
+                        isCatalogMatch = true;
+                    }
+                }
+
+                if (isCatalogMatch) {
                     const sym = userRecord?.currency_symbol || 'S/';
                     const bName = userRecord?.business_name ? `*${userRecord.business_name}*\n` : '';
 
-                    let catalogText = `📁 ${bName}*CATÁLOGO DE PRODUCTOS & SERVICIOS*\n\n`;
-                    const categories = {};
-                    for (const p of userProducts) {
-                        const cat = (p.category || 'General').trim();
-                        if (!categories[cat]) categories[cat] = [];
-                        categories[cat].push(p);
-                    }
-
-                    const catKeys = Object.keys(categories);
-                    for (const catName of catKeys) {
-                        if (catKeys.length > 1 || catName.toLowerCase() !== 'general') {
-                            catText += `📂 *${catName.toUpperCase()}*\n`;
+                    let catalogText = '';
+                    if (catalogConfig?.custom_message && catalogConfig.custom_message.trim()) {
+                        catalogText = catalogConfig.custom_message.trim();
+                    } else if (userProducts && userProducts.length > 0) {
+                        catalogText = `📁 ${bName}*CATÁLOGO DE PRODUCTOS & SERVICIOS*\n\n`;
+                        const categories = {};
+                        for (const p of userProducts) {
+                            const cat = (p.category || 'General').trim();
+                            if (!categories[cat]) categories[cat] = [];
+                            categories[cat].push(p);
                         }
-                        categories[catName].forEach((p) => {
-                            catText += `• *${p.name}* ➔ *${sym} ${Number(p.price || 0).toFixed(2)}*\n`;
-                            if (p.description && p.description.trim()) {
-                                catText += `  _${p.description.trim()}_\n`;
+
+                        const catKeys = Object.keys(categories);
+                        for (const catName of catKeys) {
+                            if (catKeys.length > 1 || catName.toLowerCase() !== 'general') {
+                                catalogText += `📂 *${catName.toUpperCase()}*\n`;
                             }
-                        });
-                        catText += `\n`;
-                    }
-                    catalogText += `💬 _¿Deseas cotizar o realizar un pedido de alguno de estos productos? Indícanos con toda confianza._`;
-
-                    // Verificar si existe una palabra clave configurada con archivos adjuntos
-                    let matchedCatalogKw = null;
-                    for (const kw of keywords) {
-                        const matchKeywords = kw.keyword.toLowerCase().split(',').map(k => k.trim());
-                        if (matchKeywords.some(mk => mk !== '' && textLower.includes(mk))) {
-                            matchedCatalogKw = kw;
-                            break;
+                            categories[catName].forEach((p) => {
+                                catalogText += `• *${p.name}* ➔ *${sym} ${Number(p.price || 0).toFixed(2)}*\n`;
+                                if (p.description && p.description.trim()) {
+                                    catalogText += `  _${p.description.trim()}_\n`;
+                                }
+                            });
+                            catalogText += `\n`;
                         }
+                        catalogText += `💬 _¿Deseas cotizar o realizar un pedido de alguno de estos productos? Indícanos con toda confianza._`;
+                    } else {
+                        catalogText = `📁 ${bName}*CATÁLOGO DE PRODUCTOS & SERVICIOS*\n\nGracias por tu interés en nuestros productos y servicios. A continuación te compartimos los detalles e información disponible.\n\n💬 _¿Deseas cotizar o realizar alguna consulta? Estamos para atenderte._`;
                     }
 
-                    // Marcar mensajes entrantes como leídos
+                    // Marcar mensajes entrantes como leídos (doble check azul)
                     const waitToReadDelay = (1.0 + Math.random() * 1.0) * 1000;
                     await delay(waitToReadDelay);
                     await markAllAsRead();
                     await delay(300 + Math.random() * 400);
 
-                    // Simular escritura
+                    // Simular escritura en tiempo real
                     try { await sock.sendPresenceUpdate('composing', jid); } catch(e) {}
                     const typingDelay = Math.min(3000, Math.max(800, catalogText.length * 15));
                     await delay(typingDelay);
                     try { await sock.sendPresenceUpdate('paused', jid); } catch(e) {}
 
+                    // Enviar texto del catálogo
                     await sock.sendMessage(jid, { text: catalogText }, { quoted: msg });
                     console.log(`[Alidea Session ${sessionId}] Catálogo automático enviado a ${jid}`);
 
@@ -580,30 +594,42 @@ async function processQueue(queueKey, getDbConnection) {
                         );
                     } catch(e) {}
 
-                    // Si la regla de palabra clave tiene archivos multimedia adjuntos (PDF, fotos), enviarlos a continuación
-                    if (matchedCatalogKw) {
-                        let mediaFiles = [];
-                        if (matchedCatalogKw.media_files) {
-                            try { mediaFiles = JSON.parse(matchedCatalogKw.media_files); } catch(e) {}
-                        }
-                        if (mediaFiles.length === 0 && matchedCatalogKw.media_path && fs.existsSync(matchedCatalogKw.media_path)) {
-                            mediaFiles.push({ path: matchedCatalogKw.media_path, type: matchedCatalogKw.media_type, name: path.basename(matchedCatalogKw.media_path) });
-                        }
-                        if (mediaFiles.length > 0) {
-                            for (const file of mediaFiles) {
-                                if (fs.existsSync(file.path)) {
-                                    await delay(2000);
-                                    const mediaUrl = file.path;
-                                    const fileType = file.type || '';
+                    // Recuperar todos los archivos adjuntos configurados en el catálogo (Fotos, Videos, PDFs)
+                    let catalogMediaFiles = [];
+                    if (catalogConfig?.media_files) {
+                        try {
+                            const parsed = JSON.parse(catalogConfig.media_files);
+                            if (Array.isArray(parsed)) catalogMediaFiles = parsed;
+                        } catch(e) {}
+                    }
+
+                    // Enviar todos los archivos multimedia del catálogo secuencialmente
+                    if (catalogMediaFiles.length > 0) {
+                        for (const file of catalogMediaFiles) {
+                            if (file.path && fs.existsSync(file.path)) {
+                                await delay(1800 + Math.random() * 1000);
+                                const mediaUrl = file.path;
+                                const fileType = (file.type || file.mimetype || '').toLowerCase();
+                                const fileName = file.name || file.originalName || path.basename(file.path);
+
+                                try {
                                     if (fileType.startsWith('image/')) {
-                                        await sock.sendMessage(jid, { image: { url: mediaUrl } });
-                                    } else if (fileType.startsWith('audio/')) {
-                                        await sock.sendMessage(jid, { audio: { url: mediaUrl }, ptt: true });
+                                        await sock.sendMessage(jid, { image: { url: mediaUrl }, caption: fileName !== 'image.png' && !fileName.startsWith('17') ? fileName : undefined });
                                     } else if (fileType.startsWith('video/')) {
                                         await sock.sendMessage(jid, { video: { url: mediaUrl } });
+                                    } else if (fileType.startsWith('audio/')) {
+                                        await sock.sendMessage(jid, { audio: { url: mediaUrl }, ptt: true });
                                     } else {
-                                        await sock.sendMessage(jid, { document: { url: mediaUrl }, fileName: file.name || path.basename(mediaUrl) });
+                                        // Documento / PDF
+                                        await sock.sendMessage(jid, { 
+                                            document: { url: mediaUrl }, 
+                                            mimetype: fileType || 'application/pdf',
+                                            fileName: fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`
+                                        });
                                     }
+                                    console.log(`[Alidea Session ${sessionId}] Archivo de catálogo enviado: ${fileName} a ${jid}`);
+                                } catch (sendErr) {
+                                    console.error(`[Alidea Session ${sessionId}] Error al enviar archivo de catálogo:`, sendErr.message);
                                 }
                             }
                         }
@@ -623,8 +649,8 @@ async function processQueue(queueKey, getDbConnection) {
                             );
                             await db.run(
                                 `INSERT INTO crm_activities (id, lead_id, user_id, type, content)
-                                 VALUES (?, ?, ?, 'whatsapp_out', 'Catálogo de productos enviado automáticamente')`,
-                                [uuidv4(), lead.id, sessionRecord.user_id]
+                                 VALUES (?, ?, ?, 'whatsapp_out', 'Catálogo de productos y archivos multimedia enviados automáticamente')`,
+                                 [uuidv4(), lead.id, sessionRecord.user_id]
                             );
                         }
                     } catch(e) {}

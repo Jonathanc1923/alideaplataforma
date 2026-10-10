@@ -177,7 +177,7 @@ export default function UserWorkspace() {
   // ==========================================
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [catalogSubTab, setCatalogSubTab] = useState('products'); // 'products' | 'orders'
+  const [catalogSubTab, setCatalogSubTab] = useState('products'); // 'products' | 'auto_reply' | 'orders'
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [prodName, setProdName] = useState('');
@@ -186,6 +186,17 @@ export default function UserWorkspace() {
   const [prodCategory, setProdCategory] = useState('General');
   const [prodDesc, setProdDesc] = useState('');
   const [prodImageUrl, setProdImageUrl] = useState('');
+
+  // Catalog Auto-Reply & Media Files State (Max 10MB Total)
+  const [catalogTriggerKeywords, setCatalogTriggerKeywords] = useState('catalogo, catálago, catalogo pdf, productos, servicios, lista de precios, precios, menu, carta, lista, cotizar, fotos de productos, ver catalogo');
+  const [catalogAutoReplyEnabled, setCatalogAutoReplyEnabled] = useState(true);
+  const [catalogCustomMessage, setCatalogCustomMessage] = useState('');
+  const [catalogMediaFiles, setCatalogMediaFiles] = useState([]);
+  const [pendingCatalogFiles, setPendingCatalogFiles] = useState([]);
+  const [catalogConfigLoading, setCatalogConfigLoading] = useState(false);
+  const [savingCatalogConfig, setSavingCatalogConfig] = useState(false);
+  const [catalogSuccessMsg, setCatalogSuccessMsg] = useState('');
+  const [catalogErrorMsg, setCatalogErrorMsg] = useState('');
 
   // Currency & Business Settings State
   const [currencyCode, setCurrencyCode] = useState(auth?.user?.currency_code || 'PEN');
@@ -378,6 +389,7 @@ export default function UserWorkspace() {
     fetchTasks();
     fetchProducts();
     fetchOrders();
+    fetchCatalogConfig();
     fetchCrmTags();
     fetchAiSettings();
     fetchUserSettings();
@@ -1091,6 +1103,132 @@ export default function UserWorkspace() {
       setProducts(res.data);
     } catch (err) {
       console.error('Error fetching products:', err);
+    }
+  };
+
+  // Catalog Auto-Reply & Media API (Max 10MB Total)
+  const fetchCatalogConfig = async () => {
+    if (!auth?.user?.id) return;
+    try {
+      setCatalogConfigLoading(true);
+      const res = await axios.get(`${API_BASE}/catalog/config`, {
+        headers: { 'x-user-id': auth.user.id }
+      });
+      if (res.data) {
+        setCatalogTriggerKeywords(res.data.trigger_keywords || 'catalogo, catálago, catalogo pdf, productos, servicios, lista de precios, precios, menu, carta, lista, cotizar, fotos de productos, ver catalogo');
+        setCatalogAutoReplyEnabled(res.data.auto_reply_enabled !== false);
+        setCatalogCustomMessage(res.data.custom_message || '');
+        setCatalogMediaFiles(Array.isArray(res.data.media_files) ? res.data.media_files : []);
+      }
+    } catch (err) {
+      console.error('Error fetching catalog config:', err);
+    } finally {
+      setCatalogConfigLoading(false);
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes || isNaN(bytes) || bytes === 0) return '0 KB';
+    const k = 1024;
+    const dm = 1;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  };
+
+  const calculateCatalogTotalBytes = () => {
+    const existingBytes = (catalogMediaFiles || []).reduce((sum, f) => sum + (Number(f.size) || 0), 0);
+    const pendingBytes = (pendingCatalogFiles || []).reduce((sum, f) => sum + (Number(f.size) || 0), 0);
+    return existingBytes + pendingBytes;
+  };
+
+  const handleSelectCatalogFiles = (e) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length === 0) return;
+
+    setCatalogErrorMsg('');
+    setCatalogSuccessMsg('');
+    const MAX_TOTAL_BYTES = 10 * 1024 * 1024; // 10MB Total
+    const currentBytes = calculateCatalogTotalBytes();
+    const newBytes = selectedFiles.reduce((sum, f) => sum + (Number(f.size) || 0), 0);
+
+    if (currentBytes + newBytes > MAX_TOTAL_BYTES) {
+      const overMB = ((currentBytes + newBytes) / (1024 * 1024)).toFixed(2);
+      setCatalogErrorMsg(`El peso total de los archivos superaría el límite de 10 MB (Total resultante: ${overMB} MB). Por favor selecciona archivos más livianos o elimina algunos antes de agregar más.`);
+      return;
+    }
+
+    setPendingCatalogFiles(prev => [...prev, ...selectedFiles]);
+    e.target.value = '';
+  };
+
+  const handleRemoveExistingMediaFile = async (fileId) => {
+    if (!auth?.user?.id) return;
+    if (!window.confirm('¿Deseas eliminar este archivo multimedia del catálogo?')) return;
+    try {
+      const res = await axios.delete(`${API_BASE}/catalog/media/${fileId}`, {
+        headers: { 'x-user-id': auth.user.id }
+      });
+      setCatalogMediaFiles(res.data.media_files || []);
+      setCatalogSuccessMsg('Archivo eliminado del catálogo.');
+      setTimeout(() => setCatalogSuccessMsg(''), 4000);
+    } catch (err) {
+      console.error('Error deleting catalog media file:', err);
+      setCatalogErrorMsg('Error al eliminar archivo.');
+    }
+  };
+
+  const handleRemovePendingFile = (index) => {
+    setPendingCatalogFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveCatalogConfig = async (e) => {
+    if (e) e.preventDefault();
+    if (!auth?.user?.id) return;
+
+    setSavingCatalogConfig(true);
+    setCatalogSuccessMsg('');
+    setCatalogErrorMsg('');
+
+    try {
+      const MAX_TOTAL_BYTES = 10 * 1024 * 1024;
+      const totalBytes = calculateCatalogTotalBytes();
+      if (totalBytes > MAX_TOTAL_BYTES) {
+        const currentMB = (totalBytes / (1024 * 1024)).toFixed(2);
+        setCatalogErrorMsg(`El peso total de los archivos multimedia supera los 10 MB (${currentMB} MB). Elimina algunos archivos para continuar.`);
+        setSavingCatalogConfig(false);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('user_id', auth.user.id);
+      formData.append('trigger_keywords', catalogTriggerKeywords);
+      formData.append('auto_reply_enabled', catalogAutoReplyEnabled ? 'true' : 'false');
+      formData.append('custom_message', catalogCustomMessage);
+      formData.append('existing_media_files', JSON.stringify(catalogMediaFiles));
+
+      pendingCatalogFiles.forEach(file => {
+        formData.append('media', file);
+      });
+
+      const res = await axios.post(`${API_BASE}/catalog/config`, formData, {
+        headers: {
+          'x-user-id': auth.user.id,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (res.data?.config) {
+        setCatalogMediaFiles(res.data.config.media_files || []);
+        setPendingCatalogFiles([]);
+        setCatalogSuccessMsg('¡Configuración del catálogo y archivos multimedia guardados con éxito!');
+        setTimeout(() => setCatalogSuccessMsg(''), 5000);
+      }
+    } catch (err) {
+      console.error('Error saving catalog config:', err);
+      setCatalogErrorMsg(err.response?.data?.error || 'Error al guardar la configuración del catálogo.');
+    } finally {
+      setSavingCatalogConfig(false);
     }
   };
 
@@ -3236,6 +3374,13 @@ export default function UserWorkspace() {
                     Productos ({products.length})
                   </button>
                   <button 
+                    onClick={() => setCatalogSubTab('auto_reply')} 
+                    className={`px-3.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${catalogSubTab === 'auto_reply' ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    <Paperclip size={13} />
+                    <span>Auto-Respuesta & Archivos ({catalogMediaFiles.length + pendingCatalogFiles.length})</span>
+                  </button>
+                  <button 
                     onClick={() => setCatalogSubTab('orders')} 
                     className={`px-3.5 py-1.5 rounded-lg transition-colors ${catalogSubTab === 'orders' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
                   >
@@ -3243,7 +3388,7 @@ export default function UserWorkspace() {
                   </button>
                 </div>
 
-                {catalogSubTab === 'products' ? (
+                {catalogSubTab === 'products' && (
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={handleShareFullCatalogWhatsApp}
@@ -3260,7 +3405,29 @@ export default function UserWorkspace() {
                       <Plus size={15} /> Añadir Producto
                     </button>
                   </div>
-                ) : (
+                )}
+
+                {catalogSubTab === 'auto_reply' && (
+                  <button 
+                    onClick={handleSaveCatalogConfig}
+                    disabled={savingCatalogConfig}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-rose-500/20 hover:opacity-95 transition-opacity disabled:opacity-50"
+                  >
+                    {savingCatalogConfig ? (
+                      <>
+                        <RefreshCw size={14} className="animate-spin" />
+                        <span>Guardando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle size={14} />
+                        <span>Guardar Cambios</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {catalogSubTab === 'orders' && (
                   <button 
                     onClick={() => setShowOrderModal(true)}
                     className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold text-xs flex items-center gap-1 shadow-md shadow-emerald-500/20"
@@ -3271,63 +3438,445 @@ export default function UserWorkspace() {
               </div>
             </div>
 
-            {/* BARRA DE CONFIGURACIÓN DE MONEDA DEL NEGOCIO */}
-            <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                  <DollarSign size={20} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-white">Moneda del Negocio:</h4>
-                    <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                      {currencySymbol} ({currencyCode})
+            {/* Sub-tab 2: AUTO-RESPUESTA DEL CATÁLOGO & ARCHIVOS MULTIMEDIA (MAX 10MB TOTAL) */}
+            {catalogSubTab === 'auto_reply' && (
+              <div className="space-y-6 animate-fade-in">
+                {/* Header Card */}
+                <div className="glass-panel p-5 rounded-3xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-rose-950/20">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white shadow-lg shadow-rose-500/30">
+                      <Paperclip size={24} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-bold text-white">Auto-Respuesta & Archivos del Catálogo</h3>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                          Máx 10 MB Total
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                        Cuando un cliente escriba alguna de las palabras configuradas, el bot enviará automáticamente el catálogo junto a todas las fotos, videos y PDFs subidos. <strong className="text-rose-300">La IA no responderá para priorizar esta respuesta directa.</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Toggle Activar/Desactivar */}
+                  <div className="flex items-center gap-3 bg-slate-950/80 px-4 py-2.5 rounded-2xl border border-slate-800">
+                    <span className="text-xs font-bold text-slate-300">
+                      Auto-Respuesta:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCatalogAutoReplyEnabled(!catalogAutoReplyEnabled)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                        catalogAutoReplyEnabled ? 'bg-emerald-500' : 'bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          catalogAutoReplyEnabled ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                    <span className={`text-xs font-extrabold ${catalogAutoReplyEnabled ? 'text-emerald-400' : 'text-slate-500'}`}>
+                      {catalogAutoReplyEnabled ? 'ACTIVA' : 'PAUSADA'}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Tus precios, cotizaciones de WhatsApp y balances usarán este símbolo.
-                  </p>
+                </div>
+
+                {/* Notifications */}
+                {catalogSuccessMsg && (
+                  <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-emerald-400 text-xs font-semibold flex items-center gap-2 animate-fade-in">
+                    <CheckCircle size={16} />
+                    <span>{catalogSuccessMsg}</span>
+                  </div>
+                )}
+                {catalogErrorMsg && (
+                  <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-400 text-xs font-semibold flex items-center gap-2 animate-fade-in">
+                    <AlertTriangle size={16} />
+                    <span>{catalogErrorMsg}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* Left Column: Keywords & Message (7 cols) */}
+                  <div className="lg:col-span-7 space-y-6">
+                    {/* Card 1: Palabras Clave */}
+                    <div className="glass-panel p-5 rounded-3xl border border-slate-800 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                          <Tag size={15} className="text-rose-400" />
+                          Palabras Clave de Disparo (Triggers)
+                        </label>
+                        <span className="text-[11px] text-slate-400">Separadas por comas</span>
+                      </div>
+
+                      <textarea
+                        rows={3}
+                        value={catalogTriggerKeywords}
+                        onChange={(e) => setCatalogTriggerKeywords(e.target.value)}
+                        placeholder="ej. catalogo, catalogo pdf, productos, servicios, precios, lista de precios, menu, carta, lista, cotizar, fotos"
+                        className="w-full bg-slate-950/90 border border-slate-800 rounded-2xl p-3.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 font-mono transition-all"
+                      />
+
+                      {/* Quick Chips */}
+                      <div>
+                        <span className="text-[11px] font-semibold text-slate-400 block mb-2">Añadir palabras sugeridas en 1 clic:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            'catalogo',
+                            'catalogo pdf',
+                            'productos',
+                            'lista de precios',
+                            'precios',
+                            'servicios',
+                            'menu',
+                            'carta',
+                            'cotizar',
+                            'fotos de productos',
+                            'ver catalogo'
+                          ].map((word) => {
+                            const isPresent = (catalogTriggerKeywords || '').toLowerCase().includes(word);
+                            return (
+                              <button
+                                key={word}
+                                type="button"
+                                onClick={() => {
+                                  if (!isPresent) {
+                                    setCatalogTriggerKeywords(prev => prev ? `${prev}, ${word}` : word);
+                                  }
+                                }}
+                                disabled={isPresent}
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all ${
+                                  isPresent
+                                    ? 'bg-slate-900/50 text-slate-500 border-slate-800 cursor-default'
+                                    : 'bg-slate-800/80 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border-slate-700 hover:border-rose-500/40 cursor-pointer'
+                                }`}
+                              >
+                                {isPresent ? `✓ ${word}` : `+ ${word}`}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20 flex items-start gap-2.5 text-[11.5px] text-amber-300/90 leading-relaxed">
+                        <Zap size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                        <span>
+                          <strong>Efecto en el Bot:</strong> Si el mensaje del cliente contiene cualquiera de estas palabras, el bot responderá inmediatamente con el texto y los archivos del catálogo, y la IA no responderá para evitar mensajes duplicados.
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Card 2: Mensaje Personalizado */}
+                    <div className="glass-panel p-5 rounded-3xl border border-slate-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                          <MessageSquare size={15} className="text-indigo-400" />
+                          Mensaje Personalizado de Acompañamiento (Opcional)
+                        </label>
+                        {catalogCustomMessage && (
+                          <button
+                            type="button"
+                            onClick={() => setCatalogCustomMessage('')}
+                            className="text-[11px] text-slate-400 hover:text-rose-400 transition-colors"
+                          >
+                            Limpiar texto
+                          </button>
+                        )}
+                      </div>
+
+                      <textarea
+                        rows={4}
+                        value={catalogCustomMessage}
+                        onChange={(e) => setCatalogCustomMessage(e.target.value)}
+                        placeholder={`¡Hola! Te compartimos nuestro catálogo de productos y servicios con precios actualizados. Revisa las fotos y el PDF adjunto para más información...`}
+                        className="w-full bg-slate-950/90 border border-slate-800 rounded-2xl p-3.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all leading-relaxed"
+                      />
+
+                      <p className="text-[11px] text-slate-400 leading-normal">
+                        💡 <strong>Nota:</strong> Si dejas este campo vacío, el sistema generará automáticamente la lista completa de tus productos registrados en la pestaña <em>"Productos"</em> con sus categorías y precios en <strong className="text-white">{currencySymbol}</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Multi-File Uploader (Photos, Videos, PDFs - Max 10MB Total) (5 cols) */}
+                  <div className="lg:col-span-5 space-y-6">
+                    <div className="glass-panel p-5 rounded-3xl border border-slate-800 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                          <Paperclip size={15} className="text-emerald-400" />
+                          Archivos Adjuntos del Catálogo
+                        </h4>
+                        <span className="text-xs font-bold text-slate-400">
+                          {catalogMediaFiles.length + pendingCatalogFiles.length} archivo(s)
+                        </span>
+                      </div>
+
+                      {/* Weight Gauge Meter (10 MB Limit) */}
+                      {(() => {
+                        const totalBytes = calculateCatalogTotalBytes();
+                        const MAX_BYTES = 10 * 1024 * 1024;
+                        const percent = Math.min(100, (totalBytes / MAX_BYTES) * 100);
+                        const isOver = totalBytes > MAX_BYTES;
+                        const isWarning = percent > 75;
+
+                        return (
+                          <div className="p-3.5 bg-slate-950/80 rounded-2xl border border-slate-800/80 space-y-2">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-semibold text-slate-300">Peso Total Utilizado:</span>
+                              <span className={`font-mono font-bold ${
+                                isOver ? 'text-rose-400' : isWarning ? 'text-amber-400' : 'text-emerald-400'
+                              }`}>
+                                {formatFileSize(totalBytes)} / 10.0 MB ({percent.toFixed(1)}%)
+                              </span>
+                            </div>
+
+                            {/* Progress bar */}
+                            <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full transition-all duration-300 ${
+                                  isOver ? 'bg-rose-500' : isWarning ? 'bg-amber-500' : 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                                }`}
+                                style={{ width: `${percent}%` }}
+                              />
+                            </div>
+
+                            {isOver && (
+                              <p className="text-[11px] font-bold text-rose-400 mt-1 flex items-center gap-1">
+                                <AlertCircle size={13} />
+                                ¡Límite de 10 MB superado! Debes eliminar archivos.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Dropzone / Upload Area */}
+                      <label className="block border-2 border-dashed border-slate-700 hover:border-rose-500/60 rounded-2xl p-5 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-900/60 transition-all group">
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,video/*,application/pdf"
+                          onChange={handleSelectCatalogFiles}
+                          className="hidden"
+                        />
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <div className="w-11 h-11 rounded-xl bg-slate-900 border border-slate-800 group-hover:border-rose-500/40 group-hover:scale-110 flex items-center justify-center text-slate-400 group-hover:text-rose-400 transition-all shadow-md">
+                            <Plus size={22} />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-white group-hover:text-rose-300 transition-colors block">
+                              Haz clic para subir Fotos, Videos o PDFs
+                            </span>
+                            <span className="text-[11px] text-slate-400 mt-0.5 block">
+                              Puedes añadir todos los archivos que desees hasta 10 MB en total.
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[10px] text-slate-500 font-mono mt-1">
+                            <span>🖼️ PNG, JPG, WEBP</span>
+                            <span>🎥 MP4, WEBM</span>
+                            <span>📄 PDF</span>
+                          </div>
+                        </div>
+                      </label>
+
+                      {/* Files List */}
+                      <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                        {catalogMediaFiles.length === 0 && pendingCatalogFiles.length === 0 ? (
+                          <div className="py-8 text-center text-xs text-slate-500 bg-slate-950/30 rounded-2xl border border-slate-800/40">
+                            No tienes archivos adjuntos en el catálogo. Sube fotos, videos o tu catálogo en PDF.
+                          </div>
+                        ) : (
+                          <>
+                            {/* Saved Files */}
+                            {catalogMediaFiles.map((file) => {
+                              const fType = (file.type || file.mimetype || '').toLowerCase();
+                              const isImg = fType.startsWith('image/');
+                              const isVid = fType.startsWith('video/');
+                              const isPdf = fType.includes('pdf') || (file.name || '').endsWith('.pdf');
+
+                              return (
+                                <div
+                                  key={file.id || file.url}
+                                  className="p-2.5 bg-slate-950/80 rounded-xl border border-slate-800 hover:border-slate-700 flex items-center justify-between gap-3 group transition-all"
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-9 h-9 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center flex-shrink-0 text-base">
+                                      {isImg && <ImageIcon size={18} className="text-emerald-400" />}
+                                      {isVid && <Video size={18} className="text-purple-400" />}
+                                      {isPdf && <FileText size={18} className="text-rose-400" />}
+                                      {!isImg && !isVid && !isPdf && <Paperclip size={18} className="text-slate-400" />}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-bold text-white truncate" title={file.name}>
+                                        {file.name || 'Archivo adjunto'}
+                                      </p>
+                                      <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                                        <span className="font-mono">{formatFileSize(file.size)}</span>
+                                        <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+                                          ✓ Guardado
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    {file.url && (
+                                      <a
+                                        href={file.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+                                        title="Ver archivo"
+                                      >
+                                        <ExternalLink size={14} />
+                                      </a>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveExistingMediaFile(file.id)}
+                                      className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors"
+                                      title="Eliminar archivo"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                            {/* Pending Files to upload */}
+                            {pendingCatalogFiles.map((file, idx) => {
+                              const fType = (file.type || '').toLowerCase();
+                              const isImg = fType.startsWith('image/');
+                              const isVid = fType.startsWith('video/');
+                              const isPdf = fType.includes('pdf') || file.name.endsWith('.pdf');
+
+                              return (
+                                <div
+                                  key={`pending-${idx}`}
+                                  className="p-2.5 bg-rose-950/20 rounded-xl border border-rose-500/30 flex items-center justify-between gap-3 animate-fade-in"
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-9 h-9 rounded-lg bg-rose-900/30 border border-rose-500/30 flex items-center justify-center flex-shrink-0 text-base">
+                                      {isImg && <ImageIcon size={18} className="text-rose-300" />}
+                                      {isVid && <Video size={18} className="text-rose-300" />}
+                                      {isPdf && <FileText size={18} className="text-rose-300" />}
+                                      {!isImg && !isVid && !isPdf && <Paperclip size={18} className="text-rose-300" />}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-bold text-rose-200 truncate" title={file.name}>
+                                        {file.name}
+                                      </p>
+                                      <div className="flex items-center gap-2 text-[10px]">
+                                        <span className="font-mono text-slate-400">{formatFileSize(file.size)}</span>
+                                        <span className="text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
+                                          ⏳ Pendiente de guardar
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemovePendingFile(idx)}
+                                    className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors flex-shrink-0"
+                                    title="Quitar"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </>
+                        )}
+                      </div>
+
+                      {/* Save Button */}
+                      <button
+                        type="button"
+                        onClick={handleSaveCatalogConfig}
+                        disabled={savingCatalogConfig || calculateCatalogTotalBytes() > 10 * 1024 * 1024}
+                        className="w-full py-3 rounded-2xl bg-gradient-to-r from-rose-600 via-pink-600 to-rose-500 hover:from-rose-500 hover:to-pink-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-rose-600/30 transition-all disabled:opacity-50"
+                      >
+                        {savingCatalogConfig ? (
+                          <>
+                            <RefreshCw size={15} className="animate-spin" />
+                            <span>Guardando Configuración y Subiendo Archivos...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle size={15} />
+                            <span>Guardar Configuración & Archivos</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
+            )}
 
-              {currencySuccessMsg && (
-                <div className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 animate-fade-in flex items-center gap-1.5">
-                  <CheckCircle size={14} />
-                  <span>{currencySuccessMsg}</span>
+            {/* BARRA DE CONFIGURACIÓN DE MONEDA DEL NEGOCIO */}
+            {catalogSubTab === 'products' && (
+              <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <DollarSign size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-white">Moneda del Negocio:</h4>
+                      <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                        {currencySymbol} ({currencyCode})
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Tus precios, cotizaciones de WhatsApp y balances usarán este símbolo.
+                    </p>
+                  </div>
                 </div>
-              )}
 
-              <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
-                {[
-                  { code: 'PEN', symbol: 'S/', label: '🇵🇪 Soles (S/)' },
-                  { code: 'USD', symbol: '$', label: '🇺🇸 Dólares ($)' },
-                  { code: 'EUR', symbol: '€', label: '🇪🇺 Euros (€)' },
-                  { code: 'COP', symbol: 'COP $', label: '🇨🇴 COP' },
-                  { code: 'MXN', symbol: 'MXN $', label: '🇲🇽 MXN' },
-                  { code: 'CLP', symbol: 'CLP $', label: '🇨🇱 CLP' }
-                ].map((cur) => (
+                {currencySuccessMsg && (
+                  <div className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 animate-fade-in flex items-center gap-1.5">
+                    <CheckCircle size={14} />
+                    <span>{currencySuccessMsg}</span>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
+                  {[
+                    { code: 'PEN', symbol: 'S/', label: '🇵🇪 Soles (S/)' },
+                    { code: 'USD', symbol: '$', label: '🇺🇸 Dólares ($)' },
+                    { code: 'EUR', symbol: '€', label: '🇪🇺 Euros (€)' },
+                    { code: 'COP', symbol: 'COP $', label: '🇨🇴 COP' },
+                    { code: 'MXN', symbol: 'MXN $', label: '🇲🇽 MXN' },
+                    { code: 'CLP', symbol: 'CLP $', label: '🇨🇱 CLP' }
+                  ].map((cur) => (
+                    <button
+                      key={cur.code}
+                      type="button"
+                      onClick={() => handleSaveCurrencySettings(cur.code, cur.symbol)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                        currencyCode === cur.code && currencySymbol === cur.symbol
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm font-bold'
+                          : 'bg-slate-900 text-slate-400 hover:text-white border-slate-800'
+                      }`}
+                    >
+                      {cur.label}
+                    </button>
+                  ))}
                   <button
-                    key={cur.code}
                     type="button"
-                    onClick={() => handleSaveCurrencySettings(cur.code, cur.symbol)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
-                      currencyCode === cur.code && currencySymbol === cur.symbol
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm font-bold'
-                        : 'bg-slate-900 text-slate-400 hover:text-white border-slate-800'
-                    }`}
+                    onClick={() => setShowCurrencyModal(true)}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors ml-1"
                   >
-                    {cur.label}
+                    Personalizar...
                   </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setShowCurrencyModal(true)}
-                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors ml-1"
-                >
-                  Personalizar...
-                </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Products Grid */}
             {catalogSubTab === 'products' && (

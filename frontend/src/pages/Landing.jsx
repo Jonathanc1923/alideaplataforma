@@ -175,7 +175,12 @@ export default function Landing() {
         if (isCatalog && (!replyText.includes('1.') && !replyText.includes('➔') && !replyText.includes(simCurrencySymbol || 'S/'))) {
           replyText = getFormattedCatalog();
         }
-        setSimChat([...newChat, { sender: 'bot', text: replyText, time: 'Ahora' }]);
+        setSimChat([...newChat, { 
+          sender: 'bot', 
+          text: replyText, 
+          mediaFiles: res.data.mediaFiles || [],
+          time: 'Ahora' 
+        }]);
         updateSimTagAndStage(res.data.assignedTag || (isCatalog ? 'Catálogo Enviado' : null), res.data.stage || (isCatalog ? 'Negociación' : null));
       }
     } catch(e) {
@@ -725,6 +730,38 @@ export default function Landing() {
                         : 'bg-[#202c33] text-slate-200 rounded-tl-none border border-slate-700/40'
                     }`}>
                       <p className="whitespace-pre-line leading-relaxed">{m.text}</p>
+                      
+                      {/* Attached Media Files Preview */}
+                      {Array.isArray(m.mediaFiles) && m.mediaFiles.length > 0 && (
+                        <div className="mt-2.5 pt-2 border-t border-slate-700/60 space-y-1.5">
+                          <span className="text-[10px] font-bold text-emerald-400 block mb-1">
+                            📎 Archivos Adjuntos ({m.mediaFiles.length}):
+                          </span>
+                          <div className="grid grid-cols-1 gap-1.5">
+                            {m.mediaFiles.map((file, fIdx) => {
+                              const fType = (file.type || file.mimetype || '').toLowerCase();
+                              const isImg = fType.startsWith('image/');
+                              const isVid = fType.startsWith('video/');
+                              const isPdf = fType.includes('pdf') || (file.name || '').endsWith('.pdf');
+
+                              return (
+                                <div key={fIdx} className="p-1.5 bg-slate-900/80 rounded-xl border border-slate-700/60 flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-xs flex-shrink-0">
+                                    {isImg && '🖼️'}
+                                    {isVid && '🎥'}
+                                    {isPdf && '📄'}
+                                    {!isImg && !isVid && !isPdf && '📎'}
+                                  </div>
+                                  <span className="text-[10.5px] text-slate-200 truncate flex-1 font-medium">
+                                    {file.name || file.originalName || 'Archivo adjunto'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
                       <span className="text-[9px] text-slate-400 block text-right mt-1">
                         {m.time} {m.sender === 'client' && '✓✓'}
                       </span>

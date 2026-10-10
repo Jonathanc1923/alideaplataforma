@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Alidea - Automatización Completa del Negocio (S/ 49)</title>
+  <style>
+    @page {
+      size: 108mm 192mm; /* Proporción vertical exacta para pantallas de smartphone (9:16) */
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      letter-spacing: normal !important;
+      word-spacing: normal !important;
+      font-kerning: normal !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #070d1e;
+      color: #ffffff;
+      line-height: 1.35;
+      font-size: 12px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .mobile-screen {
+      width: 108mm;
+      height: 192mm;
+      page-break-after: always;
+      position: relative;
+      padding: 9mm 8mm 8mm 8mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    /* Screen Theme Gradients */
+    .screen-1 {
+      background: radial-gradient(circle at 90% 10%, rgba(16, 185, 129, 0.3) 0%, transparent 55%),
+                  radial-gradient(circle at 10% 90%, rgba(99, 102, 241, 0.3) 0%, transparent 55%),
+                  #070d1e;
+    }
+
+    .screen-2 {
+      background: radial-gradient(circle at 10% 10%, rgba(37, 99, 235, 0.3) 0%, transparent 55%),
+                  radial-gradient(circle at 90% 90%, rgba(168, 85, 247, 0.3) 0%, transparent 55%),
+                  #080e24;
+    }
+
+    .screen-3 {
+      background: radial-gradient(circle at 50% 10%, rgba(245, 158, 11, 0.25) 0%, transparent 55%),
+                  radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.28) 0%, transparent 55%),
+                  #070d1e;
+    }
+
+    .screen-4 {
+      background: radial-gradient(circle at 90% 10%, rgba(99, 102, 241, 0.28) 0%, transparent 55%),
+                  radial-gradient(circle at 10% 90%, rgba(16, 185, 129, 0.28) 0%, transparent 55%),
+                  #080e22;
+    }
+
+    .screen-5 {
+      background: radial-gradient(circle at 50% 15%, rgba(16, 185, 129, 0.35) 0%, transparent 60%),
+                  radial-gradient(circle at 50% 85%, rgba(99, 102, 241, 0.3) 0%, transparent 60%),
+                  #060b18;
+    }
+
+    /* Header */
+    .mobile-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .brand-box {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #10b981, #2563eb);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: white;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+    }
+
+    .brand-text {
+      font-size: 16px;
+      font-weight: 900;
+      color: #ffffff;
+    }
+
+    .mobile-price-badge {
+      background: #10b981;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 20px;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Web Platform Invite Pill - Ultra Sharp High Contrast */
+    .web-invite-banner {
+      background: #0f172a;
+      border: 2px solid #38bdf8;
+      border-radius: 12px;
+      padding: 6px 10px;
+      text-align: center;
+      margin: 6px 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .web-invite-text {
+      font-size: 10px;
+      font-weight: 800;
+      color: #f1f5f9;
+      text-transform: uppercase;
+      display: block;
+    }
+
+    .web-invite-url-box {
+      background: #0284c7;
+      color: #ffffff;
+      font-size: 14.5px;
+      font-weight: 900;
+      padding: 3px 12px;
+      border-radius: 8px;
+      display: inline-block;
+      margin-top: 3px;
+      border: 1px solid #7dd3fc;
+    }
+
+    /* Footer */
+    .mobile-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      font-size: 9.5px;
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .screen-tag {
+      background: #1e293b;
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 9px;
+    }
+
+    /* Typography */
+    .m-title {
+      font-size: 19px;
+      font-weight: 900;
+      line-height: 1.25;
+      color: #ffffff;
+      margin: 5px 0 4px 0;
+      text-align: center;
+    }
+
+    .m-title span.emerald { color: #34d399; }
+    .m-title span.indigo { color: #a5b4fc; }
+    .m-title span.cyan { color: #38bdf8; }
+    .m-title span.amber { color: #fbbf24; }
+
+    .m-subtitle {
+      font-size: 10.5px;
+      color: #cbd5e1;
+      text-align: center;
+      line-height: 1.35;
+      margin-bottom: 7px;
+      font-weight: 500;
+    }
+
+    /* Cards */
+    .m-card {
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    }
+
+    .m-card-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .bg-green { background: rgba(16, 185, 129, 0.25); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .bg-purple { background: rgba(168, 85, 247, 0.25); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
+    .bg-cyan { background: rgba(6, 182, 212, 0.25); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.4); }
+    .bg-amber { background: rgba(245, 158, 11, 0.25); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .bg-blue { background: rgba(59, 130, 246, 0.25); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+    .bg-pink { background: rgba(236, 72, 153, 0.25); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.4); }
+
+    .m-card-body h4 {
+      font-size: 11.5px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 2px;
+    }
+
+    .m-card-body p {
+      font-size: 9.5px;
+      color: #cbd5e1;
+      line-height: 1.25;
+      font-weight: 500;
+    }
+
+    /* Character Box */
+    .character-card {
+      background: linear-gradient(145deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95));
+      border: 1.5px solid rgba(16, 185, 129, 0.4);
+      border-radius: 14px;
+      padding: 9px;
+      text-align: center;
+      margin: 5px 0;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    }
+
+    /* Steps */
+    .step-item {
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 9px 10px;
+      margin-bottom: 7px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .step-number {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #10b981, #0284c7);
+      color: white;
+      font-weight: 900;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+    }
+
+    .step-text h4 {
+      font-size: 11.5px;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .step-text p {
+      font-size: 9.5px;
+      color: #cbd5e1;
+      font-weight: 500;
+    }
+
+    /* CTA Button */
+    .m-cta-btn {
+      display: block;
+      background: #25D366;
+      color: #ffffff;
+      font-size: 14.5px;
+      font-weight: 900;
+      text-align: center;
+      padding: 11px 14px;
+      border-radius: 22px;
+      text-decoration: none;
+      box-shadow: 0 6px 16px rgba(37, 211, 102, 0.45);
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================= -->
+  <!-- PANTALLA 1: PORTADA & INVITACIÓN A LA PLATAFORMA -->
+  <!-- ========================================================= -->
+  <div class="mobile-screen screen-1">
+    <div class="mobile-header">
+      <div class="brand-box">
+        <div class="brand-icon">⚡</div>
+        <div class="brand-text">Alidea Negocios</div>
+      </div>
+      <div class="mobile-price-badge">S/ 49.00 Único</div>
+    </div>
+
+    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+      <!-- Web Platform Top Invite (High Contrast, Clean Font) -->
+      <div class="web-invite-banner">
+        <span class="web-invite-text">👉 Visita y prueba el sistema en vivo en:</span>
+        <span class="web-invite-url-box">🌐 www.alideaplataforma.com</span>
+      </div>
+
+      <h1 class="m-title">
+        Automatización Completa<br>
+        <span class="emerald">para tu Negocio</span>
+      </h1>
+
+      <p class="m-subtitle">
+        La plataforma todo-en-uno que maneja tus <strong>Ventas con IA 24/7, Clientes, Finanzas, Catálogo, Envíos Masivos y Anuncios</strong> en automático.
+      </p>
+
+      <!-- Cartoon Character Hero Illustration -->
+      <div class="character-card">
+        <svg width="80" height="80" viewBox="0 0 200 200" fill="none" style="margin: 0 auto; display: block;">
+          <circle cx="100" cy="100" r="85" fill="#10B981" fill-opacity="0.2"/>
+          <circle cx="100" cy="100" r="65" fill="#10B981" fill-opacity="0.3"/>
+          <!-- Character -->
+          <ellipse cx="100" cy="165" rx="38" ry="22" fill="#3B82F6"/>
+          <circle cx="100" cy="105" r="30" fill="#FDE68A"/>
+          <path d="M72 100 C72 72, 128 72, 128 100 Z" fill="#1E293B"/>
+          <circle cx="91" cy="103" r="3.5" fill="#1E293B"/>
+          <circle cx="109" cy="103" r="3.5" fill="#1E293B"/>
+          <path d="M93 113 Q100 122 107 113" stroke="#1E293B" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <!-- Phone -->
+          <rect x="114" y="115" width="24" height="42" rx="5" fill="#0F172A"/>
+          <rect x="117" y="119" width="18" height="34" rx="3" fill="#34D399"/>
+          <circle cx="126" cy="148" r="2.5" fill="#FFFFFF"/>
+          <!-- Floating Bot Badge -->
+          <rect x="30" y="55" width="36" height="26" rx="6" fill="#6366F1"/>
+          <text x="38" y="73" font-size="14">🤖</text>
+        </svg>
+        <div style="font-size: 10.5px; font-weight: 800; color: #34d399; margin-top: 3px;">
+          🚀 ¡Tu negocio funcionando las 24 horas!
+        </div>
+      </div>
+
+      <!-- Quick 3 Highlights -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 2px;">
+        <div style="background: rgba(15,23,42,0.9); padding: 5px; border-radius: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.15);">
+          <div style="font-size: 13px;">🤖</div>
+          <div style="font-size: 9.5px; font-weight: 800; color: #ffffff;">IA Comercial</div>
+        </div>
+        <div style="background: rgba(15,23,42,0.9); padding: 5px; border-radius: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.15);">
+          <div style="font-size: 13px;">👥</div>
+          <div style="font-size: 9.5px; font-weight: 800; color: #ffffff;">CRM Clientes</div>
+        </div>
+        <div style="background: rgba(15,23,42,0.9); padding: 5px; border-radius: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.15);">
+          <div style="font-size: 13px;">💰</div>
+          <div style="font-size: 9.5px; font-weight: 800; color: #ffffff;">Contabilidad</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-footer">
+      <span style="color: #ffffff; font-weight: 800;">👉 www.alideaplataforma.com</span>
+      <span class="screen-tag">1 / 5</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PANTALLA 2: VENTAS, CLIENTES & RETARGETING -->
+  <!-- ========================================================= -->
+  <div class="mobile-screen screen-2">
+    <div class="mobile-header">
+      <div class="brand-box">
+        <div class="brand-icon">🤖</div>
+        <div class="brand-text">Ventas & Clientes</div>
+      </div>
+      <div class="mobile-price-badge">S/ 49.00</div>
+    </div>
+
+    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+      <h2 class="m-title">
+        Atención, Seguimiento<br>
+        y <span class="cyan">Reactivación Masiva</span>
+      </h2>
+      <p class="m-subtitle">
+        Herramientas automáticas para captar clientes y cerrar ventas día y noche.
+      </p>
+
+      <!-- Tool 1 -->
+      <div class="m-card">
+        <div class="m-card-icon bg-green">🤖</div>
+        <div class="m-card-body">
+          <h4>1. Asesor Inteligente con IA 24/7</h4>
+          <p>Bot de WhatsApp entrenado con tus productos, precios y políticas para atender y vender en automático como un humano.</p>
+        </div>
+      </div>
+
+      <!-- Tool 2 -->
+      <div class="m-card">
+        <div class="m-card-icon bg-purple">👥</div>
+        <div class="m-card-body">
+          <h4>2. CRM de Clientes & Chat en Vivo</h4>
+          <p>Embudo visual para gestionar prospectos, hacer seguimiento, programar tareas y responder desde un panel centralizado.</p>
+        </div>
+      </div>
+
+      <!-- Tool 3 -->
+      <div class="m-card">
+        <div class="m-card-icon bg-amber">📢</div>
+        <div class="m-card-body">
+          <h4>3. Motor de Retargeting Antiban</h4>
+          <p>Envía promociones y reactiva clientes masivamente con simulación humana para proteger tu número de WhatsApp.</p>
+        </div>
+      </div>
+
+      <div style="background: rgba(16, 185, 129, 0.2); border: 1.5px solid rgba(16, 185, 129, 0.4); border-radius: 10px; padding: 6px 8px; text-align: center; margin-top: 4px;">
+        <span style="font-size: 10.5px; font-weight: 800; color: #34d399;">
+          💡 Incluye auto-etiquetado inteligente y control por chat
+        </span>
+      </div>
+    </div>
+
+    <div class="mobile-footer">
+      <span style="color: #ffffff; font-weight: 800;">👉 www.alideaplataforma.com</span>
+      <span class="screen-tag">2 / 5</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PANTALLA 3: CATÁLOGO, CONTABILIDAD & ANUNCIOS -->
+  <!-- ========================================================= -->
+  <div class="mobile-screen screen-3">
+    <div class="mobile-header">
+      <div class="brand-box">
+        <div class="brand-icon">📦</div>
+        <div class="brand-text">Catálogo & Finanzas</div>
+      </div>
+      <div class="mobile-price-badge">S/ 49.00</div>
+    </div>
+
+    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+      <h2 class="m-title">
+        Catálogo, Finanzas<br>
+        y <span class="amber">Atracción de Clientes</span>
+      </h2>
+      <p class="m-subtitle">
+        Todo lo que necesitas para administrar tu dinero y crecer tu negocio.
+      </p>
+
+      <!-- Tool 4 -->
+      <div class="m-card">
+        <div class="m-card-icon bg-blue">🛍️</div>
+        <div class="m-card-body">
+          <h4>4. Catálogo Digital & Cotizador</h4>
+          <p>Crea productos, arma pedidos en segundos y envía cotizaciones formales directo al WhatsApp del cliente en Soles o Dólares.</p>
+        </div>
+      </div>
+
+      <!-- Tool 5 -->
+      <div class="m-card">
+        <div class="m-card-icon bg-green">💰</div>
+        <div class="m-card-body">
+          <h4>5. Contabilidad & Finanzas Completas</h4>
+          <p>Libro Diario, Libro Mayor (Cuentas T), cálculo de IGV/IVA, Impuesto a la Renta y Balance de Utilidad Neta real.</p>
+        </div>
+      </div>
+
+      <!-- Tool 6 -->
+      <div class="m-card">
+        <div class="m-card-icon bg-cyan">📈</div>
+        <div class="m-card-body">
+          <h4>6. Analítica de Negocio & BI</h4>
+          <p>Gráficos de evolución Semana a Semana y Mes a Mes, embudo de conversión y tu día pico de ventas.</p>
+        </div>
+      </div>
+
+      <!-- Tool 7 -->
+      <div class="m-card">
+        <div class="m-card-icon bg-pink">🎯</div>
+        <div class="m-card-body">
+          <h4>7. Programa Táctico de Atracción</h4>
+          <p>Guía paso a paso para crear anuncios rentables en Facebook, Instagram y TikTok para atraer clientes listos para comprar.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-footer">
+      <span style="color: #ffffff; font-weight: 800;">👉 www.alideaplataforma.com</span>
+      <span class="screen-tag">3 / 5</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PANTALLA 4: PUESTA EN MARCHA EN 3 PASOS -->
+  <!-- ========================================================= -->
+  <div class="mobile-screen screen-4">
+    <div class="mobile-header">
+      <div class="brand-box">
+        <div class="brand-icon">⚡</div>
+        <div class="brand-text">Fácil y Rápido</div>
+      </div>
+      <div class="mobile-price-badge">3 Minutos</div>
+    </div>
+
+    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+      <h2 class="m-title">
+        ¿Cómo Empezar?<br>
+        <span class="indigo">¡En solo 3 Pasos!</span>
+      </h2>
+      <p class="m-subtitle">
+        Sin instalaciones complejas. Todo funciona 100% en la nube desde cualquier dispositivo.
+      </p>
+
+      <!-- Step 1 -->
+      <div class="step-item">
+        <div class="step-number">1</div>
+        <div class="step-text">
+          <h4>Escaneas tu código QR</h4>
+          <p>Igual que al abrir WhatsApp Web. Conectas tu número en 10 segundos.</p>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step-item">
+        <div class="step-number">2</div>
+        <div class="step-text">
+          <h4>Ingresas tus Productos y Precios</h4>
+          <p>Escribes la información de tu negocio. La IA aprende todo al instante.</p>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step-item">
+        <div class="step-number">3</div>
+        <div class="step-text">
+          <h4>¡El Sistema Vende por Ti!</h4>
+          <p>El bot atiende, organiza tus clientes y registra tus ventas en automático.</p>
+        </div>
+      </div>
+
+      <!-- Visual Trust Box -->
+      <div style="background: rgba(99, 102, 241, 0.2); border: 1.5px solid rgba(99, 102, 241, 0.4); border-radius: 12px; padding: 8px; text-align: center; margin-top: 4px;">
+        <div style="font-size: 10.5px; font-weight: 800; color: #ffffff;">
+          🔒 Plataforma Web Segura • Soporte Técnico Incluido
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-footer">
+      <span style="color: #ffffff; font-weight: 800;">👉 www.alideaplataforma.com</span>
+      <span class="screen-tag">4 / 5</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PANTALLA 5: OFERTA FINAL & VISITA A LA PLATAFORMA -->
+  <!-- ========================================================= -->
+  <div class="mobile-screen screen-5">
+    <div class="mobile-header">
+      <div class="brand-box">
+        <div class="brand-icon">🎁</div>
+        <div class="brand-text">Acceso Total</div>
+      </div>
+      <div class="mobile-price-badge">S/ 49.00</div>
+    </div>
+
+    <div style="text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: center;">
+      <!-- Web Platform Bottom Invite (High Contrast) -->
+      <div class="web-invite-banner" style="background: #0f172a; border-color: #34d399;">
+        <span class="web-invite-text">👉 Conoce la plataforma oficial en:</span>
+        <span class="web-invite-url-box" style="background: #059669; border-color: #34d399;">🌐 www.alideaplataforma.com</span>
+      </div>
+
+      <h2 class="m-title" style="font-size: 20px; margin: 4px 0;">
+        Paquete Completo para Negocios<br>
+        por solo <span class="emerald">S/ 49.00</span>
+      </h2>
+
+      <p class="m-subtitle" style="margin-bottom: 5px;">
+        Un solo pago para toda la vida • Cero mensualidades
+      </p>
+
+      <!-- Checklist Box -->
+      <div style="background: rgba(15, 23, 42, 0.92); border: 1.5px solid #10b981; border-radius: 14px; padding: 9px; text-align: left; margin-bottom: 5px; box-shadow: 0 6px 20px rgba(16, 185, 129, 0.25);">
+        <div style="font-size: 10px; font-weight: 800; color: #ffffff; margin-bottom: 3px;">
+          ✅ Asesor Inteligente con IA 24/7 en WhatsApp
+        </div>
+        <div style="font-size: 10px; font-weight: 800; color: #ffffff; margin-bottom: 3px;">
+          ✅ CRM Comercial de Clientes & Chat Web
+        </div>
+        <div style="font-size: 10px; font-weight: 800; color: #ffffff; margin-bottom: 3px;">
+          ✅ Motor de Retargeting Masivo Antiban
+        </div>
+        <div style="font-size: 10px; font-weight: 800; color: #ffffff; margin-bottom: 3px;">
+          ✅ Catálogo Digital & Cotizador
+        </div>
+        <div style="font-size: 10px; font-weight: 800; color: #ffffff; margin-bottom: 3px;">
+          ✅ Contabilidad, IGV y Utilidad Real
+        </div>
+        <div style="font-size: 10px; font-weight: 800; color: #ffffff; margin-bottom: 3px;">
+          ✅ Analítica de Negocio & Días Pico
+        </div>
+        <div style="font-size: 10px; font-weight: 800; color: #34d399;">
+          ✅ Programa de Anuncios en Meta y TikTok Ads
+        </div>
+      </div>
+
+      <!-- Big WhatsApp CTA -->
+      <a href="#" class="m-cta-btn">
+        📲 Pedir mi Cuenta por WhatsApp (S/ 49)
+      </a>
+
+      <p style="font-size: 9.5px; color: #ffffff; margin-top: 4px; font-weight: 700;">
+        ⚡ Activación inmediata tras confirmación
+      </p>
+    </div>
+
+    <div class="mobile-footer">
+      <span style="color: #ffffff; font-weight: 800;">👉 www.alideaplataforma.com</span>
+      <span class="screen-tag">5 / 5</span>
+    </div>
+  </div>
+
+</body>
+</html>

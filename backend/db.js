@@ -246,10 +246,22 @@ async function getDbConnection() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS catalog_config (
+      user_id TEXT PRIMARY KEY,
+      trigger_keywords TEXT DEFAULT 'catalogo, catálago, catalogo pdf, productos, servicios, lista de precios, precios, menu, carta, lista, cotizar, fotos de productos, ver catalogo',
+      auto_reply_enabled INTEGER DEFAULT 1,
+      custom_message TEXT DEFAULT '',
+      media_files TEXT DEFAULT '[]',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_crm_tasks_user_id ON crm_tasks(user_id);
     CREATE INDEX IF NOT EXISTS idx_products_user_id ON products(user_id);
     CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
     CREATE INDEX IF NOT EXISTS idx_crm_tags_user_id ON crm_tags(user_id);
+    CREATE INDEX IF NOT EXISTS idx_catalog_config_user_id ON catalog_config(user_id);
     CREATE INDEX IF NOT EXISTS idx_accounting_user_date ON accounting_entries(user_id, entry_date);
     CREATE INDEX IF NOT EXISTS idx_accounting_user_type ON accounting_entries(user_id, entry_type);
     CREATE INDEX IF NOT EXISTS idx_accounting_user_class ON accounting_entries(user_id, classification);
@@ -306,6 +318,9 @@ async function getDbConnection() {
     { table: 'sessions', column: 'ai_delay_min INTEGER DEFAULT 2' },
     { table: 'sessions', column: 'ai_delay_max INTEGER DEFAULT 5' },
     { table: 'simulator_config', column: "catalog_json TEXT DEFAULT '[]'" },
+    { table: 'simulator_config', column: "catalog_keywords TEXT DEFAULT 'catalogo, catálago, catalogo pdf, productos, servicios, lista de precios, precios, menu, carta, lista, cotizar, fotos de productos, ver catalogo'" },
+    { table: 'simulator_config', column: "catalog_custom_message TEXT DEFAULT ''" },
+    { table: 'simulator_config', column: "catalog_media_files TEXT DEFAULT '[]'" },
     { table: 'simulator_config', column: "currency_code TEXT DEFAULT 'PEN'" },
     { table: 'simulator_config', column: "currency_symbol TEXT DEFAULT 'S/'" },
     { table: 'simulator_config', column: 'delay_min INTEGER DEFAULT 2' },

@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Alidea - Catálogo de Servicios y Soluciones para Negocios</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #080d1a;
+      color: #f1f5f9;
+      line-height: 1.45;
+      font-size: 13px;
+    }
+
+    .page {
+      width: 210mm;
+      height: 297mm;
+      page-break-after: always;
+      position: relative;
+      background: radial-gradient(circle at 85% 15%, rgba(99, 102, 241, 0.18) 0%, transparent 45%),
+                  radial-gradient(circle at 15% 85%, rgba(16, 185, 129, 0.15) 0%, transparent 45%),
+                  #070c18;
+      padding: 18mm 18mm 16mm 18mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    /* Page Header */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      position: relative;
+      z-index: 10;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #6366f1, #10b981);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #ffffff;
+      font-size: 16px;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #ffffff 40%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-subtitle {
+      font-size: 9px;
+      color: #94a3b8;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .header-price-tag {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 182, 212, 0.15));
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #34d399;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header-price-tag .pulse {
+      width: 6px;
+      height: 6px;
+      background-color: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10b981;
+    }
+
+    /* Page Footer */
+    .page-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 10px;
+      color: #64748b;
+      position: relative;
+      z-index: 10;
+    }
+
+    .page-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: #818cf8;
+      background: rgba(99, 102, 241, 0.1);
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+    }
+
+    /* Main Content Containers */
+    .content-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 10px 0;
+      position: relative;
+      z-index: 10;
+    }
+
+    /* Glass Cards */
+    .glass-card {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(10px);
+    }
+
+    .glass-card-highlight {
+      background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 12px 35px rgba(99, 102, 241, 0.15);
+    }
+
+    /* Typography Utilities */
+    .module-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(99, 102, 241, 0.18);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      color: #a5b4fc;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 4px 12px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+    }
+
+    .module-title {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      line-height: 1.2;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+
+    .module-title span {
+      background: linear-gradient(135deg, #818cf8 0%, #34d399 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .module-subtitle {
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .feature-box {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .feature-box-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 4px;
+    }
+
+    .feature-box-desc {
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    .icon-bullet {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .icon-emerald { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .icon-indigo { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+    .icon-cyan { background: rgba(6, 182, 212, 0.2); color: #22d3ee; }
+    .icon-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+    .icon-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+
+    /* Visual Mockup Box */
+    .mockup-container {
+      background: #0b1222;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 14px;
+      margin-top: 14px;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+    }
+
+    .mockup-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      margin-bottom: 10px;
+    }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+
+    .chat-bubble {
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      margin-bottom: 8px;
+      max-width: 85%;
+      line-height: 1.4;
+    }
+
+    .chat-client {
+      background: #1e293b;
+      color: #f1f5f9;
+      border-bottom-left-radius: 2px;
+    }
+
+    .chat-ai {
+      background: #005c4b;
+      color: #ffffff;
+      margin-left: auto;
+      border-bottom-right-radius: 2px;
+      box-shadow: 0 2px 8px rgba(0, 92, 75, 0.4);
+    }
+
+    /* Price Big Hero */
+    .price-hero-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      font-size: 32px;
+      font-weight: 800;
+      padding: 6px 20px;
+      border-radius: 14px;
+      box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+      letter-spacing: -0.5px;
+    }
+
+    /* Page 1 (Cover) Specifics */
+    .cover-hero-title {
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -1.2px;
+      margin-bottom: 12px;
+      color: #ffffff;
+    }
+
+    .cover-hero-title span {
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #34d399 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .cover-modules-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 18px 0;
+    }
+
+    .cover-module-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+
+    .cover-module-item .check {
+      color: #34d399;
+      font-weight: 800;
+    }
+
+    /* Metric Cards */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .metric-card {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .metric-val {
+      font-size: 18px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      color: #38bdf8;
+      margin-bottom: 2px;
+    }
+
+    .metric-label {
+      font-size: 10px;
+      color: #94a3b8;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* Comparison Table in Last Page */
+    .pricing-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      font-size: 11px;
+    }
+
+    .pricing-table th {
+      background: rgba(30, 41, 59, 0.8);
+      padding: 8px 12px;
+      text-align: left;
+      color: #94a3b8;
+      font-weight: 700;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .pricing-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: #cbd5e1;
+    }
+
+    .pricing-table tr:nth-child(even) {
+      background: rgba(15, 23, 42, 0.4);
+    }
+
+    .strike-price {
+      text-decoration: line-through;
+      color: #ef4444;
+      font-weight: 600;
+    }
+
+    .final-offer-card {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(99, 102, 241, 0.15));
+      border: 2px solid #10b981;
+      border-radius: 18px;
+      padding: 20px;
+      text-align: center;
+      margin-top: 14px;
+      box-shadow: 0 10px 30px rgba(16, 185, 129, 0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA 1: PORTADA & PRESENTACIÓN GENERAL -->
+  <!-- ========================================================= -->
+  <div class="page">
+    <div class="page-header">
+      <div class="brand-logo">
+        <div class="logo-badge">⚡</div>
+        <div>
+          <div class="brand-title">ALIDEA PLATAFORMA PRO</div>
+          <div class="brand-subtitle">Catálogo Oficial de Soluciones Digitales</div>
+        </div>
+      </div>
+      <div class="header-price-tag">
+        <span class="pulse"></span>
+        <span>OFERTA ÚNICA: S/ 49.00</span>
+      </div>
+    </div>
+
+    <div class="content-body">
+      <div style="text-align: center; margin-bottom: 16px;">
+        <span class="module-pill">🚀 Solución Integral para Negocios y Emprendedores</span>
+        <h1 class="cover-hero-title">
+          Automatiza tus Ventas,<br>
+          Atiende con <span>Inteligencia Artificial</span><br>
+          y Domina tu Negocio
+        </h1>
+        <p style="font-size: 13.5px; color: #94a3b8; max-width: 580px; margin: 0 auto; line-height: 1.5;">
+          El sistema definitivo todo-en-uno que conecta <strong>WhatsApp con IA 24/7</strong>, <strong>CRM Comercial</strong>, <strong>Retargeting Masivo</strong>, <strong>Catálogo Digital</strong>, <strong>Contabilidad Oficial</strong> y <strong>Business Intelligence</strong>.
+        </p>
+      </div>
+
+      <div class="glass-card-highlight">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 800; color: #ffffff;">📦 Paquete Completo para Negocios</h3>
+            <p style="font-size: 11px; color: #34d399; font-weight: 600;">Acceso Total • Sin mensualidades • Pago único de por vida</p>
+          </div>
+          <div class="price-hero-badge">S/ 49.00</div>
+        </div>
+
+        <div class="cover-modules-list">
+          <div class="cover-module-item">
+            <span class="check">✓</span>
+            <div><strong>1. Asesor IA 24/7 en WhatsApp:</strong> Ventas en automático</div>
+          </div>
+          <div class="cover-module-item">
+            <span class="check">✓</span>
+            <div><strong>2. CRM Kanban & Chat en Vivo:</strong> Embudo y seguimiento</div>
+          </div>
+          <div class="cover-module-item">
+            <span class="check">✓</span>
+            <div><strong>3. Motor Retargeting Antiban:</strong> Reactivación masiva</div>
+          </div>
+          <div class="cover-module-item">
+            <span class="check">✓</span>
+            <div><strong>4. Catálogo & Cotizador:</strong> Emisión de pedidos en 1 clic</div>
+          </div>
+          <div class="cover-module-item">
+            <span class="check">✓</span>
+            <div><strong>5. Contabilidad Completa:</strong> Libro Diario, Cuentas T e IGV</div>
+          </div>
+          <div class="cover-module-item">
+            <span class="check">✓</span>
+            <div><strong>6. Analítica & Business Intelligence:</strong> Gráficos WoW/MoM</div>
+          </div>
+          <div class="cover-module-item" style="grid-column: span 2;">
+            <span class="check">✓</span>
+            <div><strong>7. Programa Táctico de Atracción:</strong> Guía de anuncios rentables en Meta y TikTok Ads</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px;">
+        <div class="metric-card">
+          <div class="metric-val">100%</div>
+          <div class="metric-label">En la Nube</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val">0</div>
+          <div class="metric-label">Mensualidades</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val">24/7</div>
+          <div class="metric-label">Atención IA</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val">1 Clic</div>
+          <div class="metric-label">Puesta en Marcha</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Alidea Plataforma Empresarial • Documento de Presentación de Servicios</span>
+      <span class="page-number">Pág. 01 / 09</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA 2: MÓDULO 1 - ASESOR INTELIGENTE CON IA 24/7 -->
+  <!-- ========================================================= -->
+  <div class="page">
+    <div class="page-header">
+      <div class="brand-logo">
+        <div class="logo-badge">🤖</div>
+        <div>
+          <div class="brand-title">MÓDULO 1: ASESOR INTELIGENTE CON IA 24/7</div>
+          <div class="brand-subtitle">Alidea Genesis AI™ • Atención Humana y Cierre de Ventas</div>
+        </div>
+      </div>
+      <div class="header-price-tag">
+        <span class="pulse"></span>
+        <span>INCLUIDO EN S/ 49.00</span>
+      </div>
+    </div>
+
+    <div class="content-body">
+      <span class="module-pill">🤖 Inteligencia Artificial Conversacional en WhatsApp</span>
+      <h2 class="module-title">Tu Mejor Vendedor Comercial <span>Trabajando 24 Horas al Día</span></h2>
+      <p class="module-subtitle">
+        Olvídate de perder clientes en las noches o responder tarde. Nuestro modelo de Inteligencia Artificial atiende con calidez, resuelve dudas, recomienda productos y guía al cliente hacia el pago de manera ultra-rápida.
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-emerald">🛡️</span>
+            <span>Cero Alucinaciones & Máxima Precisión</span>
+          </div>
+          <p class="feature-box-desc">
+            La IA está restringida estrictamente a la base de conocimiento de tu negocio (productos, precios, horarios, envíos y políticas). Nunca inventa datos ni precios erróneos.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-indigo">🏷️</span>
+            <span>Auto-Etiquetado Inteligente (CRM)</span>
+          </div>
+          <p class="feature-box-desc">
+            Clasifica automáticamente a los prospectos según su interés en el chat (ej. <em>Catálogo Enviado</em>, <em>Cliente Caliente</em>, <em>Cerrado / Ganado</em>) con regla de no degradación.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-amber">⏱️</span>
+            <span>Simulación de Escritura Humana</span>
+          </div>
+          <p class="feature-box-desc">
+            Aplica un delay aleatorio configurable (ej. 2s a 5s) y muestra el estado <em>"escribiendo..."</em> en WhatsApp únicamente tras procesar la respuesta, brindando una experiencia 100% natural.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-cyan">⏸️</span>
+            <span>Control de IA por Chat y por Etiquetas</span>
+          </div>
+          <p class="feature-box-desc">
+            Pausa la IA con un clic en chats específicos para atención manual o silencia automáticamente a clientes con etiquetas especiales (ej. <em>Soporte</em> o <em>Cliente VIP</em>).
+          </p>
+        </div>
+      </div>
+
+      <div class="mockup-container">
+        <div class="mockup-header">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+          <span style="font-size: 10px; color: #94a3b8; margin-left: 8px; font-weight: 600;">Demostración en Vivo • WhatsApp Business + Genesis AI™</span>
+        </div>
+        <div class="chat-bubble chat-client">
+          Hola, buenas noches. ¿Tienen el pack para negocios y hacen envíos a provincias?
+        </div>
+        <div class="chat-bubble chat-ai">
+          ¡Hola! Qué gusto saludarte 😊. ¡Sí, claro que sí! Contamos con el <strong>Paquete Completo para Negocios por solo S/ 49.00</strong> (pago único con acceso de por vida) 🚀. Realizamos envíos y habilitaciones inmediatas a todo el Perú.<br><br>
+          ¿Deseas que te comparta el enlace de acceso o tienes alguna consulta adicional?
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Alidea Plataforma Empresarial • Módulo de Asistente IA</span>
+      <span class="page-number">Pág. 02 / 09</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA 3: MÓDULO 2 - CRM KANBAN & CHAT EN VIVO -->
+  <!-- ========================================================= -->
+  <div class="page">
+    <div class="page-header">
+      <div class="brand-logo">
+        <div class="logo-badge">📊</div>
+        <div>
+          <div class="brand-title">MÓDULO 2: CRM DE VENTAS KANBAN & CHAT EN VIVO</div>
+          <div class="brand-subtitle">Embudo Comercial, Gestión de Leads y Seguimiento Centralizado</div>
+        </div>
+      </div>
+      <div class="header-price-tag">
+        <span class="pulse"></span>
+        <span>INCLUIDO EN S/ 49.00</span>
+      </div>
+    </div>
+
+    <div class="content-body">
+      <span class="module-pill">💼 Gestión Comercial y Embudo de Prospectos</span>
+      <h2 class="module-title">Convierte Cada Conversación en una <span>Venta Cerrada</span></h2>
+      <p class="module-subtitle">
+        Deja atrás los chats desordenados y las notas en papel. Nuestro CRM visual organiza automáticamente a todos los contactos que te escriben por WhatsApp en etapas claras del embudo de ventas.
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-indigo">📌</span>
+            <span>Tablero Kanban Visual & Drag-and-Drop</span>
+          </div>
+          <p class="feature-box-desc">
+            Visualiza tu flujo comercial en columnas dinámicas: <em>Nuevo Lead</em>, <em>Contactado</em>, <em>En Negociación</em>, <em>Propuesta Enviada</em>, <em>Cierre Ganado 🏆</em> y <em>Perdido</em>.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-emerald">💬</span>
+            <span>Bandeja de Chat en Vivo Unificada</span>
+          </div>
+          <p class="feature-box-desc">
+            Lee y responde conversaciones de WhatsApp directamente desde el panel web en tiempo real, asigna etiquetas de colores y consulta el historial completo del cliente.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-purple">📅</span>
+            <span>Gestor de Tareas y Recordatorios</span>
+          </div>
+          <p class="feature-box-desc">
+            Programa llamadas, visitas, seguimientos y cotizaciones asociadas a cada prospecto, con alertas por fecha de vencimiento y prioridad (Alta, Media, Baja).
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-amber">🗂️</span>
+            <span>Ficha de Cliente 360° & Bitácora</span>
+          </div>
+          <p class="feature-box-desc">
+            Registra notas internas, valor estimado del trato, teléfono verificado, etiquetas activas y registro cronológico de todas las interacciones del prospecto.
+          </p>
+        </div>
+      </div>
+
+      <div class="glass-card" style="margin-top: 14px; padding: 14px;">
+        <div style="font-size: 11.5px; font-weight: 700; color: #e2e8f0; margin-bottom: 8px;">
+          🎯 Flujo Automatizado de Captura y Cierre en el CRM
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center;">
+          <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 8px;">
+            <div style="font-size: 10px; font-weight: 800; color: #818cf8;">1. ENTRANTE</div>
+            <div style="font-size: 10px; color: #cbd5e1; margin-top: 2px;">Cliente escribe por WhatsApp</div>
+          </div>
+          <div style="background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.3); border-radius: 8px; padding: 8px;">
+            <div style="font-size: 10px; font-weight: 800; color: #22d3ee;">2. REGISTRO</div>
+            <div style="font-size: 10px; color: #cbd5e1; margin-top: 2px;">Se crea Lead en Kanban</div>
+          </div>
+          <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 8px;">
+            <div style="font-size: 10px; font-weight: 800; color: #fbbf24;">3. ATENCIÓN</div>
+            <div style="font-size: 10px; color: #cbd5e1; margin-top: 2px;">IA asesora y cotiza</div>
+          </div>
+          <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 8px;">
+            <div style="font-size: 10px; font-weight: 800; color: #34d399;">4. GANADO</div>
+            <div style="font-size: 10px; color: #cbd5e1; margin-top: 2px;">Cierre y pedido registrado</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Alidea Plataforma Empresarial • Módulo CRM & Chat en Vivo</span>
+      <span class="page-number">Pág. 03 / 09</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA 4: MÓDULO 3 - MOTOR DE RETARGETING MASIVO -->
+  <!-- ========================================================= -->
+  <div class="page">
+    <div class="page-header">
+      <div class="brand-logo">
+        <div class="logo-badge">📢</div>
+        <div>
+          <div class="brand-title">MÓDULO 3: RETARGETING MASIVO & CAMPAÑAS ANTIBAN</div>
+          <div class="brand-subtitle">Reactivación de Clientes, Promociones y Difusión Inteligente</div>
+        </div>
+      </div>
+      <div class="header-price-tag">
+        <span class="pulse"></span>
+        <span>INCLUIDO EN S/ 49.00</span>
+      </div>
+    </div>
+
+    <div class="content-body">
+      <span class="module-pill">🔥 Campañas Masivas y Reactivación de Prospectos</span>
+      <h2 class="module-title">Multiplica tus Ventas <span>Reactivando a tus Contactos</span></h2>
+      <p class="module-subtitle">
+        El 80% de las ventas ocurren en el seguimiento. Envía promociones, lanzamientos y ofertas exclusivas a miles de clientes en minutos con nuestra tecnología de protección antiban.
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-emerald">🛡️</span>
+            <span>Algoritmo Antiban con Delay Humano</span>
+          </div>
+          <p class="feature-box-desc">
+            Envía mensajes en lotes programados con pausas aleatorias entre envíos para simular el comportamiento de una persona real y cuidar la reputación de tu línea.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-purple">🎯</span>
+            <span>Segmentación por Etiquetas del CRM</span>
+          </div>
+          <p class="feature-box-desc">
+            Dispara campañas ultra-personalizadas seleccionando etiquetas específicas (ej. <em>Cotización Pendiente</em>, <em>Clientes Antiguos</em> o <em>Interesados en Ofertas</em>).
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-cyan">🎬</span>
+            <span>Soporte Multimedia Integral</span>
+          </div>
+          <p class="feature-box-desc">
+            Adjunta imágenes de productos en alta definición, notas de voz con formato push-to-talk, videos demostrativos y catálogos en PDF en tus secuencias de difusión.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-amber">📈</span>
+            <span>Métricas y Reportes de Entrega en Vivo</span>
+          </div>
+          <p class="feature-box-desc">
+            Sigue en tiempo real la cantidad de mensajes enviados con éxito, fallidos, tasa de entrega y logs detallados con opción de pausar o reanudar campañas cuando desees.
+          </p>
+        </div>
+      </div>
+
+      <div class="glass-card-highlight" style="margin-top: 14px; padding: 16px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <span style="font-size: 12px; font-weight: 800; color: #ffffff;">📊 Ejemplo de Rendimiento de Campaña de Retargeting</span>
+          <span style="font-size: 10px; color: #34d399; font-weight: 700; background: rgba(16, 185, 129, 0.2); padding: 2px 8px; border-radius: 6px;">Campaña Exitosa</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+          <div class="metric-card" style="padding: 8px;">
+            <div class="metric-val" style="font-size: 16px;">500</div>
+            <div class="metric-label">Destinatarios</div>
+          </div>
+          <div class="metric-card" style="padding: 8px;">
+            <div class="metric-val" style="font-size: 16px; color: #34d399;">492</div>
+            <div class="metric-label">Entregados (98.4%)</div>
+          </div>
+          <div class="metric-card" style="padding: 8px;">
+            <div class="metric-val" style="font-size: 16px; color: #fbbf24;">148</div>
+            <div class="metric-label">Respuestas (30%)</div>
+          </div>
+          <div class="metric-card" style="padding: 8px;">
+            <div class="metric-val" style="font-size: 16px; color: #a855f7;">S/ 3,450</div>
+            <div class="metric-label">Ventas Generadas</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Alidea Plataforma Empresarial • Módulo de Retargeting Masivo</span>
+      <span class="page-number">Pág. 04 / 09</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA 5: MÓDULO 4 - CATÁLOGO DIGITAL & COTIZADOR -->
+  <!-- ========================================================= -->
+  <div class="page">
+    <div class="page-header">
+      <div class="brand-logo">
+        <div class="logo-badge">🛍️</div>
+        <div>
+          <div class="brand-title">MÓDULO 4: CATÁLOGO DIGITAL & COTIZADOR RÁPIDO</div>
+          <div class="brand-subtitle">Gestión de Productos, Inventario y Emisión de Pedidos</div>
+        </div>
+      </div>
+      <div class="header-price-tag">
+        <span class="pulse"></span>
+        <span>INCLUIDO EN S/ 49.00</span>
+      </div>
+    </div>
+
+    <div class="content-body">
+      <span class="module-pill">📦 Catálogo de Productos y Cierre Inmediato</span>
+      <h2 class="module-title">Crea Cotizaciones y Pedidos en <span>Cuestión de Segundos</span></h2>
+      <p class="module-subtitle">
+        Gestiona tu inventario con precios en Soles (S/) o Dólares ($ USD), crea cotizaciones formales y permite que el Asesor IA comparta fichas de productos y catálogos interactivos al instante.
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-indigo">🛒</span>
+            <span>Catálogo Digital Centralizado</span>
+          </div>
+          <p class="feature-box-desc">
+            Organiza tus productos o servicios con nombres, códigos SKU, precios, categorías, descripciones comerciales y fotografías en alta definición.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-emerald">⚡</span>
+            <span>Cotizador Rápido para WhatsApp</span>
+          </div>
+          <p class="feature-box-desc">
+            Selecciona productos con un clic, calcula automáticamente subtotales, impuestos y descuentos, y genera una orden de compra lista para enviar al chat del cliente.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-cyan">💱</span>
+            <span>Soporte Multidivisa Personalizable</span>
+          </div>
+          <p class="feature-box-desc">
+            Elige la moneda de tu país (PEN - S/, USD - $, EUR - €, etc.). Tanto el sistema como la IA cotizarán siempre en la moneda y símbolo que configures.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-amber">📦</span>
+            <span>Control de Stock y Estado de Pedidos</span>
+          </div>
+          <p class="feature-box-desc">
+            Monitorea productos disponibles vs agotados y gestiona el estado de cada pedido (Pendiente, Pagado, En Envío, Completado) vinculado al lead del CRM.
+          </p>
+        </div>
+      </div>
+
+      <div class="glass-card" style="margin-top: 14px; padding: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 11.5px; font-weight: 700; color: #ffffff;">📋 Formato de Cotización Automática Enviada por WhatsApp</span>
+          <span style="font-size: 10px; color: #38bdf8; font-mono font-weight: 700;">ORD-2026-084</span>
+        </div>
+        <div style="background: #0f172a; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 10px; font-size: 11px; color: #cbd5e1; font-family: monospace;">
+          📄 *COTIZACIÓN FORMAL • ALIDEA TECH*<br>
+          ----------------------------------------<br>
+          • 1x Plan Acceso Total Anual ........... S/ 350.00<br>
+          • 1x Setup e Integración Asistente ..... S/ 120.00<br>
+          ----------------------------------------<br>
+          *TOTAL A PAGAR: S/ 470.00* (Incluye IGV 18%)<br>
+          💳 *Medios de Pago:* Yape / Plin / BCP / Tarjeta
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Alidea Plataforma Empresarial • Módulo Catálogo & Cotizador</span>
+      <span class="page-number">Pág. 05 / 09</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA 6: MÓDULO 5 - CONTABILIDAD & FINANZAS -->
+  <!-- ========================================================= -->
+  <div class="page">
+    <div class="page-header">
+      <div class="brand-logo">
+        <div class="logo-badge">🏛️</div>
+        <div>
+          <div class="brand-title">MÓDULO 5: CONTABILIDAD & FINANZAS INTEGRAL</div>
+          <div class="brand-subtitle">Libro Diario, Cuentas T, Liquidación de IGV e Impuesto a la Renta</div>
+        </div>
+      </div>
+      <div class="header-price-tag">
+        <span class="pulse"></span>
+        <span>INCLUIDO EN S/ 49.00</span>
+      </div>
+    </div>
+
+    <div class="content-body">
+      <span class="module-pill">💰 Control Financiero y Cumplimiento Tributario</span>
+      <h2 class="module-title">Conoce la Utilidad Real de tu Negocio <span>y Controla tus Impuestos</span></h2>
+      <p class="module-subtitle">
+        Una suite contable completa que calcula automáticamente tus libros contables, el débito y crédito fiscal de IGV/IVA y tu utilidad neta real después de costos e impuestos.
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-indigo">📖</span>
+            <span>Libro Diario Automatizado</span>
+          </div>
+          <p class="feature-box-desc">
+            Registra asientos de ingresos (ventas, servicios) y egresos (compras, sueldos, alquiler, publicidad) con desglose de base imponible e impuestos.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-emerald">⚖️</span>
+            <span>Libro Mayor con Cuentas T Automáticas</span>
+          </div>
+          <p class="feature-box-desc">
+            Agrupa movimientos en Debe y Haber por cada cuenta contable (Caja/Bancos, Ventas, Gastos Operativos, Proveedores) con balance de saldo en tiempo real.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-purple">🧾</span>
+            <span>Liquidación Tributaria de IGV / IVA</span>
+          </div>
+          <p class="feature-box-desc">
+            Cálculo automático de IGV de Ventas (Débito) vs IGV de Compras (Crédito Fiscal) para saber con exactitud cuánto corresponde pagar a la administración tributaria.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-amber">📊</span>
+            <span>Balance Anual & Utilidad Neta Real</span>
+          </div>
+          <p class="feature-box-desc">
+            Estado de Ganancias y Pérdidas que calcula tu Utilidad Bruta, deducción de Impuesto a la Renta (ej. 29.5% o manual) y tu <strong>Utilidad Neta Disponible</strong>.
+          </p>
+        </div>
+      </div>
+
+      <div class="glass-card-highlight" style="margin-top: 14px; padding: 14px;">
+        <div style="font-size: 11.5px; font-weight: 800; color: #ffffff; margin-bottom: 6px;">
+          📈 Resumen de Estado de Resultados Automatizado
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center;">
+          <div class="metric-card" style="padding: 8px;">
+            <div class="metric-val" style="color: #34d399; font-size: 15px;">S/ 24,500</div>
+            <div class="metric-label">Ingresos Totales</div>
+          </div>
+          <div class="metric-card" style="padding: 8px;">
+            <div class="metric-val" style="color: #f87171; font-size: 15px;">- S/ 9,800</div>
+            <div class="metric-label">Costos & Gastos</div>
+          </div>
+          <div class="metric-card" style="padding: 8px;">
+            <div class="metric-val" style="color: #38bdf8; font-size: 15px;">S/ 10,358</div>
+            <div class="metric-label">Utilidad Neta Real</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Alidea Plataforma Empresarial • Módulo de Contabilidad & Finanzas</span>
+      <span class="page-number">Pág. 06 / 09</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA 7: MÓDULO 6 - ANALÍTICA & BUSINESS INTELLIGENCE -->
+  <!-- ========================================================= -->
+  <div class="page">
+    <div class="page-header">
+      <div class="brand-logo">
+        <div class="logo-badge">📈</div>
+        <div>
+          <div class="brand-title">MÓDULO 6: ANALÍTICA DE NEGOCIO & BI</div>
+          <div class="brand-subtitle">Business Intelligence, Métricas WoW / MoM y Días Pico</div>
+        </div>
+      </div>
+      <div class="header-price-tag">
+        <span class="pulse"></span>
+        <span>INCLUIDO EN S/ 49.00</span>
+      </div>
+    </div>
+
+    <div class="content-body">
+      <span class="module-pill">📊 Inteligencia de Negocios y Métricas Clave</span>
+      <h2 class="module-title">Toma Decisiones con <span>Datos y Métricas Reales</span></h2>
+      <p class="module-subtitle">
+        Descubre cuáles son tus días de mayor venta, la evolución de tus ingresos comparados con el mes anterior y la efectividad de conversión de tu equipo y del bot.
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-indigo">📅</span>
+            <span>Comparativas Semana a Semana (WoW)</span>
+          </div>
+          <p class="feature-box-desc">
+            Compara el rendimiento de los últimos 7 días frente a la semana anterior para detectar si tus ventas están acelerando o requieren nuevas campañas.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-emerald">📊</span>
+            <span>Evolución Mes a Mes (MoM)</span>
+          </div>
+          <p class="feature-box-desc">
+            Gráficos de barras interactivos que muestran el crecimiento porcentual mes a mes de tus ingresos brutos, gastos y número de clientes capturados.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-amber">⏰</span>
+            <span>Identificación de Días y Horas Pico</span>
+          </div>
+          <p class="feature-box-desc">
+            El sistema detecta automáticamente qué días de la semana y a qué horas recibes más mensajes y compras, permitiéndote programar anuncios en el momento exacto.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-purple">🎯</span>
+            <span>Embudo de Conversión & Ticket Promedio</span>
+          </div>
+          <p class="feature-box-desc">
+            Conoce el porcentaje exacto de prospectos que terminan comprando, el valor promedio por pedido y el valor de vida del cliente (LTV).
+          </p>
+        </div>
+      </div>
+
+      <div class="glass-card" style="margin-top: 14px; padding: 14px;">
+        <div style="font-size: 11.5px; font-weight: 800; color: #ffffff; margin-bottom: 8px;">
+          📊 Tablero Ejecutivo de BI • Vista Resumen
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+          <div class="metric-card" style="padding: 8px;">
+            <div class="metric-val" style="color: #34d399; font-size: 15px;">+28.4%</div>
+            <div class="metric-label">Crecimiento MoM</div>
+          </div>
+          <div class="metric-card" style="padding: 8px;">
+            <div class="metric-val" style="color: #38bdf8; font-size: 15px;">Viernes</div>
+            <div class="metric-label">Día Pico de Venta</div>
+          </div>
+          <div class="metric-card" style="padding: 8px;">
+            <div class="metric-val" style="color: #a855f7; font-size: 15px;">18.5%</div>
+            <div class="metric-label">Tasa Conversión</div>
+          </div>
+          <div class="metric-card" style="padding: 8px;">
+            <div class="metric-val" style="color: #fbbf24; font-size: 15px;">S/ 185.00</div>
+            <div class="metric-label">Ticket Promedio</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Alidea Plataforma Empresarial • Módulo de Analítica & BI</span>
+      <span class="page-number">Pág. 07 / 09</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA 8: MÓDULO 7 - PROGRAMA TÁCTICO DE ATRACCIÓN -->
+  <!-- ========================================================= -->
+  <div class="page">
+    <div class="page-header">
+      <div class="brand-logo">
+        <div class="logo-badge">🎯</div>
+        <div>
+          <div class="brand-title">MÓDULO 7: PROGRAMA TÁCTICO DE ATRACCIÓN</div>
+          <div class="brand-subtitle">Guía de Anuncios Rentables en Meta Ads & TikTok Ads</div>
+        </div>
+      </div>
+      <div class="header-price-tag">
+        <span class="pulse"></span>
+        <span>INCLUIDO EN S/ 49.00</span>
+      </div>
+    </div>
+
+    <div class="content-body">
+      <span class="module-pill">🚀 Metodología Publicitaria Comprobada</span>
+      <h2 class="module-title">Inunda tu WhatsApp de <span>Clientes Listos para Comprar</span></h2>
+      <p class="module-subtitle">
+        Aprende paso a paso cómo crear anuncios que generen mensajes calificados al menor costo por lead posible en Facebook, Instagram y TikTok, conectándolos directo con tu Asesor IA.
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-indigo">📱</span>
+            <span>Campañas Directas a WhatsApp (Click-to-Chat)</span>
+          </div>
+          <p class="feature-box-desc">
+            Configuración técnica correcta del Administrador de Anuncios de Meta para optimizar por conversaciones iniciadas y compras reales, no solo clics vacíos.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-emerald">✍️</span>
+            <span>Estructuras de Copy Persuasivo & Creativos</span>
+          </div>
+          <p class="feature-box-desc">
+            Fórmulas de redacción publicitaria (AIDA y PAS) y guiones para videos en TikTok y Reels que captan la atención en los primeros 3 segundos y motivan a escribir.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-purple">🎯</span>
+            <span>Segmentación de Públicos de Alto Valor</span>
+          </div>
+          <p class="feature-box-desc">
+            Cómo elegir los intereses, comportamientos de compra y ubicaciones geográficas ideales para llegar a personas con capacidad y deseo real de compra.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-box-title">
+            <span class="icon-bullet icon-amber">🔄</span>
+            <span>Embudo Integrado de Cierre Automático</span>
+          </div>
+          <p class="feature-box-desc">
+            Estrategia de conexión perfecta: El anuncio atrae al lead ➔ El Asesor IA lo atiende en 2 segundos ➔ El CRM lo etiqueta ➔ Se cierra la venta sin fricción.
+          </p>
+        </div>
+      </div>
+
+      <div class="glass-card-highlight" style="margin-top: 14px; padding: 14px;">
+        <div style="font-size: 11.5px; font-weight: 800; color: #ffffff; margin-bottom: 8px; text-align: center;">
+          🔄 El Circuito de Crecimiento Infinito de tu Negocio
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10.5px; text-align: center;">
+          <div style="flex: 1; background: rgba(99, 102, 241, 0.2); padding: 8px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.4);">
+            <strong>1. Anuncio Meta/TikTok</strong><br><span style="color: #a5b4fc; font-size: 9.5px;">Tráfico Calificado</span>
+          </div>
+          <div style="padding: 0 6px; color: #34d399; font-weight: 800;">➔</div>
+          <div style="flex: 1; background: rgba(6, 182, 212, 0.2); padding: 8px; border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.4);">
+            <strong>2. WhatsApp con IA</strong><br><span style="color: #67e8f9; font-size: 9.5px;">Respuesta 24/7</span>
+          </div>
+          <div style="padding: 0 6px; color: #34d399; font-weight: 800;">➔</div>
+          <div style="flex: 1; background: rgba(245, 158, 11, 0.2); padding: 8px; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.4);">
+            <strong>3. CRM Kanban</strong><br><span style="color: #fde68a; font-size: 9.5px;">Seguimiento Total</span>
+          </div>
+          <div style="padding: 0 6px; color: #34d399; font-weight: 800;">➔</div>
+          <div style="flex: 1; background: rgba(16, 185, 129, 0.2); padding: 8px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.4);">
+            <strong>4. Venta & Finanzas</strong><br><span style="color: #6ee7b7; font-size: 9.5px;">Utilidad Real</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Alidea Plataforma Empresarial • Módulo Programa Táctico de Atracción</span>
+      <span class="page-number">Pág. 08 / 09</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA 9: CONTRAPORTADA / OFERTA & LLAMADO A LA ACCIÓN -->
+  <!-- ========================================================= -->
+  <div class="page">
+    <div class="page-header">
+      <div class="brand-logo">
+        <div class="logo-badge">⚡</div>
+        <div>
+          <div class="brand-title">ALIDEA PLATAFORMA PRO</div>
+          <div class="brand-subtitle">Resumen de Inversión y Acceso Inmediato</div>
+        </div>
+      </div>
+      <div class="header-price-tag">
+        <span class="pulse"></span>
+        <span>OFERTA LIMITADA: S/ 49.00</span>
+      </div>
+    </div>
+
+    <div class="content-body">
+      <div style="text-align: center; margin-bottom: 10px;">
+        <span class="module-pill">💎 La Oferta Más Completa del Mercado</span>
+        <h2 class="module-title">Todo lo que tu Negocio Necesita <span>por un Solo Pago</span></h2>
+        <p style="font-size: 12px; color: #94a3b8;">Compara el valor de adquirir cada herramienta por separado frente a nuestra solución integral:</p>
+      </div>
+
+      <table class="pricing-table">
+        <thead>
+          <tr>
+            <th>Módulo / Herramienta Incluida</th>
+            <th>Valor Individual</th>
+            <th>En el Paquete Alidea</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1. Asesor Inteligente con IA 24/7 en WhatsApp</strong></td>
+            <td><span class="strike-price">S/ 250.00 / mes</span></td>
+            <td><strong style="color: #34d399;">INCLUIDO ✓</strong></td>
+          </tr>
+          <tr>
+            <td><strong>2. CRM de Ventas Kanban & Chat en Vivo</strong></td>
+            <td><span class="strike-price">S/ 180.00 / mes</span></td>
+            <td><strong style="color: #34d399;">INCLUIDO ✓</strong></td>
+          </tr>
+          <tr>
+            <td><strong>3. Motor de Retargeting Masivo Antiban</strong></td>
+            <td><span class="strike-price">S/ 150.00 / mes</span></td>
+            <td><strong style="color: #34d399;">INCLUIDO ✓</strong></td>
+          </tr>
+          <tr>
+            <td><strong>4. Catálogo Digital & Cotizador en WhatsApp</strong></td>
+            <td><span class="strike-price">S/ 120.00</span></td>
+            <td><strong style="color: #34d399;">INCLUIDO ✓</strong></td>
+          </tr>
+          <tr>
+            <td><strong>5. Contabilidad, Cuentas T, IGV y Balance</strong></td>
+            <td><span class="strike-price">S/ 190.00 / mes</span></td>
+            <td><strong style="color: #34d399;">INCLUIDO ✓</strong></td>
+          </tr>
+          <tr>
+            <td><strong>6. Analítica & Business Intelligence (WoW/MoM)</strong></td>
+            <td><span class="strike-price">S/ 160.00</span></td>
+            <td><strong style="color: #34d399;">INCLUIDO ✓</strong></td>
+          </tr>
+          <tr>
+            <td><strong>7. Programa de Anuncios Meta & TikTok Ads</strong></td>
+            <td><span class="strike-price">S/ 150.00</span></td>
+            <td><strong style="color: #34d399;">INCLUIDO ✓</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="final-offer-card">
+        <div style="font-size: 13px; font-weight: 700; color: #cbd5e1; text-transform: uppercase; letter-spacing: 1px;">
+          VALOR TOTAL EN EL MERCADO: <span class="strike-price" style="font-size: 14px;">S/ 1,200.00+</span>
+        </div>
+        <div style="margin: 8px 0;">
+          <span style="font-size: 14px; font-weight: 800; color: #ffffff;">PRECIO FINAL DE PROMOCIÓN:</span><br>
+          <span style="font-size: 38px; font-weight: 900; color: #34d399; font-family: 'JetBrains Mono', monospace; text-shadow: 0 4px 15px rgba(52, 211, 153, 0.4);">
+            S/ 49.00
+          </span>
+          <span style="font-size: 12px; color: #a5b4fc; font-weight: 700; display: block; margin-top: -4px;">
+            PAGO ÚNICO • ACCESO ILIMITADO • CERO MENSUALIDADES
+          </span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; font-size: 10.5px; color: #e2e8f0;">
+          <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 8px;">
+            ✅ Acceso Inmediato al Panel
+          </div>
+          <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 8px;">
+            ✅ Soporte Técnico Incluido
+          </div>
+          <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 8px;">
+            ✅ Actualizaciones Gratuitas
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 12px;">
+        <p style="font-size: 12px; color: #94a3b8; font-weight: 600;">
+          📲 <strong>¿Listo para automatizar y hacer crecer tu negocio?</strong><br>
+          Escríbenos por WhatsApp para activar tu cuenta en minutos.
+        </p>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Alidea Plataforma Empresarial • www.alidea.pe • Soporte 24/7</span>
+      <span class="page-number">Pág. 09 / 09</span>
+    </div>
+  </div>
+
+</body>
+</html>

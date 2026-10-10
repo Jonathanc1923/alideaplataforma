@@ -528,12 +528,18 @@ app.get('/api/public/simulator-config', async (req, res) => {
 
         let parsedCatalog = [];
         try { parsedCatalog = JSON.parse(sim.catalog_json || '[]'); } catch(e) {}
+
+        let parsedCatalogMedia = [];
+        try { parsedCatalogMedia = JSON.parse(sim.catalog_media_files || '[]'); } catch(e) {}
         
         res.json({
             bot_name: sim.bot_name,
             welcome_message: sim.welcome_message,
             keywords: parsedKeywords,
             catalog: parsedCatalog,
+            catalog_keywords: sim.catalog_keywords || 'catalogo, catálago, catalogo pdf, productos, servicios, lista de precios, precios, menu, carta, lista, cotizar, fotos de productos, ver catalogo',
+            catalog_custom_message: sim.catalog_custom_message || '',
+            catalog_media_files: parsedCatalogMedia,
             currency_code: sim.currency_code || 'PEN',
             currency_symbol: sim.currency_symbol || 'S/',
             delay_min: sim.delay_min !== null && sim.delay_min !== undefined ? sim.delay_min : 2,
@@ -570,15 +576,25 @@ app.post('/api/public/simulator-chat', async (req, res) => {
         let parsedCatalog = [];
         try { parsedCatalog = JSON.parse(sim.catalog_json || '[]'); } catch(e) {}
 
+        let parsedCatalogMedia = [];
+        try { parsedCatalogMedia = JSON.parse(sim.catalog_media_files || '[]'); } catch(e) {}
+
         const sym = sim.currency_symbol || 'S/';
         const code = sim.currency_code || 'PEN';
 
         const textLower = message.toLowerCase().trim();
 
-        // Special handler: If asking for catalog
-        const isCatalogRequest = /(catalogo|cat[aá]logo|pedir cat[aá]logo|enviar cat[aá]logo|ver cat[aá]logo|productos|servicios|lista de precios|precios|menu|menú|carta)/i.test(textLower);
+        // Check if asking for catalog via configured keywords or default regex
+        const rawCatalogKw = sim.catalog_keywords || 'catalogo, catálago, catalogo pdf, productos, servicios, lista de precios, precios, menu, carta, lista, cotizar, fotos de productos, ver catalogo';
+        const catalogKwList = rawCatalogKw.toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
+        const isCatalogKeywordMatch = catalogKwList.some(k => k !== '' && textLower.includes(k));
+        const isCatalogRegexMatch = /(catalogo|cat[aá]logo|pedir cat[aá]logo|enviar cat[aá]logo|ver cat[aá]logo|productos|servicios|lista de precios|precios|menu|menú|carta)/i.test(textLower);
+
+        const isCatalogRequest = isCatalogKeywordMatch || isCatalogRegexMatch;
 
         if (isCatalogRequest) {
+            let catMsg = sim.catalog_custom_message && sim.catalog_custom_message.trim() ? sim.catalog_custom_message.trim() : '';
+
             let itemsToDisplay = parsedCatalog;
             if (!itemsToDisplay || itemsToDisplay.length === 0) {
                 itemsToDisplay = [
@@ -588,18 +604,21 @@ app.post('/api/public/simulator-chat', async (req, res) => {
                 ];
             }
 
-            let catMsg = `📁 *CATÁLOGO DE PRODUCTOS & SERVICIOS:*\n\n`;
-            itemsToDisplay.forEach((p, idx) => {
-                catMsg += `*${idx + 1}. ${p.name}* ➔ *${sym} ${Number(p.price || 0).toFixed(2)}*\n${p.description ? `_${p.description}_\n` : ''}\n`;
-            });
-            catMsg += `¿Deseas cotizar o realizar un pedido de alguno de estos productos?`;
+            if (!catMsg) {
+                catMsg = `📁 *CATÁLOGO DE PRODUCTOS & SERVICIOS:*\n\n`;
+                itemsToDisplay.forEach((p, idx) => {
+                    catMsg += `*${idx + 1}. ${p.name}* ➔ *${sym} ${Number(p.price || 0).toFixed(2)}*\n${p.description ? `_${p.description}_\n` : ''}\n`;
+                });
+                catMsg += `¿Deseas cotizar o realizar un pedido de alguno de estos productos?`;
+            }
 
             return res.json({
                 sender: 'bot',
                 text: catMsg,
                 stage: 'Negociación',
                 assignedTag: 'Catálogo Enviado',
-                isCatalog: true
+                isCatalog: true,
+                mediaFiles: parsedCatalogMedia
             });
         }
 
@@ -706,14 +725,17 @@ app.get('/api/admin/simulator-config', requireAdmin, async (req, res) => {
         let parsedKeywords = [];
         try { parsedKeywords = JSON.parse(sim.keywords_json || '[]'); } catch(e) {}
 
-        let parsedCatalog = [];
-        try { parsedCatalog = JSON.parse(sim.catalog_json || '[]'); } catch(e) {}
+        let parsedCatalogMedia = [];
+        try { parsedCatalogMedia = JSON.parse(sim.catalog_media_files || '[]'); } catch(e) {}
 
         res.json({
             bot_name: sim.bot_name,
             welcome_message: sim.welcome_message,
             keywords: parsedKeywords,
             catalog: parsedCatalog,
+            catalog_keywords: sim.catalog_keywords || 'catalogo, catálago, catalogo pdf, productos, servicios, lista de precios, precios, menu, carta, lista, cotizar, fotos de productos, ver catalogo',
+            catalog_custom_message: sim.catalog_custom_message || '',
+            catalog_media_files: parsedCatalogMedia,
             currency_code: sim.currency_code || 'PEN',
             currency_symbol: sim.currency_symbol || 'S/',
             delay_min: sim.delay_min !== null && sim.delay_min !== undefined ? sim.delay_min : 2,
@@ -729,22 +751,26 @@ app.get('/api/admin/simulator-config', requireAdmin, async (req, res) => {
 
 app.put('/api/admin/simulator-config', requireAdmin, async (req, res) => {
     try {
-        const { bot_name, welcome_message, keywords, catalog, currency_code, currency_symbol, delay_min, delay_max, ai_enabled, ai_system_prompt, ai_temperature } = req.body;
+        const { bot_name, welcome_message, keywords, catalog, catalog_keywords, catalog_custom_message, catalog_media_files, currency_code, currency_symbol, delay_min, delay_max, ai_enabled, ai_system_prompt, ai_temperature } = req.body;
         const db = await getDbConnection();
 
         const kwJson = typeof keywords === 'string' ? keywords : JSON.stringify(keywords || []);
         const catJson = typeof catalog === 'string' ? catalog : JSON.stringify(catalog || []);
+        const catMediaJson = typeof catalog_media_files === 'string' ? catalog_media_files : JSON.stringify(catalog_media_files || []);
         const dMin = delay_min !== undefined ? Math.max(1, parseInt(delay_min, 10) || 2) : 2;
         const dMax = delay_max !== undefined ? Math.max(dMin, parseInt(delay_max, 10) || 5) : 5;
 
         await db.run(
-            `INSERT INTO simulator_config (id, bot_name, welcome_message, keywords_json, catalog_json, currency_code, currency_symbol, delay_min, delay_max, ai_enabled, ai_system_prompt, ai_temperature, updated_at)
-             VALUES ('default', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            `INSERT INTO simulator_config (id, bot_name, welcome_message, keywords_json, catalog_json, catalog_keywords, catalog_custom_message, catalog_media_files, currency_code, currency_symbol, delay_min, delay_max, ai_enabled, ai_system_prompt, ai_temperature, updated_at)
+             VALUES ('default', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
              ON CONFLICT(id) DO UPDATE SET
                bot_name = excluded.bot_name,
                welcome_message = excluded.welcome_message,
                keywords_json = excluded.keywords_json,
                catalog_json = excluded.catalog_json,
+               catalog_keywords = excluded.catalog_keywords,
+               catalog_custom_message = excluded.catalog_custom_message,
+               catalog_media_files = excluded.catalog_media_files,
                currency_code = excluded.currency_code,
                currency_symbol = excluded.currency_symbol,
                delay_min = excluded.delay_min,
@@ -758,6 +784,9 @@ app.put('/api/admin/simulator-config', requireAdmin, async (req, res) => {
                 welcome_message || '',
                 kwJson,
                 catJson,
+                catalog_keywords || 'catalogo, catálago, catalogo pdf, productos, servicios, lista de precios, precios, menu, carta, lista, cotizar, fotos de productos, ver catalogo',
+                catalog_custom_message || '',
+                catMediaJson,
                 currency_code || 'PEN',
                 currency_symbol || 'S/',
                 dMin,
@@ -1348,6 +1377,228 @@ app.delete('/api/products/:prodId', async (req, res) => {
         await db.run('DELETE FROM products WHERE id = ? AND user_id = ?', [prodId, userId]);
         res.json({ message: 'Producto eliminado' });
     } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ====================================================
+// CATALOG AUTO-REPLY & MEDIA MANAGEMENT (MAX 10MB TOTAL)
+// ====================================================
+
+// Get Catalog Config for User
+app.get('/api/catalog/config', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+
+        const db = await getDbConnection();
+        let config = await db.get('SELECT * FROM catalog_config WHERE user_id = ?', [userId]);
+        const defaultKeywords = 'catalogo, catálago, catalogo pdf, productos, servicios, lista de precios, precios, menu, carta, lista, cotizar, fotos de productos, ver catalogo';
+
+        if (!config) {
+            await db.run(
+                `INSERT INTO catalog_config (user_id, trigger_keywords, auto_reply_enabled, custom_message, media_files)
+                 VALUES (?, ?, 1, '', '[]')`,
+                [userId, defaultKeywords]
+            );
+            config = {
+                user_id: userId,
+                trigger_keywords: defaultKeywords,
+                auto_reply_enabled: 1,
+                custom_message: '',
+                media_files: '[]'
+            };
+        }
+
+        let mediaFiles = [];
+        try { mediaFiles = JSON.parse(config.media_files || '[]'); } catch(e) {}
+        const totalSizeBytes = mediaFiles.reduce((acc, f) => acc + (Number(f.size) || 0), 0);
+
+        res.json({
+            user_id: userId,
+            trigger_keywords: config.trigger_keywords || defaultKeywords,
+            auto_reply_enabled: config.auto_reply_enabled === 1 || config.auto_reply_enabled === true,
+            custom_message: config.custom_message || '',
+            media_files: mediaFiles,
+            total_size_bytes: totalSizeBytes
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Save Catalog Config & Upload Media Files (Combined Max 10MB Limit)
+app.post('/api/catalog/config', upload.array('media', 50), async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+
+        const { trigger_keywords, auto_reply_enabled, custom_message, existing_media_files } = req.body;
+        const db = await getDbConnection();
+
+        let currentFiles = [];
+        if (existing_media_files) {
+            try {
+                currentFiles = typeof existing_media_files === 'string' ? JSON.parse(existing_media_files) : existing_media_files;
+                if (!Array.isArray(currentFiles)) currentFiles = [];
+            } catch(e) {
+                currentFiles = [];
+            }
+        }
+
+        // Process newly uploaded files (Photos/Images, Videos, PDFs)
+        const newFiles = (req.files || []).map(file => {
+            const relPath = `/uploads/${file.filename}`;
+            return {
+                id: uuidv4(),
+                name: file.originalname,
+                originalName: file.originalname,
+                path: file.path,
+                url: relPath,
+                type: file.mimetype,
+                mimetype: file.mimetype,
+                size: file.size,
+                uploaded_at: new Date().toISOString()
+            };
+        });
+
+        const allFiles = [...currentFiles, ...newFiles];
+
+        // Validate Total Size: Combined Max 10MB (10 * 1024 * 1024 = 10485760 bytes)
+        const MAX_TOTAL_BYTES = 10 * 1024 * 1024;
+        const totalSize = allFiles.reduce((sum, f) => sum + (Number(f.size) || 0), 0);
+
+        if (totalSize > MAX_TOTAL_BYTES) {
+            // Delete newly uploaded files to prevent orphaned disk files
+            for (const f of newFiles) {
+                try { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); } catch(e) {}
+            }
+            const currentMB = (totalSize / (1024 * 1024)).toFixed(2);
+            return res.status(400).json({ 
+                error: `El peso total de los archivos multimedia supera el límite de 10 MB (Total actual: ${currentMB} MB). Por favor elimina o comprime algunos archivos antes de continuar.` 
+            });
+        }
+
+        const autoReplyInt = (auto_reply_enabled === 'true' || auto_reply_enabled === true || auto_reply_enabled === 1 || auto_reply_enabled === '1') ? 1 : 0;
+        const mediaJson = JSON.stringify(allFiles);
+
+        await db.run(
+            `INSERT INTO catalog_config (user_id, trigger_keywords, auto_reply_enabled, custom_message, media_files, updated_at)
+             VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+             ON CONFLICT(user_id) DO UPDATE SET
+               trigger_keywords = excluded.trigger_keywords,
+               auto_reply_enabled = excluded.auto_reply_enabled,
+               custom_message = excluded.custom_message,
+               media_files = excluded.media_files,
+               updated_at = CURRENT_TIMESTAMP`,
+            [userId, trigger_keywords || '', autoReplyInt, custom_message || '', mediaJson]
+        );
+
+        res.json({
+            message: 'Configuración del catálogo y archivos multimedia guardados con éxito',
+            config: {
+                user_id: userId,
+                trigger_keywords: trigger_keywords || '',
+                auto_reply_enabled: autoReplyInt === 1,
+                custom_message: custom_message || '',
+                media_files: allFiles,
+                total_size_bytes: totalSize
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete a single media file from user's catalog
+app.delete('/api/catalog/media/:fileId', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const { fileId } = req.params;
+        if (!userId) return res.status(400).json({ error: 'ID de usuario requerido' });
+
+        const db = await getDbConnection();
+        const config = await db.get('SELECT * FROM catalog_config WHERE user_id = ?', [userId]);
+        if (!config) return res.status(404).json({ error: 'Configuración de catálogo no encontrada' });
+
+        let mediaFiles = [];
+        try { mediaFiles = JSON.parse(config.media_files || '[]'); } catch(e) {}
+
+        const targetFile = mediaFiles.find(f => f.id === fileId);
+        if (targetFile && targetFile.path) {
+            try { if (fs.existsSync(targetFile.path)) fs.unlinkSync(targetFile.path); } catch(e) {}
+        }
+
+        const updatedFiles = mediaFiles.filter(f => f.id !== fileId);
+        const updatedJson = JSON.stringify(updatedFiles);
+        const totalSize = updatedFiles.reduce((sum, f) => sum + (Number(f.size) || 0), 0);
+
+        await db.run('UPDATE catalog_config SET media_files = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?', [updatedJson, userId]);
+
+        res.json({
+            message: 'Archivo multimedia eliminado del catálogo',
+            media_files: updatedFiles,
+            total_size_bytes: totalSize
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin upload for simulator landing demo catalog media files (Max 10MB)
+app.post('/api/admin/simulator-catalog-upload', requireAdmin, upload.array('media', 50), async (req, res) => {
+    try {
+        const { existing_media_files } = req.body;
+        const db = await getDbConnection();
+
+        let currentFiles = [];
+        if (existing_media_files) {
+            try {
+                currentFiles = typeof existing_media_files === 'string' ? JSON.parse(existing_media_files) : existing_media_files;
+                if (!Array.isArray(currentFiles)) currentFiles = [];
+            } catch(e) {
+                currentFiles = [];
+            }
+        }
+
+        const newFiles = (req.files || []).map(file => {
+            const relPath = `/uploads/${file.filename}`;
+            return {
+                id: uuidv4(),
+                name: file.originalname,
+                originalName: file.originalname,
+                path: file.path,
+                url: relPath,
+                type: file.mimetype,
+                mimetype: file.mimetype,
+                size: file.size,
+                uploaded_at: new Date().toISOString()
+            };
+        });
+
+        const allFiles = [...currentFiles, ...newFiles];
+        const MAX_TOTAL_BYTES = 10 * 1024 * 1024;
+        const totalSize = allFiles.reduce((sum, f) => sum + (Number(f.size) || 0), 0);
+
+        if (totalSize > MAX_TOTAL_BYTES) {
+            for (const f of newFiles) {
+                try { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); } catch(e) {}
+            }
+            const currentMB = (totalSize / (1024 * 1024)).toFixed(2);
+            return res.status(400).json({ 
+                error: `El peso total de los archivos del simulador supera los 10 MB (Total actual: ${currentMB} MB).` 
+            });
+        }
+
+        const mediaJson = JSON.stringify(allFiles);
+        await db.run('UPDATE simulator_config SET catalog_media_files = ?, updated_at = CURRENT_TIMESTAMP WHERE id = "default"', [mediaJson]);
+
+        res.json({
+            message: 'Archivos del catálogo del simulador subidos con éxito',
+            media_files: allFiles,
+            total_size_bytes: totalSize
+        });
+    } catch(err) {
         res.status(500).json({ error: err.message });
     }
 });

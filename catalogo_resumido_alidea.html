@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Alidea Negocios - Guía Rápida & Catálogo Simplificado</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&family=Fredoka:wght@600;700&display=swap');
+
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+      line-height: 1.4;
+      font-size: 13px;
+    }
+
+    .page {
+      width: 210mm;
+      height: 297mm;
+      page-break-after: always;
+      position: relative;
+      padding: 16mm 18mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    /* Page Theme Backgrounds */
+    .page-1 {
+      background: linear-gradient(160deg, #f0fdf4 0%, #e0f2fe 50%, #f8fafc 100%);
+    }
+
+    .page-2 {
+      background: linear-gradient(160deg, #faf5ff 0%, #f0fdf4 50%, #f8fafc 100%);
+    }
+
+    .page-3 {
+      background: linear-gradient(160deg, #eef2ff 0%, #fef3c7 60%, #f8fafc 100%);
+    }
+
+    /* Header */
+    .simple-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 2px dashed #cbd5e1;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 22px;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .brand-name {
+      font-family: 'Fredoka', cursive;
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-tag {
+      font-size: 10px;
+      font-weight: 700;
+      color: #059669;
+      background: #d1fae5;
+      padding: 2px 8px;
+      border-radius: 6px;
+      display: inline-block;
+      text-transform: uppercase;
+    }
+
+    .price-chip {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 8px 18px;
+      border-radius: 30px;
+      font-weight: 800;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
+    }
+
+    .price-chip span.highlight {
+      color: #34d399;
+      font-size: 16px;
+    }
+
+    /* Footer */
+    .simple-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 10px;
+      border-top: 2px dashed #cbd5e1;
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .page-pill {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    /* Titles */
+    .hero-title {
+      font-family: 'Fredoka', cursive;
+      font-size: 32px;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.15;
+      margin-bottom: 8px;
+    }
+
+    .hero-title span.green { color: #059669; }
+    .hero-title span.purple { color: #7c3aed; }
+    .hero-title span.blue { color: #0284c7; }
+
+    .hero-subtitle {
+      font-size: 13.5px;
+      color: #475569;
+      font-weight: 500;
+      line-height: 1.45;
+      margin-bottom: 16px;
+    }
+
+    /* Friendly Cartoon Character Containers */
+    .character-hero-card {
+      background: #ffffff;
+      border: 2px solid #e2e8f0;
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 16px;
+    }
+
+    .svg-character {
+      width: 130px;
+      height: 130px;
+      flex-shrink: 0;
+    }
+
+    /* Benefit Cards Grid */
+    .benefits-3col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .benefit-card {
+      background: #ffffff;
+      border: 2px solid #e2e8f0;
+      border-radius: 18px;
+      padding: 16px 14px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    }
+
+    .benefit-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .benefit-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      margin: 0 auto 10px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .b-green { background: #dcfce7; color: #16a34a; }
+    .b-purple { background: #f3e8ff; color: #9333ea; }
+    .b-blue { background: #e0f2fe; color: #0284c7; }
+    .b-amber { background: #fef3c7; color: #d97706; }
+    .b-pink { background: #fce7f3; color: #db2777; }
+    .b-teal { background: #ccfbf1; color: #0d9488; }
+    .b-indigo { background: #e0e7ff; color: #4f46e5; }
+
+    .benefit-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .benefit-desc {
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.35;
+    }
+
+    /* Page 2 Cards */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .tool-item {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+    }
+
+    .tool-emoji-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .tool-info h4 {
+      font-size: 12.5px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 2px;
+    }
+
+    .tool-info p {
+      font-size: 10.5px;
+      color: #64748b;
+      line-height: 1.3;
+    }
+
+    /* Big Price Callout Box */
+    .big-price-card {
+      background: linear-gradient(135deg, #059669, #0d9488);
+      color: #ffffff;
+      border-radius: 20px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 14px;
+      box-shadow: 0 10px 25px rgba(5, 150, 105, 0.3);
+    }
+
+    /* Steps in Page 3 */
+    .steps-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 14px 0;
+    }
+
+    .step-card {
+      background: #ffffff;
+      border: 2px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 16px 14px;
+      text-align: center;
+      position: relative;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    }
+
+    .step-badge {
+      width: 28px;
+      height: 28px;
+      background: #0f172a;
+      color: #ffffff;
+      border-radius: 50%;
+      font-weight: 800;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .cta-banner {
+      background: #ffffff;
+      border: 3px solid #10b981;
+      border-radius: 24px;
+      padding: 22px;
+      text-align: center;
+      box-shadow: 0 12px 30px rgba(16, 185, 129, 0.15);
+      margin-top: 8px;
+    }
+
+    .btn-whatsapp {
+      display: inline-block;
+      background: #25D366;
+      color: #ffffff;
+      font-family: 'Fredoka', cursive;
+      font-size: 18px;
+      font-weight: 700;
+      padding: 12px 32px;
+      border-radius: 30px;
+      text-decoration: none;
+      box-shadow: 0 8px 20px rgba(37, 211, 102, 0.35);
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA 1: PRESENTACIÓN FÁCIL & BENEFICIOS CLAVE -->
+  <!-- ========================================================= -->
+  <div class="page page-1">
+    <div class="simple-header">
+      <div class="brand-group">
+        <div class="brand-icon">🚀</div>
+        <div>
+          <div class="brand-name">Alidea Negocios</div>
+          <div class="brand-tag">Todo en 1 • Simple & Automático</div>
+        </div>
+      </div>
+      <div class="price-chip">
+        <span>Único Pago:</span>
+        <span class="highlight">S/ 49.00</span>
+      </div>
+    </div>
+
+    <div style="padding: 10px 0;">
+      <!-- Hero Header -->
+      <div style="text-align: center; margin-bottom: 12px;">
+        <h1 class="hero-title">
+          ¡Haz Crecer tus Ventas en WhatsApp<br>
+          <span class="green">Sin Estrés y en Piloto Automático!</span>
+        </h1>
+        <p class="hero-subtitle">
+          ¿Cansado de perder clientes por responder tarde o tener tus pedidos desordenados?<br>
+          <strong>Alidea</strong> es tu asistente inteligente que atiende, cotiza y vende por ti las 24 horas del día.
+        </p>
+      </div>
+
+      <!-- Cartoon Character Hero Card -->
+      <div class="character-hero-card">
+        <!-- SVG Vector Character: Happy Business Owner with Smartphone & Growth Chart -->
+        <svg class="svg-character" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Background Glow Circle -->
+          <circle cx="100" cy="100" r="90" fill="#ECFDF5"/>
+          <circle cx="100" cy="100" r="70" fill="#D1FAE5"/>
+          
+          <!-- Floating UI Elements -->
+          <rect x="25" y="40" width="45" height="28" rx="8" fill="#10B981" fill-opacity="0.9"/>
+          <text x="32" y="58" font-family="'Plus Jakarta Sans', sans-serif" font-size="10" font-weight="bold" fill="white">✓ +85%</text>
+          
+          <rect x="135" y="30" width="40" height="36" rx="8" fill="#6366F1"/>
+          <text x="145" y="53" font-size="18">🤖</text>
+
+          <!-- Character Body -->
+          <ellipse cx="100" cy="170" rx="42" ry="25" fill="#3B82F6"/>
+          <!-- Shirt Collar -->
+          <path d="M85 150 L100 165 L115 150" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+          
+          <!-- Head & Neck -->
+          <rect x="92" y="125" width="16" height="20" fill="#FBBF24" rx="4"/>
+          <circle cx="100" cy="105" r="32" fill="#FDE68A"/>
+          
+          <!-- Hair -->
+          <path d="M70 100 C70 70, 130 70, 130 100 C125 78, 75 78, 70 100 Z" fill="#1E293B"/>
+          
+          <!-- Friendly Face -->
+          <circle cx="90" cy="102" r="3.5" fill="#1E293B"/>
+          <circle cx="110" cy="102" r="3.5" fill="#1E293B"/>
+          <circle cx="84" cy="109" r="4" fill="#F87171" fill-opacity="0.5"/>
+          <circle cx="116" cy="109" r="4" fill="#F87171" fill-opacity="0.5"/>
+          <path d="M92 114 Q100 124 108 114" stroke="#1E293B" stroke-width="3" stroke-linecap="round" fill="none"/>
+          
+          <!-- Smartphone in Hand -->
+          <rect x="115" y="120" width="28" height="48" rx="6" fill="#0F172A"/>
+          <rect x="118" y="124" width="22" height="40" rx="4" fill="#34D399"/>
+          <!-- Chat bubbles inside phone -->
+          <rect x="121" y="128" width="12" height="4" rx="2" fill="#FFFFFF"/>
+          <rect x="125" y="135" width="13" height="4" rx="2" fill="#065F46"/>
+          <circle cx="129" cy="158" r="3" fill="#FFFFFF"/>
+        </svg>
+
+        <div>
+          <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">
+            Atiende a cientos de clientes al mismo tiempo
+          </h3>
+          <p style="font-size: 11.5px; color: #64748b; line-height: 1.45;">
+            Con <strong>Alidea</strong>, tu negocio nunca duerme. La Inteligencia Artificial conversa de forma educada, envía tus productos con fotos y precios, y toma los pedidos sin que muevas un solo dedo.
+          </p>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <span style="background: #dcfce7; color: #15803d; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px;">
+              ⚡ Respuesta en 2 seg
+            </span>
+            <span style="background: #e0f2fe; color: #0369a1; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px;">
+              📱 WhatsApp 24/7
+            </span>
+            <span style="background: #f3e8ff; color: #7e22ce; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px;">
+              🔒 Cero Mensualidades
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 Key Value Pillars -->
+      <div class="benefits-3col">
+        <div class="benefit-card">
+          <div class="benefit-icon b-green">🤖</div>
+          <div class="benefit-title">Asesor IA 24/7</div>
+          <div class="benefit-desc">Responde dudas y vende tus productos como un humano real en WhatsApp.</div>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon b-purple">📊</div>
+          <div class="benefit-title">CRM Ordenado</div>
+          <div class="benefit-desc">Organiza tus prospectos por etapas para que nunca olvides un cobro o entrega.</div>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon b-blue">📢</div>
+          <div class="benefit-title">Mensajes Masivos</div>
+          <div class="benefit-desc">Envía ofertas a todos tus contactos con un clic sin riesgo de bloqueo.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="simple-footer">
+      <span>Alidea Negocios • Guía Rápida para el Cliente</span>
+      <span class="page-pill">Página 1 de 3</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA 2: LO QUE INCLUYE EL PAQUETE COMPLETO -->
+  <!-- ========================================================= -->
+  <div class="page page-2">
+    <div class="simple-header">
+      <div class="brand-group">
+        <div class="brand-icon">📦</div>
+        <div>
+          <div class="brand-name">Paquete Todo Incluido</div>
+          <div class="brand-tag">7 Herramientas en 1 Sola Cuenta</div>
+        </div>
+      </div>
+      <div class="price-chip">
+        <span>Todo por:</span>
+        <span class="highlight">S/ 49.00</span>
+      </div>
+    </div>
+
+    <div style="padding: 6px 0;">
+      <div style="text-align: center; margin-bottom: 10px;">
+        <h2 class="hero-title" style="font-size: 26px;">
+          Todo lo que Recibes por <span class="green">S/ 49.00</span> (Pago Único)
+        </h2>
+        <p class="hero-subtitle" style="margin-bottom: 8px;">
+          Una suite completa diseñada para que cualquier persona pueda usarla sin saber de programación.
+        </p>
+      </div>
+
+      <!-- 7 Tools Grid -->
+      <div class="tools-grid">
+        
+        <!-- Tool 1 -->
+        <div class="tool-item">
+          <div class="tool-emoji-box b-green">🤖</div>
+          <div class="tool-info">
+            <h4>1. Bot de WhatsApp con IA</h4>
+            <p>Atiende consultas día y noche, conoce tus precios y habla de forma natural.</p>
+          </div>
+        </div>
+
+        <!-- Tool 2 -->
+        <div class="tool-item">
+          <div class="tool-emoji-box b-purple">💬</div>
+          <div class="tool-info">
+            <h4>2. CRM & Chat en Vivo</h4>
+            <p>Mira todos tus chats en una pantalla de computadora y clasifícalos con etiquetas.</p>
+          </div>
+        </div>
+
+        <!-- Tool 3 -->
+        <div class="tool-item">
+          <div class="tool-emoji-box b-amber">📢</div>
+          <div class="tool-info">
+            <h4>3. Envíos Masivos (Retargeting)</h4>
+            <p>Manda promociones con fotos, audios y catálogos a toda tu lista con 1 clic.</p>
+          </div>
+        </div>
+
+        <!-- Tool 4 -->
+        <div class="tool-item">
+          <div class="tool-emoji-box b-blue">🛍️</div>
+          <div class="tool-info">
+            <h4>4. Catálogo & Cotizador</h4>
+            <p>Crea pedidos automáticos con tu moneda (S/ o $) y envíalos directo al WhatsApp.</p>
+          </div>
+        </div>
+
+        <!-- Tool 5 -->
+        <div class="tool-item">
+          <div class="tool-emoji-box b-teal">💰</div>
+          <div class="tool-info">
+            <h4>5. Control de Gastos & Ganancias</h4>
+            <p>Registra tus ventas y costos diarios para saber cuánto dinero ganas realmente.</p>
+          </div>
+        </div>
+
+        <!-- Tool 6 -->
+        <div class="tool-item">
+          <div class="tool-emoji-box b-indigo">📈</div>
+          <div class="tool-info">
+            <h4>6. Reportes & Días Pico</h4>
+            <p>Descubre qué días y a qué horas vendes más para aprovechar mejor tus promociones.</p>
+          </div>
+        </div>
+
+        <!-- Tool 7 (Full Width) -->
+        <div class="tool-item" style="grid-column: span 2; background: #fdf4ff; border-color: #f0abfc;">
+          <div class="tool-emoji-box b-pink">🎯</div>
+          <div class="tool-info">
+            <h4>7. Guía Táctica para Crear Anuncios (Meta & TikTok Ads)</h4>
+            <p>Aprende paso a paso cómo poner anuncios sencillos que llenen tu WhatsApp de personas interesadas todos los días.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Cartoon Team Banner -->
+      <div class="big-price-card">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="font-size: 32px;">🎁</div>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 800;">¡Cero pagos mensuales!</h3>
+            <p style="font-size: 11px; opacity: 0.9;">Pagas S/ 49.00 una sola vez y lo usas para siempre sin cobros sorpresa.</p>
+          </div>
+        </div>
+        <div style="font-family: 'Fredoka', cursive; font-size: 24px; font-weight: 700; background: rgba(0,0,0,0.25); padding: 6px 14px; border-radius: 12px;">
+          S/ 49.00
+        </div>
+      </div>
+    </div>
+
+    <div class="simple-footer">
+      <span>Alidea Negocios • Todo lo que incluye tu cuenta</span>
+      <span class="page-pill">Página 2 de 3</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA 3: CÓMO FUNCIONA & CÓMO EMPEZAR -->
+  <!-- ========================================================= -->
+  <div class="page page-3">
+    <div class="simple-header">
+      <div class="brand-group">
+        <div class="brand-icon">✨</div>
+        <div>
+          <div class="brand-name">Fácil de Usar</div>
+          <div class="brand-tag">Listo en 3 Minutos</div>
+        </div>
+      </div>
+      <div class="price-chip">
+        <span>Activación Inmediata</span>
+      </div>
+    </div>
+
+    <div style="padding: 8px 0;">
+      <div style="text-align: center; margin-bottom: 12px;">
+        <h2 class="hero-title" style="font-size: 28px;">
+          ¿Cómo Funciona? <span class="purple">¡En solo 3 Pasos!</span>
+        </h2>
+        <p class="hero-subtitle">
+          No necesitas instalar programas pesados ni saber de computación. Todo funciona desde la web.
+        </p>
+      </div>
+
+      <!-- 3 Easy Steps -->
+      <div class="steps-container">
+        
+        <!-- Step 1 -->
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div style="font-size: 30px; margin: 8px 0;">📱</div>
+          <h4 style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">Escaneas tu QR</h4>
+          <p style="font-size: 11px; color: #64748b;">Igual que cuando abres WhatsApp Web en tu computadora. Conectas tu número en 10 segundos.</p>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div style="font-size: 30px; margin: 8px 0;">📝</div>
+          <h4 style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">Escribes tus Datos</h4>
+          <p style="font-size: 11px; color: #64748b;">Pones el nombre de tus productos, precios y horarios. La IA aprende todo al instante.</p>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div style="font-size: 30px; margin: 8px 0;">🎉</div>
+          <h4 style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">¡Listo para Vender!</h4>
+          <p style="font-size: 11px; color: #64748b;">Tu sistema empieza a responder a los clientes y organizar tus pedidos automáticamente.</p>
+        </div>
+
+      </div>
+
+      <!-- Big Friendly CTA Box -->
+      <div class="cta-banner">
+        <!-- SVG Vector Character: Cheerful Assistant giving Thumbs Up -->
+        <div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 10px;">
+          <svg width="70" height="70" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="45" fill="#DCFCE7"/>
+            <circle cx="50" cy="45" r="22" fill="#FDE68A"/>
+            <!-- Cap/Hair -->
+            <path d="M30 40 C30 20, 70 20, 70 40 Z" fill="#10B981"/>
+            <!-- Eyes & Smile -->
+            <circle cx="43" cy="44" r="2.5" fill="#1E293B"/>
+            <circle cx="57" cy="44" r="2.5" fill="#1E293B"/>
+            <path d="M45 52 Q50 58 55 52" stroke="#1E293B" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <!-- Thumbs Up -->
+            <circle cx="75" cy="55" r="12" fill="#10B981"/>
+            <text x="69" y="61" font-size="14" fill="white">👍</text>
+          </svg>
+          <div style="text-align: left;">
+            <h3 style="font-size: 18px; font-weight: 900; color: #0f172a;">
+              Comienza hoy mismo por solo S/ 49.00
+            </h3>
+            <p style="font-size: 11.5px; color: #64748b;">
+              Recibe tu usuario y contraseña de inmediato con soporte y acompañamiento.
+            </p>
+          </div>
+        </div>
+
+        <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 14px; padding: 10px; display: inline-flex; gap: 16px; font-size: 11px; font-weight: 700; color: #334155;">
+          <span>✅ Acceso Inmediato</span>
+          <span>✅ Soporte por WhatsApp</span>
+          <span>✅ Garantía de Funcionamiento</span>
+        </div>
+
+        <div>
+          <a href="#" class="btn-whatsapp">
+            👉 Solicitar Acceso por WhatsApp (S/ 49.00)
+          </a>
+        </div>
+        <p style="font-size: 10px; color: #94a3b8; margin-top: 6px; font-weight: 600;">
+          Promoción válida por tiempo limitado • Pago único • Sin contratos ni mensualidades
+        </p>
+      </div>
+
+    </div>
+
+    <div class="simple-footer">
+      <span>Alidea Negocios • Automatización Inteligente y Fácil</span>
+      <span class="page-pill">Página 3 de 3</span>
+    </div>
+  </div>
+
+</body>
+</html>

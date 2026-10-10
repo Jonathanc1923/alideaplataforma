@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { 
@@ -64,6 +64,24 @@ export default function Landing() {
   const [simDelayMin, setSimDelayMin] = useState(2);
   const [simDelayMax, setSimDelayMax] = useState(5);
   const [simKeywords, setSimKeywords] = useState([]);
+
+  // Auto-scroll refs for simulator chat
+  const simChatContainerRef = useRef(null);
+  const simChatEndRef = useRef(null);
+
+  const scrollToBottom = (behavior = 'smooth') => {
+    if (simChatEndRef.current) {
+      simChatEndRef.current.scrollIntoView({ behavior, block: 'end' });
+    } else if (simChatContainerRef.current) {
+      simChatContainerRef.current.scrollTop = simChatContainerRef.current.scrollHeight;
+    }
+  };
+
+  useEffect(() => {
+    scrollToBottom('smooth');
+    const timer = setTimeout(() => scrollToBottom('smooth'), 120);
+    return () => clearTimeout(timer);
+  }, [simChat, isTyping]);
 
   // Tag & Stage progression score (No-downgrading rule)
   const getSimProgressionLevel = (t) => {
@@ -721,7 +739,7 @@ export default function Landing() {
                 </div>
               </div>
 
-              <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-[#0b141a]">
+              <div ref={simChatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-[#0b141a] scroll-smooth">
                 {simChat.map((m, idx) => (
                   <div key={idx} className={`flex ${m.sender === 'client' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs shadow-md ${
@@ -779,6 +797,9 @@ export default function Landing() {
                     </div>
                   </div>
                 )}
+                
+                {/* Auto-scroll anchor target */}
+                <div ref={simChatEndRef} className="h-0 w-0" />
               </div>
 
               {/* Quick Preset Buttons */}

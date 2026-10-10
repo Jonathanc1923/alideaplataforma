@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { 
@@ -159,6 +159,21 @@ export default function UserWorkspace() {
   const [liveChatInput, setLiveChatInput] = useState('');
   const [sendingChat, setSendingChat] = useState(false);
   const [chatTagFilter, setChatTagFilter] = useState('all');
+
+  const liveChatEndRef = useRef(null);
+  const scrollToLiveChatBottom = (behavior = 'smooth') => {
+    if (liveChatEndRef.current) {
+      liveChatEndRef.current.scrollIntoView({ behavior, block: 'end' });
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      scrollToLiveChatBottom('smooth');
+      const t = setTimeout(() => scrollToLiveChatBottom('smooth'), 120);
+      return () => clearTimeout(t);
+    }
+  }, [activeChatMessages, activeChatJid, activeTab]);
 
   // ==========================================
   // NEW: 2. TASKS & REMINDERS STATE
@@ -2938,7 +2953,7 @@ export default function UserWorkspace() {
                   })()}
 
                   {/* Messages Scroll Thread */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#070d16]/95">
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#070d16]/95 scroll-smooth">
                     {activeChatMessages.map((m) => (
                       <div key={m.id} className={`flex ${m.from_me ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2.5 text-xs shadow-md ${
@@ -2954,6 +2969,7 @@ export default function UserWorkspace() {
                         </div>
                       </div>
                     ))}
+                    <div ref={liveChatEndRef} className="h-0 w-0" />
                   </div>
 
                   {/* Message Input Box */}

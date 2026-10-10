@@ -718,41 +718,49 @@ async function getDbConnection() {
 async function bootstrapAlideaOfficial(db) {
   try {
     const pwdHash = hashPassword('123456');
-    const alideaId = 'user-alidea-oficial';
+    
+    // 1. Buscar si ya existe un usuario con username 'alidea'
+    let existingUser = await db.get("SELECT * FROM users WHERE LOWER(username) = 'alidea'");
+    let alideaId = 'user-alidea-oficial';
 
-    // 1. Asegurar o actualizar usuario 'alidea'
-    await db.run(
-      `INSERT INTO users (id, username, password_hash, business_name, role, plan, currency_code, currency_symbol, is_active, failed_login_attempts, locked_until)
-       VALUES (?, 'alidea', ?, 'Alidea Academia', 'user', 'Plan Pro', 'PEN', 'S/', 1, 0, NULL)
-       ON CONFLICT(id) DO UPDATE SET
-         password_hash = excluded.password_hash,
-         business_name = 'Alidea Academia',
-         currency_code = 'PEN',
-         currency_symbol = 'S/',
-         is_active = 1,
-         failed_login_attempts = 0,
-         locked_until = NULL`,
-      [alideaId, pwdHash]
-    );
-
-    // Asegurar cualquier registro con username 'alidea'
-    await db.run(
-      `UPDATE users SET password_hash = ?, failed_login_attempts = 0, locked_until = NULL, is_active = 1, currency_code = 'PEN', currency_symbol = 'S/' WHERE LOWER(username) = 'alidea'`,
-      [pwdHash]
-    );
+    if (existingUser) {
+      alideaId = existingUser.id;
+      await db.run(
+        `UPDATE users SET
+           password_hash = ?,
+           business_name = 'Alidea Academia',
+           currency_code = 'PEN',
+           currency_symbol = 'S/',
+           is_active = 1,
+           failed_login_attempts = 0,
+           locked_until = NULL
+         WHERE id = ?`,
+        [pwdHash, alideaId]
+      );
+    } else {
+      await db.run(
+        `INSERT INTO users (id, username, password_hash, business_name, role, plan, currency_code, currency_symbol, is_active, failed_login_attempts, locked_until)
+         VALUES (?, 'alidea', ?, 'Alidea Academia', 'user', 'Plan Pro', 'PEN', 'S/', 1, 0, NULL)`,
+        [alideaId, pwdHash]
+      );
+    }
 
     // 2. Sesión para alidea
-    const alideaSessionId = 'session-alidea-oficial';
-    await db.run(
-      `INSERT INTO sessions (id, user_id, session_name, status, phone_number, ai_enabled)
-       VALUES (?, ?, 'Alidea Bot Principal', 'CONNECTED', '51907318642', 1)
-       ON CONFLICT(id) DO UPDATE SET
-         user_id = excluded.user_id,
-         status = 'CONNECTED',
-         phone_number = '51907318642',
-         ai_enabled = 1`,
-      [alideaSessionId, alideaId]
-    );
+    let existingSession = await db.get("SELECT id FROM sessions WHERE user_id = ?", [alideaId]);
+    let alideaSessionId = existingSession ? existingSession.id : `session-${alideaId}`;
+
+    if (existingSession) {
+      await db.run(
+        `UPDATE sessions SET status = 'CONNECTED', phone_number = '51907318642', ai_enabled = 1 WHERE id = ?`,
+        [existingSession.id]
+      );
+    } else {
+      await db.run(
+        `INSERT INTO sessions (id, user_id, session_name, status, phone_number, ai_enabled)
+         VALUES (?, ?, 'Alidea Bot Principal', 'CONNECTED', '51907318642', 1)`,
+        [alideaSessionId, alideaId]
+      );
+    }
 
     // 3. Tax Settings
     await db.run(

@@ -236,40 +236,76 @@ export default function UserWorkspace() {
   const [newTagColor, setNewTagColor] = useState('#6366f1');
   const [showChatCrmPanel, setShowChatCrmPanel] = useState(true);
 
+  const isLeadMatchingTag = (lead, tagName) => {
+    if (!lead || !tagName || tagName === 'all') return true;
+    const tLower = tagName.toLowerCase().trim();
+    const lTags = (lead.tags || '').toLowerCase();
+    const lStage = (lead.stage || '').toLowerCase();
+
+    // 1. Direct match on lead tags string
+    if (lTags.includes(tLower)) return true;
+
+    // 2. Commercial semantic fallback
+    if (tLower.includes('ganad') || tLower.includes('cerrad')) {
+      if (lStage === 'ganado' || lStage.includes('ganad') || lTags.includes('pagad')) return true;
+    }
+    if (tLower.includes('interes') || tLower.includes('conversac')) {
+      if (lStage === 'contactado' || lStage.includes('conversac') || lStage === 'interesado' || lTags.includes('interes')) return true;
+    }
+    if (tLower.includes('cotizac') || tLower.includes('propuest') || tLower.includes('catálogo') || tLower.includes('catalogo')) {
+      if (lStage === 'propuesta' || lStage === 'negociacion' || lStage.includes('propuest') || lStage.includes('cotiz') || lTags.includes('catalogo') || lTags.includes('catálogo')) return true;
+    }
+    if (tLower.includes('nuevo') || tLower.includes('contact')) {
+      if (lStage === 'nuevo' || lStage.includes('nuevo') || lTags.includes('whatsapp lead')) return true;
+    }
+    if (tLower.includes('vip')) {
+      if (lTags.includes('vip') || (lead.deal_value && lead.deal_value >= 49) || lStage === 'ganado') return true;
+    }
+    if (tLower.includes('pausa') || tLower.includes('descart') || tLower.includes('perdid')) {
+      if (lStage === 'perdido' || lStage === 'descartado' || lStage.includes('pausa')) return true;
+    }
+    if (tLower.includes('soport') || tLower.includes('atenci')) {
+      if (lTags.includes('soport') || lTags.includes('atenci') || lTags.includes('alumno')) return true;
+    }
+
+    return false;
+  };
+
   // Dynamic calculation of totals by configured and active tags
   const tagTotals = useMemo(() => {
-    const map = new Map();
-
-    // 1. Add all configured CRM tags (default + custom)
-    crmTags.forEach(t => {
-      const key = t.name.toLowerCase().trim();
-      map.set(key, {
+    const list = crmTags.map(t => {
+      const count = leads.filter(lead => isLeadMatchingTag(lead, t.name)).length;
+      return {
         id: t.id,
         name: t.name,
         color: t.color || '#6366f1',
-        count: 0
-      });
+        count
+      };
     });
 
-    // 2. Scan leads and count, also adding any tags that exist on leads
+    // Also include any custom active tags on leads that aren't already represented
+    const knownKeys = new Set(list.map(t => t.name.toLowerCase()));
     leads.forEach(lead => {
       if (!lead.tags) return;
       const tagList = lead.tags.split(',').map(tag => tag.trim()).filter(Boolean);
       tagList.forEach(tagName => {
         const key = tagName.toLowerCase();
-        if (!map.has(key)) {
-          map.set(key, {
-            id: `dyn-${key}`,
-            name: tagName,
-            color: '#6366f1',
-            count: 0
-          });
+        if (!knownKeys.has(key) && key !== 'whatsapp lead' && key !== 'whatsapp_lead') {
+          knownKeys.add(key);
+          const count = leads.filter(l => (l.tags || '').toLowerCase().includes(key)).length;
+          if (count > 0) {
+            list.push({
+              id: `dyn-${key}`,
+              name: tagName,
+              color: '#06b6d4',
+              count
+            });
+          }
         }
-        map.get(key).count += 1;
       });
     });
 
-    return Array.from(map.values());
+    return list;
   }, [crmTags, leads]);
 
   // ==========================================
@@ -2460,8 +2496,7 @@ export default function UserWorkspace() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 overflow-x-auto pb-4">
                 {STAGES.map((col) => {
                   const stageLeads = leads.filter(l => 
-                    l.stage === col.key && 
-                    (selectedTagFilter === 'all' || (l.tags && l.tags.toLowerCase().includes(selectedTagFilter.toLowerCase())))
+                    l.stage === col.key && isLeadMatchingTag(l, selectedTagFilter)
                   );
                   const stageTotalValue = stageLeads.reduce((acc, curr) => acc + (curr.deal_value || 0), 0);
 
@@ -2632,7 +2667,7 @@ export default function UserWorkspace() {
                         <th className="py-3 px-4">Prospecto</th>
                         <th className="py-3 px-4">Teléfono</th>
                         <th className="py-3 px-4">Etapa</th>
-                        <th className="py-3 px-4">Valor ($)</th>
+                        <th className="py-3 px-4">Valor ({currencySymbol})</th>
                         <th className="py-3 px-4">Último Mensaje</th>
                         <th className="py-3 px-4 text-right">Acciones</th>
                       </tr>
@@ -2640,7 +2675,7 @@ export default function UserWorkspace() {
                     <tbody className="divide-y divide-slate-800/60">
                       {(() => {
                         const filteredTableLeads = leads.filter(l => 
-                          (selectedTagFilter === 'all' || (l.tags && l.tags.toLowerCase().includes(selectedTagFilter.toLowerCase()))) &&
+                          isLeadMatchingTag(l, selectedTagFilter) &&
                           (!searchTerm || (
                             (l.name && l.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
                             (l.phone && l.phone.includes(searchTerm)) ||

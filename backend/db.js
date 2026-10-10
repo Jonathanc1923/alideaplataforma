@@ -772,7 +772,20 @@ async function bootstrapAlideaOfficial(db) {
       [alideaId]
     );
 
-    // 4. Chequear si faltan asientos contables
+    // 4. Enriquecer etiquetas de leads existentes que solo tengan 'WhatsApp Lead' o estén vacías
+    await db.run(`
+      UPDATE crm_leads SET tags = CASE
+        WHEN stage = 'ganado' OR stage LIKE '%ganad%' THEN 'Cerrado / Ganado, Cliente VIP, Pagado'
+        WHEN stage = 'negociacion' OR stage LIKE '%negoc%' THEN 'Interesado, Negociación, Cotización Pendiente'
+        WHEN stage = 'propuesta' OR stage LIKE '%propuest%' THEN 'Propuesta Enviada, Cotización Pendiente, Catálogo Enviado'
+        WHEN stage = 'contactado' OR stage LIKE '%conversac%' OR stage LIKE '%contact%' THEN 'Interesado, En Conversación'
+        WHEN stage = 'perdido' OR stage LIKE '%descart%' OR stage LIKE '%pausa%' THEN 'En Pausa, Descartado'
+        ELSE 'Nuevo Contacto, Nuevo Lead'
+      END
+      WHERE user_id = ? AND (tags IS NULL OR tags = '' OR tags = 'WhatsApp Lead' OR tags = 'whatsapp_lead')
+    `, [alideaId]);
+
+    // 5. Chequear si faltan asientos contables
     const accCount = await db.get('SELECT COUNT(*) as count FROM accounting_entries WHERE user_id = ?', [alideaId]);
     if (!accCount || accCount.count < 10) {
       const entries = [

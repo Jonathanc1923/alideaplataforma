@@ -8,12 +8,60 @@ function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
+// Automated Database Backup & Persistence Helper
+function backupDatabaseFile(DATA_DIR, dbPath) {
+  try {
+    if (!fs.existsSync(dbPath)) return;
+    const backupDir = path.join(DATA_DIR, 'backups');
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+
+    // 1. Primary fast backup
+    const primaryBak = path.join(DATA_DIR, 'database.sqlite.bak');
+    fs.copyFileSync(dbPath, primaryBak);
+
+    // 2. Rolling timestamped snapshot
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const snapshotPath = path.join(backupDir, `db-snapshot-${timestamp}.sqlite`);
+    fs.copyFileSync(dbPath, snapshotPath);
+
+    // Keep only the last 10 snapshots to save disk space
+    const files = fs.readdirSync(backupDir)
+      .filter(f => f.startsWith('db-snapshot-') && f.endsWith('.sqlite'))
+      .map(f => ({ name: f, path: path.join(backupDir, f), time: fs.statSync(path.join(backupDir, f)).mtime.getTime() }))
+      .sort((a, b) => b.time - a.time);
+
+    if (files.length > 10) {
+      files.slice(10).forEach(f => {
+        try { fs.unlinkSync(f.path); } catch(e) {}
+      });
+    }
+  } catch(err) {
+    console.warn('[Alidea DB] Advertencia al generar copia de seguridad de la base de datos:', err.message);
+  }
+}
+
+let backupScheduled = false;
+
 async function getDbConnection() {
   const DATA_DIR = process.env.DATA_DIR || process.env.PERSISTENT_DIR || __dirname;
   if (!fs.existsSync(DATA_DIR)) {
     try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch(e) {}
   }
   const dbPath = process.env.DB_PATH || path.join(DATA_DIR, 'database.sqlite');
+
+  // Create automatic safety backup on startup
+  backupDatabaseFile(DATA_DIR, dbPath);
+
+  // Schedule periodic backup every 3 hours
+  if (!backupScheduled) {
+    backupScheduled = true;
+    setInterval(() => {
+      backupDatabaseFile(DATA_DIR, dbPath);
+    }, 3 * 60 * 60 * 1000);
+  }
+
   const db = await open({
     filename: dbPath,
     driver: sqlite3.Database,
@@ -24,7 +72,7 @@ async function getDbConnection() {
     PRAGMA journal_mode = WAL;
     PRAGMA synchronous = NORMAL;
     PRAGMA foreign_keys = ON;
-    PRAGMA busy_timeout = 5000;
+    PRAGMA busy_timeout = 10000;
     PRAGMA temp_store = MEMORY;
     PRAGMA cache_size = -32000;
   `);

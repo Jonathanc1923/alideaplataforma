@@ -11,12 +11,12 @@ import {
   Lock, 
   Award, 
   QrCode, 
-  Laptop, 
   Star, 
   Camera, 
   Share2, 
   Layers, 
   ChevronRight, 
+  ChevronDown,
   Clock, 
   Users, 
   BadgePercent, 
@@ -25,17 +25,23 @@ import {
   ExternalLink,
   MessageCircle,
   HelpCircle,
-  PlayCircle,
   BookOpen,
   Download,
   CheckCircle,
-  Play,
-  FileText
+  FileText,
+  Gift,
+  Target,
+  Palette,
+  MessageSquare,
+  TrendingUp,
+  Flame,
+  CheckCheck
 } from 'lucide-react';
 
 export default function Landing() {
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('yape'); // 'yape' | 'tarjeta' | 'wsp'
+  const [paymentMethod, setPaymentMethod] = useState('yape'); // 'yape' | 'wsp'
+  const [openModule, setOpenModule] = useState(1); // default active module in syllabus accordion
 
   // Smooth scroll handler
   const scrollToOffer = () => {
@@ -50,6 +56,181 @@ export default function Landing() {
   const handleOpenCheckout = () => {
     setCheckoutModalOpen(true);
   };
+
+  const toggleModule = (id) => {
+    setOpenModule(openModule === id ? null : id);
+  };
+
+  // Syllabus Data (Módulos 1 al 6 con todas sus clases y regalos)
+  const syllabusData = [
+    {
+      id: 1,
+      badge: "Módulo 1",
+      title: "Los Primeros Pasos de tu Negocio",
+      subtitle: "(Sin complicaciones)",
+      tag: "4 Clases Prácticas",
+      icon: Target,
+      color: "emerald",
+      classes: [
+        {
+          num: "Clase 1",
+          title: "Descubre qué vender",
+          desc: "Cómo pedirle a la Inteligencia Artificial (IA) que te dé ideas de negocios rentables que puedes empezar hoy mismo."
+        },
+        {
+          num: "Clase 2",
+          title: "El nombre perfecto",
+          desc: "Un método fácil para que la IA invente un nombre atractivo para tu negocio en menos de 5 minutos."
+        },
+        {
+          num: "Clase 3",
+          title: "Tu logotipo profesional",
+          desc: "Crea el logo de tu marca usando herramientas gratuitas en internet, sin necesidad de saber dibujar ni usar programas difíciles."
+        },
+        {
+          num: "Clase 4",
+          title: "Tu vitrina en internet",
+          desc: "El paso a paso, desde cero, para crear tu página de Facebook y tu perfil de Instagram para negocios."
+        }
+      ]
+    },
+    {
+      id: 2,
+      badge: "Módulo 2",
+      title: "Fotos que Venden",
+      subtitle: "(Tu estudio fotográfico en el celular)",
+      tag: "4 Clases Prácticas",
+      icon: Camera,
+      color: "cyan",
+      classes: [
+        {
+          num: "Clase 1",
+          title: "El truco de la foto casera",
+          desc: "Cómo tomar buenas fotos a tus productos usando solo la cámara de tu celular y la luz de una ventana."
+        },
+        {
+          num: "Clase 2",
+          title: "Magia con IA",
+          desc: "Te enseño cómo borrar fondos feos de tus fotos y colocar tus productos en escenarios de lujo con un solo clic."
+        },
+        {
+          num: "Clase 3",
+          title: "Textos llamativos",
+          desc: "Cómo ponerle el precio, tu logo y letras atractivas a tus fotos para que parezcan hechas por un diseñador profesional."
+        },
+        {
+          num: "Clase 4",
+          title: "Videos fáciles",
+          desc: "Cómo hacer tu primer video corto para historias o Reels usando imágenes, sin necesidad de hablar frente a la cámara."
+        }
+      ]
+    },
+    {
+      id: 3,
+      badge: "Módulo 3",
+      title: "Qué Decir para Convencer a tus Clientes",
+      subtitle: "(Persuasión y Copywriting con IA)",
+      tag: "3 Clases Prácticas",
+      icon: MessageSquare,
+      color: "teal",
+      classes: [
+        {
+          num: "Clase 1",
+          title: "Textos que dan ganas de comprar",
+          desc: "El secreto para pedirle a la Inteligencia Artificial que escriba las publicaciones de tu Facebook por ti."
+        },
+        {
+          num: "Clase 2",
+          title: "Todo un mes de ideas",
+          desc: "Cómo hacer que la IA te arme un calendario con ideas sobre qué publicar cada día de la semana para que nunca te quedes sin inspiración."
+        },
+        {
+          num: "Clase 3",
+          title: "Romper el hielo",
+          desc: "Qué escribirle a los clientes en tus publicaciones para que no solo den \"me gusta\", sino que te pregunten cómo comprar."
+        }
+      ]
+    },
+    {
+      id: 4,
+      badge: "Módulo 4",
+      title: "Cómo Conseguir Clientes",
+      subtitle: "(Publicidad Básica en Redes)",
+      tag: "3 Clases Prácticas",
+      icon: TrendingUp,
+      color: "blue",
+      classes: [
+        {
+          num: "Clase 1",
+          title: "Lo básico de los anuncios",
+          desc: "Cómo funciona la publicidad pagada en Facebook e Instagram para que no pierdas tu dinero al empezar."
+        },
+        {
+          num: "Clase 2",
+          title: "Tu primer anuncio",
+          desc: "Botón por botón: cómo subir tu foto y poner a rodar tu primer anuncio invirtiendo poco dinero."
+        },
+        {
+          num: "Clase 3",
+          title: "Que suene el celular",
+          desc: "Cómo configurar tu anuncio para que las personas interesadas te envíen un mensaje directo a tu WhatsApp."
+        }
+      ]
+    },
+    {
+      id: 5,
+      badge: "Módulo 5",
+      title: "Atención Rápida por WhatsApp",
+      subtitle: "(Organización y Cierre de Ventas)",
+      tag: "3 Clases Prácticas",
+      icon: Smartphone,
+      color: "emerald",
+      classes: [
+        {
+          num: "Clase 1",
+          title: "El cambio a WhatsApp Business",
+          desc: "Cómo pasar tu WhatsApp normal a la versión de negocios de forma gratuita."
+        },
+        {
+          num: "Clase 2",
+          title: "Organización total",
+          desc: "Cómo usar etiquetas de colores para saber quién ya pagó, quién preguntó precio y a quién le debes enviar el producto."
+        },
+        {
+          num: "Clase 3",
+          title: "Respuestas automáticas",
+          desc: "Cómo configurar mensajes de bienvenida y respuestas rápidas para que el cliente no espere cuando tú estás ocupado."
+        }
+      ]
+    },
+    {
+      id: 6,
+      badge: "Módulo 6 (Regalos Incluidos)",
+      title: "Tus Herramientas de Trabajo",
+      subtitle: "(Bonos de Regalo 100% Gratis)",
+      tag: "🎁 3 Regalos Exclusivos",
+      isBonus: true,
+      icon: Gift,
+      color: "amber",
+      classes: [
+        {
+          num: "Regalo 1",
+          title: "El documento \"Copiar y Pegar\"",
+          desc: "Una lista con todos los textos y órdenes que yo uso con la IA para que tú solo tengas que copiarlos y cambiarle el nombre de tu producto."
+        },
+        {
+          num: "Regalo 2",
+          title: "Plantillas de venta",
+          desc: "Qué responder exactamente cuando un cliente te dice \"solo dime el precio\" o \"luego te aviso\"."
+        },
+        {
+          num: "Regalo 3",
+          title: "Tu Certificado Oficial",
+          desc: "Pasos para descargar e imprimir tu certificado oficial del curso con código QR verificable."
+        }
+      ]
+    }
+  ];
 
   return (
     <div className="min-h-screen bg-[#070c18] text-[#f3f6fc] font-sans selection:bg-emerald-500 selection:text-black relative overflow-x-hidden">
@@ -77,22 +258,25 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* NAVIGATION BAR */}
-      <header className="sticky top-0 z-40 bg-[#070c18]/85 backdrop-blur-xl border-b border-slate-800/80 transition-all">
+      {/* NAVIGATION BAR CON LOGO OFICIAL */}
+      <header className="sticky top-0 z-40 bg-[#070c18]/90 backdrop-blur-xl border-b border-slate-800/80 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          {/* Logo */}
+          
+          {/* Logo Oficial de Alidea Online Courses */}
           <a href="#" className="flex items-center gap-3 group">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500 p-0.5 shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/40 transition-all">
-              <div className="w-full h-full bg-[#090f20] rounded-[10px] flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
-              </div>
+            <div className="h-12 w-12 rounded-xl bg-white p-1 shadow-lg shadow-emerald-500/10 border border-slate-200/20 group-hover:shadow-emerald-500/30 transition-all flex items-center justify-center overflow-hidden">
+              <img 
+                src="/alidea-logo.jpg" 
+                alt="Alidea Online Courses" 
+                className="h-full w-full object-contain group-hover:scale-105 transition-transform" 
+              />
             </div>
             <div>
               <div className="text-xl font-bold tracking-tight text-white flex items-center gap-1.5 font-heading">
                 ALIDEA <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 font-extrabold">ACADEMIA</span>
               </div>
-              <span className="text-[10px] text-slate-400 tracking-wider font-semibold uppercase block -mt-1">
-                Formación en Inteligencia Artificial & Ventas
+              <span className="text-[10px] text-slate-400 tracking-wider font-semibold uppercase block -mt-0.5">
+                Online Courses & Certificación IA
               </span>
             </div>
           </a>
@@ -101,7 +285,7 @@ export default function Landing() {
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
             <a href="#problema" className="hover:text-emerald-400 transition-colors">¿Para quién es?</a>
             <a href="#metodo" className="hover:text-emerald-400 transition-colors">El Método</a>
-            <a href="#curriculum" className="hover:text-emerald-400 transition-colors">Módulos</a>
+            <a href="#temario" className="hover:text-emerald-400 transition-colors font-semibold text-emerald-400">Temario Completo</a>
             <a href="#certificacion" className="hover:text-emerald-400 transition-colors">Certificación</a>
           </nav>
 
@@ -122,7 +306,7 @@ export default function Landing() {
       </header>
 
       {/* ========================================================
-          1. HERO SECTION
+          1. HERO SECTION (SIN VIDEO DE MUESTRA, CON CERTIFICADO Y BENEFICIOS)
           ======================================================== */}
       <section className="relative z-10 pt-12 pb-20 md:pt-20 md:pb-32 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto text-center">
@@ -162,127 +346,118 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* MOCKUP VISUAL (Laptop con Aula Virtual del Curso + Certificado Digital) */}
+          {/* HERO VISUAL: PAQUETE FORMATIVO DEL CURSO + CERTIFICADO OFICIAL (SIN VIDEO) */}
           <div className="relative mx-auto max-w-5xl">
             {/* Glow Aura */}
             <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/30 via-cyan-500/20 to-blue-600/30 rounded-3xl blur-2xl opacity-60 pointer-events-none" />
 
-            {/* Laptop Frame Mockup */}
-            <div className="relative rounded-2xl border border-slate-700/80 bg-[#0c1326] shadow-[0_25px_70px_rgba(0,0,0,0.8)] overflow-hidden backdrop-blur-2xl">
+            <div className="relative rounded-3xl border border-slate-700/80 bg-[#0c1326] shadow-[0_25px_70px_rgba(0,0,0,0.8)] overflow-hidden backdrop-blur-2xl p-6 sm:p-10">
               
-              {/* Window Bar */}
-              <div className="h-10 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between px-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-amber-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
-                </div>
-                <div className="text-xs text-slate-400 font-mono flex items-center gap-2 bg-slate-950/60 px-4 py-1 rounded-md border border-slate-800">
-                  <Lock className="w-3 h-3 text-emerald-400" />
-                  <span>academia.alidea.pe/curso-especialista-ia</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Aula Virtual Activa</span>
-                </div>
-              </div>
-
-              {/* Course Platform Mockup Content */}
-              <div className="p-4 sm:p-8 bg-gradient-to-b from-[#090f20] to-[#070c18] grid grid-cols-1 lg:grid-cols-12 gap-6 items-center text-left">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center text-left">
                 
-                {/* Panel Izquierdo: Reproductor de Clases y Materiales */}
-                <div className="lg:col-span-7 space-y-4">
-                  
-                  {/* Video Lesson Screen */}
-                  <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-xl aspect-video flex flex-col justify-between p-4 group">
-                    <div className="flex items-center justify-between text-xs text-slate-400">
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
-                        Clase 02 • En Vivo / Grabada
-                      </span>
-                      <span className="text-slate-400">Duración: 24m 15s</span>
+                {/* Panel Izquierdo: Qué obtendrás en el programa */}
+                <div className="lg:col-span-7 space-y-5">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-white p-1 border border-slate-300 flex items-center justify-center">
+                      <img src="/alidea-logo.jpg" alt="Alidea" className="h-full w-full object-contain" />
                     </div>
-
-                    {/* Center Play Button Graphic */}
-                    <div className="self-center flex flex-col items-center gap-2">
-                      <div className="w-14 h-14 rounded-full bg-emerald-500/90 text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform">
-                        <Play className="w-6 h-6 ml-0.5 fill-current" />
-                      </div>
-                      <span className="text-xs font-bold text-white tracking-wide">
-                        "Creación de Fotos Hiper-Realistas con Prompts de IA"
+                    <div>
+                      <span className="text-xs uppercase font-bold tracking-wider text-emerald-400">
+                        Programa de Especialización Práctica
                       </span>
-                    </div>
-
-                    {/* Video Progress Bar */}
-                    <div className="space-y-1">
-                      <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                        <div className="bg-gradient-to-r from-emerald-400 to-cyan-400 h-full w-[68%]" />
-                      </div>
-                      <div className="flex justify-between text-[10px] text-slate-500">
-                        <span>16:30 / 24:15</span>
-                        <span className="text-emerald-400 font-medium">100% Práctico</span>
-                      </div>
+                      <h3 className="text-xl font-extrabold text-white font-heading">
+                        Kit de Formación Digital con IA
+                      </h3>
                     </div>
                   </div>
 
-                  {/* Modules Syllabus Checklist inside Course */}
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="p-2.5 rounded-lg bg-slate-900/70 border border-slate-800 flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                      <span className="text-slate-300 truncate">Módulo 1: Identidad & Nicho IA</span>
+                  <p className="text-sm text-slate-300 leading-relaxed">
+                    Todo lo que necesitas para levantar tu negocio digital desde cero, dominar el diseño fotográfico y recibir pedidos automáticos por WhatsApp.
+                  </p>
+
+                  {/* 4 Feature Highlights */}
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                      <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                        <CheckCircle2 className="w-4 h-4" /> 6 Módulos
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">Estructura paso a paso para no perderte.</p>
                     </div>
-                    <div className="p-2.5 rounded-lg bg-emerald-950/30 border border-emerald-500/30 flex items-center gap-2">
-                      <PlayCircle className="w-4 h-4 text-emerald-300 flex-shrink-0" />
-                      <span className="text-emerald-200 truncate font-semibold">Módulo 2: Estudio de Fotos</span>
+
+                    <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                      <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm">
+                        <CheckCircle2 className="w-4 h-4" /> 17 Clases
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">Directas al grano y sin relleno teórico.</p>
                     </div>
-                    <div className="p-2.5 rounded-lg bg-slate-900/70 border border-slate-800 flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                      <span className="text-slate-400 truncate">Módulo 3: Anuncios en Redes</span>
+
+                    <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                      <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+                        <Gift className="w-4 h-4" /> 3 Bonos Gratis
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">Documento Copiar y Pegar + Respuestas.</p>
                     </div>
-                    <div className="p-2.5 rounded-lg bg-slate-900/70 border border-slate-800 flex items-center gap-2">
-                      <Download className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                      <span className="text-slate-300 truncate">Recurso: Plantillas de Prompts</span>
+
+                    <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                      <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                        <QrCode className="w-4 h-4" /> Certificado QR
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">Acreditación oficial verificable.</p>
                     </div>
                   </div>
 
+                  <div className="pt-2 flex items-center justify-between text-xs text-slate-400 border-t border-slate-800">
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-emerald-400" /> Acceso 24/7 de por vida
+                    </span>
+                    <span className="text-emerald-300 font-semibold">
+                      Garantía de Satisfacción 7 días
+                    </span>
+                  </div>
                 </div>
 
-                {/* Panel Derecho: Preview del Certificado Digital del Curso */}
+                {/* Panel Derecho: Preview del Certificado Oficial con el Logo */}
                 <div className="lg:col-span-5">
-                  <div className="relative rounded-xl p-5 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border border-amber-500/30 shadow-2xl shadow-amber-500/10">
+                  <div className="relative rounded-2xl p-6 bg-gradient-to-br from-[#0c142c] via-[#080d1d] to-[#0a1226] border-2 border-amber-400/40 shadow-2xl text-center space-y-3">
                     
-                    {/* Certificate Top Banner */}
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
-                      <div className="flex items-center gap-2">
-                        <Award className="w-5 h-5 text-amber-400" />
-                        <span className="text-xs font-bold tracking-wider text-amber-300 uppercase">Certificado del Curso</span>
+                    {/* Header del Certificado con Logo Oficial */}
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-8 w-8 rounded-lg bg-white p-0.5 border border-slate-200 flex items-center justify-center">
+                          <img src="/alidea-logo.jpg" alt="Alidea" className="h-full w-full object-contain" />
+                        </div>
+                        <div className="text-left">
+                          <span className="text-[10px] font-black tracking-widest text-white uppercase block leading-none">
+                            ALIDEA ONLINE COURSES
+                          </span>
+                          <span className="text-[9px] text-amber-400 font-semibold">ACREDITACIÓN OFICIAL</span>
+                        </div>
                       </div>
                       <div className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                         <QrCode className="w-3 h-3" /> Verificable
                       </div>
                     </div>
 
-                    {/* Certificate Content Preview */}
-                    <div className="space-y-2 text-center py-2">
-                      <div className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Alidea Academia Certifica que:</div>
-                      <div className="text-base font-bold text-white font-heading underline decoration-amber-400/50 underline-offset-4">
-                        Tu Nombre Aquí
-                      </div>
-                      <p className="text-xs text-slate-300 leading-tight">
-                        Ha completado satisfactoriamente los módulos del programa práctico:
-                      </p>
-                      <div className="py-1 px-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold text-xs">
+                    <div className="py-2 space-y-1">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold block">
+                        Certifica que el estudiante ha completado:
+                      </span>
+                      <div className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300 font-heading leading-tight">
                         Especialista en Creación de Negocios Digitales con IA
                       </div>
+                      <span className="text-[10px] text-slate-400 block pt-1">
+                        6 Módulos • 17 Clases • Prompts y Campañas Reales
+                      </span>
                     </div>
 
-                    {/* Certificate Footer Mockup */}
-                    <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+                    {/* Footer del Certificado */}
+                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-left text-[10px]">
                       <div>
-                        <span className="block font-mono text-slate-300">Folio: ALD-2026-X99</span>
-                        <span className="text-[9px] text-emerald-400">Estado: Emitido al Culminar</span>
+                        <span className="block font-mono text-slate-300">Folio: ALD-2026-REG-8492</span>
+                        <span className="text-[9px] text-emerald-400 font-medium">Estado: Emitido con Honores</span>
                       </div>
-                      <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center">
-                        <QrCode className="w-5 h-5 text-slate-300" />
+                      <div className="h-8 w-8 rounded bg-white p-0.5 border border-slate-300 flex items-center justify-center">
+                        <QrCode className="w-6 h-6 text-slate-950" />
                       </div>
                     </div>
                   </div>
@@ -432,158 +607,152 @@ export default function Landing() {
       </section>
 
       {/* ========================================================
-          4. SECCIÓN DE CURRÍCULUM (Tarjetas modernas con efecto hover)
+          4. SECCIÓN DE TEMARIO COMPLETO (LOS 6 MÓDULOS DETALLADOS)
           ======================================================== */}
-      <section id="curriculum" className="relative z-10 py-20 bg-slate-950/60 border-t border-slate-800/80 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
+      <section id="temario" className="relative z-10 py-20 md:py-28 bg-slate-950/70 border-t border-slate-800/80 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto">
           
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-xs font-bold uppercase tracking-widest text-cyan-400 bg-cyan-950/40 border border-cyan-800/40 px-3 py-1 rounded-full inline-block mb-4">
-              Plan de Estudios Acelerado
+            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-4 py-1.5 rounded-full inline-block mb-4">
+              Plan de Estudio Completo • Paso a Paso
             </span>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight font-heading">
-              Currículum de Alta Conversión
+              Temario Oficial del Curso
             </h2>
             <p className="text-slate-300 text-base sm:text-lg mt-4">
-              Tres módulos directos al grano estructurados para que pases de principiante a especialista operativo.
+              Descubre exactamente todo lo que aprenderás en cada módulo para convertirte en especialista operativo desde el primer día.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
-            
-            {/* Módulo 1 */}
-            <div className="rounded-2xl p-7 bg-slate-900/60 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-900/90 transition-all duration-300 backdrop-blur-xl shadow-lg hover:shadow-emerald-500/10 group flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <span className="text-xs font-bold font-mono tracking-widest text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 px-3 py-1 rounded-lg">
-                    MÓDULO 01
-                  </span>
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
-                    <Sparkles className="w-5 h-5" />
-                  </div>
+          {/* Acordeón / Tarjetas de los 6 Módulos */}
+          <div className="space-y-4">
+            {syllabusData.map((mod) => {
+              const IconComponent = mod.icon;
+              const isOpen = openModule === mod.id;
+              
+              return (
+                <div 
+                  key={mod.id}
+                  className={`rounded-2xl transition-all duration-300 border overflow-hidden backdrop-blur-xl ${
+                    mod.isBonus 
+                      ? 'bg-gradient-to-r from-amber-950/30 via-slate-900/80 to-amber-950/30 border-amber-500/40 shadow-lg shadow-amber-500/5'
+                      : isOpen
+                        ? 'bg-slate-900/90 border-emerald-500/50 shadow-xl shadow-emerald-500/5'
+                        : 'bg-slate-900/50 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900/70'
+                  }`}
+                >
+                  {/* Header del Módulo (Clickeable) */}
+                  <button
+                    type="button"
+                    onClick={() => toggleModule(mod.id)}
+                    className="w-full p-5 sm:p-6 flex items-center justify-between text-left gap-4 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        mod.isBonus 
+                          ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                          : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      }`}>
+                        <IconComponent className="w-6 h-6" />
+                      </div>
+                      
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span className={`text-xs font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                            mod.isBonus 
+                              ? 'bg-amber-400 text-slate-950'
+                              : 'bg-slate-800 text-emerald-300 border border-emerald-500/30'
+                          }`}>
+                            {mod.badge}
+                          </span>
+                          <span className="text-xs text-slate-400 font-medium">
+                            {mod.tag}
+                          </span>
+                        </div>
+                        <h3 className="text-lg sm:text-xl font-bold text-white font-heading">
+                          {mod.title} <span className="text-slate-400 text-sm font-normal">{mod.subtitle}</span>
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-transform duration-300 ${
+                        isOpen 
+                          ? 'rotate-180 bg-emerald-500/20 border-emerald-500/40 text-emerald-300' 
+                          : 'bg-slate-800 border-slate-700 text-slate-400'
+                      }`}>
+                        <ChevronDown className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Lista de Clases desplegable */}
+                  {isOpen && (
+                    <div className="px-5 pb-6 sm:px-6 pt-2 border-t border-slate-800/80 animate-fade-in">
+                      <div className="grid grid-cols-1 gap-3 pt-3">
+                        {mod.classes.map((cls, idx) => (
+                          <div 
+                            key={idx}
+                            className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-start gap-3 transition-colors ${
+                              mod.isBonus
+                                ? 'bg-amber-950/20 border-amber-500/20 hover:border-amber-500/40'
+                                : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className={`px-2.5 py-1 rounded text-xs font-bold font-mono ${
+                                mod.isBonus 
+                                  ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              }`}>
+                                {cls.num}
+                              </span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <h4 className="text-sm sm:text-base font-bold text-white">
+                                {cls.title}
+                              </h4>
+                              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
+                                {cls.desc}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
+              );
+            })}
+          </div>
 
-                <h3 className="text-xl font-bold text-white mb-3 group-hover:text-emerald-300 transition-colors">
-                  La Creación de tu Marca con IA
-                </h3>
-
-                <p className="text-slate-300 text-sm leading-relaxed mb-6">
-                  Encuentra tu nicho, crea tu logo y define a tu cliente en minutos.
-                </p>
-
-                <ul className="space-y-2.5 text-xs text-slate-300">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span>Identidad visual profesional con generadores IA</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span>Segmentación y arquetipo del cliente ideal</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span>Propuesta única de valor irresistible</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="mt-8 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> 100% Práctico</span>
-                <span className="text-emerald-400 font-semibold">Paso a Paso</span>
-              </div>
+          {/* Callout de Certificación y Acceso Rápido */}
+          <div className="mt-10 p-6 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-slate-900 to-cyan-950/40 border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+            <div>
+              <h4 className="text-base font-bold text-white flex items-center justify-center sm:justify-start gap-2">
+                <CheckCheck className="w-5 h-5 text-emerald-400" />
+                <span>Todo incluido en el pago único de S/ 49.00</span>
+              </h4>
+              <p className="text-xs text-slate-300 mt-1">
+                Accedes a los 6 módulos, las 17 clases, los 3 bonos de regalo y el certificado oficial.
+              </p>
             </div>
-
-            {/* Módulo 2 */}
-            <div className="rounded-2xl p-7 bg-slate-900/60 border border-slate-800 hover:border-cyan-500/50 hover:bg-slate-900/90 transition-all duration-300 backdrop-blur-xl shadow-lg hover:shadow-cyan-500/10 group flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <span className="text-xs font-bold font-mono tracking-widest text-cyan-400 bg-cyan-950/80 border border-cyan-500/30 px-3 py-1 rounded-lg">
-                    MÓDULO 02
-                  </span>
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform">
-                    <Camera className="w-5 h-5" />
-                  </div>
-                </div>
-
-                <h3 className="text-xl font-bold text-white mb-3 group-hover:text-cyan-300 transition-colors">
-                  El Estudio Fotográfico IA
-                </h3>
-
-                <p className="text-slate-300 text-sm leading-relaxed mb-6">
-                  Crea imágenes publicitarias hiper-realistas para tus productos con herramientas gratuitas.
-                </p>
-
-                <ul className="space-y-2.5 text-xs text-slate-300">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                    <span>Fotos de producto con calidad de catálogo comercial</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                    <span>Fondos dinámicos y modelos virtuales sin contratar sesiones</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                    <span>Uso de herramientas 100% gratuitas y accesibles</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="mt-8 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Sin Diseñador</span>
-                <span className="text-cyan-400 font-semibold">Cero Costo Extra</span>
-              </div>
-            </div>
-
-            {/* Módulo 3 */}
-            <div className="rounded-2xl p-7 bg-slate-900/60 border border-slate-800 hover:border-teal-500/50 hover:bg-slate-900/90 transition-all duration-300 backdrop-blur-xl shadow-lg hover:shadow-teal-500/10 group flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <span className="text-xs font-bold font-mono tracking-widest text-teal-400 bg-teal-950/80 border border-teal-500/30 px-3 py-1 rounded-lg">
-                    MÓDULO 03
-                  </span>
-                  <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-400 group-hover:scale-110 transition-transform">
-                    <Share2 className="w-5 h-5" />
-                  </div>
-                </div>
-
-                <h3 className="text-xl font-bold text-white mb-3 group-hover:text-teal-300 transition-colors">
-                  La Máquina de Ventas en Redes
-                </h3>
-
-                <p className="text-slate-300 text-sm leading-relaxed mb-6">
-                  Lanza tus primeros anuncios rentables en Facebook/Instagram y configura tu WhatsApp para no perder clientes.
-                </p>
-
-                <ul className="space-y-2.5 text-xs text-slate-300">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-teal-400 flex-shrink-0" />
-                    <span>Estructura de anuncios que filtran clientes con dinero</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-teal-400 flex-shrink-0" />
-                    <span>Conexión directa a WhatsApp con respuestas automáticas</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-teal-400 flex-shrink-0" />
-                    <span>Monitoreo de métricas para no quemar tu dinero</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="mt-8 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Alta Conversión</span>
-                <span className="text-teal-400 font-semibold">Ventas Reales</span>
-              </div>
-            </div>
-
+            <button
+              onClick={scrollToOffer}
+              className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm tracking-wide shadow-lg shadow-emerald-500/20 flex-shrink-0 flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <span>Empezar Ahora</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
 
         </div>
       </section>
 
       {/* ========================================================
-          5. SECCIÓN DE AUTORIDAD Y CERTIFICACIÓN
+          5. SECCIÓN DE AUTORIDAD Y CERTIFICACIÓN OFICIAL (CON EL LOGO CARGADO)
           ======================================================== */}
       <section id="certificacion" className="relative z-10 py-20 md:py-28 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
@@ -630,20 +799,24 @@ export default function Landing() {
                 </div>
               </div>
 
-              {/* Columna Derecha: Render Mockup del Certificado Físico/Digital */}
+              {/* Columna Derecha: Render Mockup del Certificado con el Logo Oficial */}
               <div className="lg:col-span-5">
-                <div className="relative p-6 sm:p-8 rounded-2xl bg-gradient-to-b from-[#0e172e] to-[#070c18] border-2 border-amber-400/40 shadow-[0_20px_50px_rgba(245,158,11,0.15)] text-center space-y-4">
+                <div className="relative p-6 sm:p-8 rounded-2xl bg-gradient-to-b from-[#0e172e] to-[#070c18] border-2 border-amber-400/50 shadow-[0_20px_50px_rgba(245,158,11,0.18)] text-center space-y-4">
                   
-                  {/* Watermark / Seal */}
-                  <div className="mx-auto w-16 h-16 rounded-full bg-amber-400/10 border-2 border-amber-400/50 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-400/10">
-                    <Award className="w-8 h-8" />
+                  {/* Logo Oficial de Alidea en el Certificado */}
+                  <div className="mx-auto h-20 w-20 rounded-2xl bg-white p-2 shadow-xl border-2 border-amber-400/60 flex items-center justify-center">
+                    <img 
+                      src="/alidea-logo.jpg" 
+                      alt="Alidea Online Courses" 
+                      className="h-full w-full object-contain" 
+                    />
                   </div>
 
                   <div>
-                    <span className="text-[11px] font-bold tracking-[0.25em] text-slate-400 uppercase">
-                      REPÚBLICA DE ALIDEA ACADEMIA
+                    <span className="text-[10px] font-black tracking-[0.25em] text-slate-300 uppercase block">
+                      ALIDEA ONLINE COURSES
                     </span>
-                    <h3 className="text-xl font-black text-white font-heading mt-1">
+                    <h3 className="text-xl font-black text-white font-heading mt-0.5">
                       CERTIFICADO OFICIAL
                     </h3>
                   </div>
@@ -654,7 +827,7 @@ export default function Landing() {
                       [Nombre del Estudiante]
                     </div>
                     <span className="text-[11px] text-slate-300 block">
-                      Por haber aprobado los exámenes prácticos y proyectos del curso.
+                      Por haber aprobado los exámenes prácticos y proyectos del curso:
                     </span>
                   </div>
 
@@ -666,12 +839,12 @@ export default function Landing() {
 
                   <div className="pt-2 flex items-center justify-between text-left border-t border-slate-800 text-[10px] text-slate-400">
                     <div>
-                      <div className="font-mono text-slate-300">ID: ALD-2026-REG</div>
+                      <div className="font-mono text-slate-300">ID: ALD-2026-REG-8492</div>
                       <div className="text-emerald-400 font-semibold">100% Verificado</div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="p-1 rounded bg-white text-slate-950">
-                        <QrCode className="w-6 h-6" />
+                      <div className="p-1 rounded bg-white text-slate-950 border border-slate-300">
+                        <QrCode className="w-7 h-7" />
                       </div>
                     </div>
                   </div>
@@ -713,17 +886,22 @@ export default function Landing() {
             </div>
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800 pb-8 mb-8">
-              <div>
-                <h3 className="text-2xl font-black text-white font-heading">
-                  Curso: Especialista en Negocios Digitales con IA
-                </h3>
-                <p className="text-sm text-slate-400 mt-1">
-                  Acceso de por vida a las clases + Certificación Oficial con QR + Plantillas
-                </p>
+              <div className="flex items-start gap-4">
+                <div className="hidden sm:flex h-14 w-14 rounded-2xl bg-white p-1 border border-slate-300 items-center justify-center flex-shrink-0">
+                  <img src="/alidea-logo.jpg" alt="Alidea" className="h-full w-full object-contain" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-white font-heading">
+                    Curso: Especialista en Negocios Digitales con IA
+                  </h3>
+                  <p className="text-sm text-slate-400 mt-1">
+                    Los 6 Módulos completos + 17 Clases + 3 Regalos + Certificado Oficial con QR
+                  </p>
+                </div>
               </div>
 
               {/* Price display */}
-              <div className="text-left md:text-right">
+              <div className="text-left md:text-right flex-shrink-0">
                 <div className="text-sm font-semibold text-slate-400 line-through">
                   Precio Regular: S/ 250.00
                 </div>
@@ -747,28 +925,28 @@ export default function Landing() {
                 <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
                   <Check className="w-3.5 h-3.5 font-bold" />
                 </div>
-                <span><strong>Acceso de por vida:</strong> Mira las lecciones a tu propio ritmo, 24/7 sin límite de tiempo.</span>
+                <span><strong>Acceso de por vida:</strong> Mira las 17 lecciones a tu propio ritmo, 24/7 sin límite de tiempo.</span>
               </div>
 
               <div className="flex items-center gap-3 text-sm sm:text-base text-slate-200">
                 <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
                   <Check className="w-3.5 h-3.5 font-bold" />
                 </div>
-                <span><strong>Plantillas de Prompts copiables:</strong> Instrucciones exactas para que la IA cree tus textos, imágenes y estrategias.</span>
+                <span><strong>Regalo 1: Documento "Copiar y Pegar":</strong> Textos y órdenes exactas de IA listos para tu producto.</span>
               </div>
 
               <div className="flex items-center gap-3 text-sm sm:text-base text-slate-200">
                 <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
                   <Check className="w-3.5 h-3.5 font-bold" />
                 </div>
-                <span><strong>Guía de Anuncios:</strong> Fórmulas comprobadas para Facebook, Instagram y WhatsApp que sí generan ventas.</span>
+                <span><strong>Regalo 2: Plantillas de Venta:</strong> Respuestas infalibles para clientes que solo preguntan "precio".</span>
               </div>
 
               <div className="flex items-center gap-3 text-sm sm:text-base text-slate-200">
                 <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
                   <Check className="w-3.5 h-3.5 font-bold" />
                 </div>
-                <span><strong>Certificado con tecnología QR:</strong> Acreditación oficial con folio verificable en internet.</span>
+                <span><strong>Regalo 3: Certificado con tecnología QR:</strong> Acreditación oficial emitida por Alidea Online Courses.</span>
               </div>
             </div>
 
@@ -796,21 +974,24 @@ export default function Landing() {
       </section>
 
       {/* ========================================================
-          7. FOOTER
+          7. FOOTER (CON LOGO OFICIAL)
           ======================================================== */}
       <footer className="relative z-10 bg-[#050914] border-t border-slate-900 py-12 px-4 sm:px-6 lg:px-8 text-slate-400 text-xs">
         <div className="max-w-6xl mx-auto flex flex-col items-center justify-center text-center space-y-6">
           
-          {/* Logo */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-500 to-cyan-500 p-0.5">
-              <div className="w-full h-full bg-[#090f20] rounded-[6px] flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-emerald-400" />
-              </div>
+          {/* Logo Oficial en Footer */}
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-white p-1 border border-slate-300 flex items-center justify-center shadow-md">
+              <img src="/alidea-logo.jpg" alt="Alidea Online Courses" className="h-full w-full object-contain" />
             </div>
-            <span className="text-base font-bold text-white font-heading tracking-tight">
-              ALIDEA <span className="text-emerald-400 font-extrabold">ACADEMIA</span>
-            </span>
+            <div className="text-left">
+              <span className="text-base font-bold text-white font-heading tracking-tight block leading-tight">
+                ALIDEA <span className="text-emerald-400 font-extrabold">ACADEMIA</span>
+              </span>
+              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">
+                Online Courses
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-6 text-xs text-slate-400">
@@ -846,18 +1027,18 @@ export default function Landing() {
             {/* Close button */}
             <button 
               onClick={() => setCheckoutModalOpen(false)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-900 border border-slate-800"
+              className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer"
             >
               ✕
             </button>
 
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                <Sparkles className="w-5 h-5" />
+            <div className="flex items-center gap-3.5 mb-4">
+              <div className="h-12 w-12 rounded-xl bg-white p-1 border border-slate-300 flex items-center justify-center flex-shrink-0 shadow">
+                <img src="/alidea-logo.jpg" alt="Alidea Online Courses" className="h-full w-full object-contain" />
               </div>
               <div>
                 <h3 className="text-xl font-bold text-white font-heading">
-                  Inscripción al Curso
+                  Inscripción al Curso Oficial
                 </h3>
                 <span className="text-xs text-emerald-400 font-semibold">Tarifa Promocional: S/ 49.00 (Pago Único)</span>
               </div>

@@ -1000,12 +1000,12 @@ export default function Landing() {
             </Link>
             <span>•</span>
             <a 
-              href="https://wa.me/51961817457?text=Hola,%20deseo%20informaci%C3%B3n%20sobre%20el%20curso%20de%20Alidea%20Academia" 
+              href="https://wa.me/51907318642?text=Hola,%20deseo%20informaci%C3%B3n%20sobre%20el%20curso%20de%20Alidea%20Academia" 
               target="_blank" 
               rel="noopener noreferrer" 
               className="hover:text-emerald-400 transition-colors flex items-center gap-1"
             >
-              <MessageCircle className="w-3.5 h-3.5 text-emerald-400" /> Soporte WhatsApp
+              <MessageCircle className="w-3.5 h-3.5 text-emerald-400" /> Soporte WhatsApp: 907 318 642
             </a>
           </div>
 
@@ -1080,8 +1080,8 @@ export default function Landing() {
                 <span className="text-xs font-semibold text-purple-300 uppercase tracking-wider block">
                   Pago Directo por Yape o Plin
                 </span>
-                <div className="text-2xl font-black text-white font-mono">
-                  961 817 457
+                <div className="text-2xl font-black text-white font-mono tracking-wider">
+                  907 318 642
                 </div>
                 <div className="text-xs text-slate-300 font-medium">
                   Titular: <span className="text-white font-semibold">Alidea Academia / Jonathan A.</span>
@@ -1090,16 +1090,16 @@ export default function Landing() {
                   Monto exacto: <strong className="text-emerald-400 font-mono">S/ 49.00</strong>
                 </div>
                 <p className="text-[11px] text-slate-400 pt-2 border-t border-slate-800">
-                  Envía la captura de tu pago a nuestro WhatsApp oficial para recibir tu acceso al curso al instante.
+                  Envía la captura de tu pago al WhatsApp <strong>907 318 642</strong> para recibir tu acceso al curso al instante.
                 </p>
                 <a
-                  href={`https://wa.me/51961817457?text=${encodeURIComponent('¡Hola Alidea Academia! Acabo de transferir los S/ 49.00 de la promoción para el curso Especialista en Negocios Digitales con IA. Adjunto mi comprobante para que me activen el acceso.')}`}
+                  href={`https://wa.me/51907318642?text=${encodeURIComponent('¡Hola Alidea Academia! Acabo de transferir los S/ 49.00 de la promoción para el curso Especialista en Negocios Digitales con IA al 907 318 642. Adjunto mi comprobante para que me activen el acceso.')}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex w-full items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm transition-all"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  <span>Enviar Comprobante por WhatsApp</span>
+                  <span>Enviar Comprobante a WhatsApp (907 318 642)</span>
                 </a>
               </div>
             ) : (
@@ -1108,16 +1108,16 @@ export default function Landing() {
                   Atención Inmediata por WhatsApp
                 </span>
                 <p className="text-xs text-slate-300">
-                  Un asesor te guiará para realizar tu pago por transferencia bancaria (BCP, BBVA, Interbank) o tarjeta, y te dará de alta en el curso.
+                  Un asesor te atenderá al <strong>907 318 642</strong> para guiarte en tu pago por transferencia bancaria (BCP, BBVA, Interbank) o tarjeta, y te dará de alta en el curso.
                 </p>
                 <a
-                  href={`https://wa.me/51961817457?text=${encodeURIComponent('¡Hola! Deseo inscribirme al curso Especialista en Creación de Negocios Digitales con IA por S/ 49.00. ¿Cuáles son las cuentas disponibles?')}`}
+                  href={`https://wa.me/51907318642?text=${encodeURIComponent('¡Hola! Deseo inscribirme al curso Especialista en Creación de Negocios Digitales con IA por S/ 49.00. ¿Cuáles son las cuentas disponibles?')}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex w-full items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-bold text-sm transition-all"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  <span>Chatear con un Asesor Ahora</span>
+                  <span>Chatear al WhatsApp 907 318 642</span>
                 </a>
               </div>
             )}
@@ -1130,6 +1130,26 @@ export default function Landing() {
           </div>
         </div>
       )}
+
+      {/* ========================================================
+          BOTÓN FLOTANTE PERMANENTE DE WHATSAPP (907 318 642)
+          ======================================================== */}
+      <a
+        href={`https://wa.me/51907318642?text=${encodeURIComponent('¡Hola Alidea Academia! Tengo una consulta sobre el curso Especialista en Creación de Negocios Digitales con IA.')}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white px-4 py-3 rounded-full shadow-[0_10px_25px_rgba(37,211,102,0.4)] hover:shadow-[0_15px_30px_rgba(37,211,102,0.6)] transform hover:-translate-y-1 transition-all duration-200 group active:scale-95 cursor-pointer"
+        aria-label="Contactar al WhatsApp 907 318 642"
+      >
+        <span className="flex h-3 w-3 relative">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+        </span>
+        <MessageCircle className="w-6 h-6 fill-current text-white" />
+        <span className="hidden sm:inline font-bold text-sm text-white tracking-wide">
+          WhatsApp: 907 318 642
+        </span>
+      </a>
 
     </div>
   );
